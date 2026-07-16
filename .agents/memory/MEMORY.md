@@ -1,0 +1,1 @@
+- [Zawadi HR architecture](zawadi-hr-arch.md) — full-stack Kenya payroll SaaS; key design constraints and seed workflow

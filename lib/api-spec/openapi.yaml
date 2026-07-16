@@ -1,22 +1,30 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Zawadi HR & Payroll API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: dashboard
+  - name: employees
+  - name: timesheets
+  - name: payroll
+  - name: leaves
+  - name: loans
+  - name: reports
+  - name: audit
+  - name: portal
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +32,731 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResult"
+        "401":
+          description: Invalid credentials
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user principal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Principal"
+        "401":
+          description: Not authenticated
+
+  /auth/change-password:
+    post:
+      operationId: changePassword
+      tags: [auth]
+      summary: Change password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordInput"
+      responses:
+        "200":
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Executive dashboard metrics
+      responses:
+        "200":
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardData"
+
+  /employees:
+    get:
+      operationId: listEmployees
+      tags: [employees]
+      summary: List employees
+      responses:
+        "200":
+          description: Employee list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EmployeeRow"
+    post:
+      operationId: createEmployee
+      tags: [employees]
+      summary: Create employee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+
+  /employees/{id}:
+    get:
+      operationId: getEmployee
+      tags: [employees]
+      summary: Get employee
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Employee detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeDetail"
+    patch:
+      operationId: updateEmployee
+      tags: [employees]
+      summary: Update employee
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+    delete:
+      operationId: deleteEmployee
+      tags: [employees]
+      summary: Terminate employee
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /employees/{id}/portal-access:
+    post:
+      operationId: grantPortalAccess
+      tags: [employees]
+      summary: Grant portal access
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PortalAccessInput"
+      responses:
+        "201":
+          description: Access granted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalAccessResult"
+
+  /timesheets:
+    get:
+      operationId: listTimesheets
+      tags: [timesheets]
+      summary: List timesheets for a period
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+          description: "YYYY-MM"
+      responses:
+        "200":
+          description: Timesheets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TimesheetRow"
+    post:
+      operationId: upsertTimesheet
+      tags: [timesheets]
+      summary: Upsert timesheet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TimesheetInput"
+      responses:
+        "201":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Timesheet"
+    patch:
+      operationId: approveTimesheet
+      tags: [timesheets]
+      summary: Approve timesheet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TimesheetApprovalInput"
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Timesheet"
+
+  /payroll:
+    get:
+      operationId: listPayrollRuns
+      tags: [payroll]
+      summary: List payroll runs
+      responses:
+        "200":
+          description: Payroll runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PayrollRun"
+    post:
+      operationId: createPayrollRun
+      tags: [payroll]
+      summary: Calculate payroll run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayrollRunInput"
+      responses:
+        "201":
+          description: Run calculated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayrollRunResult"
+
+  /payroll/{id}:
+    get:
+      operationId: getPayrollRun
+      tags: [payroll]
+      summary: Get payroll run with payslips
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Payroll run detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayrollRunDetail"
+    patch:
+      operationId: actionPayrollRun
+      tags: [payroll]
+      summary: Transition payroll run (submit/approve/reject/pay/reverse)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayrollActionInput"
+      responses:
+        "200":
+          description: Updated run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayrollRun"
+    delete:
+      operationId: deletePayrollRun
+      tags: [payroll]
+      summary: Discard draft run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /payroll/{id}/payouts:
+    get:
+      operationId: getPayoutBatches
+      tags: [payroll]
+      summary: Get payout batches for run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Payout batches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PayoutBatch"
+    post:
+      operationId: generatePayouts
+      tags: [payroll]
+      summary: Generate payout file
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayoutGenerateInput"
+      responses:
+        "201":
+          description: Generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayoutBatch"
+
+  /payroll/{id}/filings:
+    get:
+      operationId: getStatutoryFilings
+      tags: [payroll]
+      summary: Get statutory filings for run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Statutory filings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StatutoryFiling"
+    post:
+      operationId: generateFiling
+      tags: [payroll]
+      summary: Generate statutory filing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FilingGenerateInput"
+      responses:
+        "201":
+          description: Generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatutoryFiling"
+
+  /leaves:
+    get:
+      operationId: listLeaves
+      tags: [leaves]
+      summary: List leave requests
+      responses:
+        "200":
+          description: Leave requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaveRow"
+    post:
+      operationId: createLeave
+      tags: [leaves]
+      summary: Submit leave request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeaveInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequest"
+    patch:
+      operationId: decideLeave
+      tags: [leaves]
+      summary: Approve or reject leave request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeaveDecisionInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequest"
+
+  /loans:
+    get:
+      operationId: listLoans
+      tags: [loans]
+      summary: List active loans
+      responses:
+        "200":
+          description: Loans with repayment ledger
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LoanRow"
+    post:
+      operationId: createLoan
+      tags: [loans]
+      summary: Issue a direct loan (HR-initiated)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoanInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Loan"
+
+  /loans/requests:
+    get:
+      operationId: listLoanRequests
+      tags: [loans]
+      summary: List loan requests
+      responses:
+        "200":
+          description: Loan requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LoanRequestRow"
+    post:
+      operationId: createLoanRequest
+      tags: [loans]
+      summary: Submit a loan request (employee)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoanRequestInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoanRequest"
+
+  /loans/requests/{id}:
+    patch:
+      operationId: decideLoanRequest
+      tags: [loans]
+      summary: Approve or reject loan request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoanDecisionInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoanRequest"
+
+  /reports:
+    get:
+      operationId: getReport
+      tags: [reports]
+      summary: Get a payroll report
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+          description: "paye | nssf | shif | housing | bank | p9 | muster | journal"
+        - name: runId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Report data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportData"
+
+  /calculator/net-to-gross:
+    post:
+      operationId: calculateNetToGross
+      tags: [reports]
+      summary: Solve gross salary for a target net pay
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NetToGrossInput"
+      responses:
+        "200":
+          description: Calculated result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetToGrossResult"
+
+  /audit:
+    get:
+      operationId: listAuditLogs
+      tags: [audit]
+      summary: List audit log entries
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Audit log
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLog"
+
+  /portal/me:
+    get:
+      operationId: getPortalProfile
+      tags: [portal]
+      summary: Employee portal – my profile & payslip history
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalProfile"
+
+  /portal/leave:
+    get:
+      operationId: listPortalLeave
+      tags: [portal]
+      summary: Employee portal – my leave requests
+      responses:
+        "200":
+          description: Leave requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaveRequest"
+    post:
+      operationId: createPortalLeave
+      tags: [portal]
+      summary: Employee portal – submit leave request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeaveInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveRequest"
+
+  /portal/loans:
+    get:
+      operationId: listPortalLoans
+      tags: [portal]
+      summary: Employee portal – my loans
+      responses:
+        "200":
+          description: Loans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LoanRow"
+
+  /portal/p9:
+    get:
+      operationId: getPortalP9
+      tags: [portal]
+      summary: Employee portal – P9 annual tax summary
+      parameters:
+        - name: year
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: P9 data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/P9Data"
+
+  /portal/timesheets:
+    get:
+      operationId: listPortalTimesheets
+      tags: [portal]
+      summary: Employee portal – my timesheets
+      responses:
+        "200":
+          description: My timesheets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Timesheet"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +764,1036 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    OkResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required: [ok]
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+        orgSlug:
+          type: ["string", "null"]
+
+    Principal:
+      type: object
+      required: [userId, orgId, email, name, role, orgSlug, countryCode, currencyCode, mustChangePassword]
+      properties:
+        userId:
+          type: integer
+        orgId:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        employeeId:
+          type: ["integer", "null"]
+        mustChangePassword:
+          type: boolean
+        orgSlug:
+          type: string
+        countryCode:
+          type: string
+        currencyCode:
+          type: string
+
+    LoginResult:
+      type: object
+      required: [user, org]
+      properties:
+        user:
+          type: object
+          required: [id, name, email, role, mustChangePassword]
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            email:
+              type: string
+            role:
+              type: string
+            mustChangePassword:
+              type: boolean
+        org:
+          type: object
+          required: [slug, name, countryCode, currencyCode]
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+            countryCode:
+              type: string
+            currencyCode:
+              type: string
+
+    ChangePasswordInput:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+          minLength: 8
+
+    DashboardData:
+      type: object
+      required: [headcount, genderRatio, monthlyGross, avgCostPerEmployee, pendingLeaveCount, pendingLeaves, activeLoanCount, loanBalance, runs, deptCosts, salaryBuckets, auditLogs]
+      properties:
+        currency:
+          type: string
+        headcount:
+          type: integer
+        genderRatio:
+          type: object
+          properties:
+            female:
+              type: integer
+            male:
+              type: integer
+          required: [female, male]
+        monthlyGross:
+          type: integer
+        avgCostPerEmployee:
+          type: integer
+        pendingLeaveCount:
+          type: integer
+        pendingLeaves:
+          type: array
+          items:
+            type: object
+            properties:
+              leave:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  type:
+                    type: string
+                  days:
+                    type: integer
+                required: [id, type, days]
+              employee:
+                type: object
+                properties:
+                  firstName:
+                    type: string
+                  lastName:
+                    type: string
+                required: [firstName, lastName]
+            required: [leave, employee]
+        activeLoanCount:
+          type: integer
+        loanBalance:
+          type: integer
+        latestRun:
+          type: ["object", "null"]
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            status:
+              type: string
+            netTotal:
+              type: integer
+        runs:
+          type: array
+          items:
+            type: object
+            properties:
+              period:
+                type: string
+              gross:
+                type: integer
+              net:
+                type: integer
+              paye:
+                type: integer
+              nssf:
+                type: integer
+              shif:
+                type: integer
+              housingLevy:
+                type: integer
+            required: [period, gross, net, paye, nssf, shif, housingLevy]
+        deptCosts:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              gross:
+                type: integer
+              count:
+                type: integer
+            required: [name, gross, count]
+        salaryBuckets:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              count:
+                type: integer
+            required: [label, count]
+        auditLogs:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              action:
+                type: string
+              detail:
+                type: ["string", "null"]
+              createdAt:
+                type: string
+            required: [id, action, createdAt]
+
+    Employee:
+      type: object
+      required: [id, orgId, empNo, firstName, lastName, email, position, employmentType, status, basicSalary, hireDate]
+      properties:
+        id:
+          type: integer
+        orgId:
+          type: integer
+        empNo:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: ["string", "null"]
+        gender:
+          type: string
+        nationalId:
+          type: ["string", "null"]
+        kraPin:
+          type: ["string", "null"]
+        nssfNo:
+          type: ["string", "null"]
+        shifNo:
+          type: ["string", "null"]
+        payMethod:
+          type: string
+        bankName:
+          type: ["string", "null"]
+        bankAccount:
+          type: ["string", "null"]
+        departmentId:
+          type: ["integer", "null"]
+        position:
+          type: string
+        employmentType:
+          type: string
+        residentStatus:
+          type: string
+        disabilityExemption:
+          type: boolean
+        basicSalary:
+          type: integer
+        houseAllowance:
+          type: integer
+        transportAllowance:
+          type: integer
+        otherAllowance:
+          type: integer
+        nonCashBenefit:
+          type: integer
+        insurancePremium:
+          type: integer
+        pensionEmployee:
+          type: integer
+        pensionEmployer:
+          type: integer
+        mortgageInterest:
+          type: integer
+        helbMonthly:
+          type: integer
+        saccoMonthly:
+          type: integer
+        hireDate:
+          type: string
+        terminationDate:
+          type: ["string", "null"]
+        status:
+          type: string
+        leaveBalance:
+          type: integer
+        createdAt:
+          type: string
+
+    EmployeeRow:
+      type: object
+      required: [employee]
+      properties:
+        employee:
+          $ref: "#/components/schemas/Employee"
+        department:
+          type: ["object", "null"]
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+          required: [id, name]
+
+    EmployeeDetail:
+      type: object
+      required: [employee]
+      properties:
+        employee:
+          $ref: "#/components/schemas/Employee"
+        department:
+          type: ["object", "null"]
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+          required: [id, name]
+        payslips:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        loans:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    EmployeeInput:
+      type: object
+      required: [firstName, lastName, position, employmentType, residentStatus, basicSalary, hireDate]
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        gender:
+          type: string
+        nationalId:
+          type: string
+        kraPin:
+          type: string
+        nssfNo:
+          type: string
+        shifNo:
+          type: string
+        payMethod:
+          type: string
+        bankName:
+          type: string
+        bankCode:
+          type: string
+        bankBranchCode:
+          type: string
+        bankAccount:
+          type: string
+        mpesaPhone:
+          type: string
+        departmentId:
+          type: integer
+        position:
+          type: string
+        employmentType:
+          type: string
+        residentStatus:
+          type: string
+        disabilityExemption:
+          type: boolean
+        basicSalary:
+          type: number
+        houseAllowance:
+          type: number
+        transportAllowance:
+          type: number
+        otherAllowance:
+          type: number
+        nonCashBenefit:
+          type: number
+        insurancePremium:
+          type: number
+        pensionEmployee:
+          type: number
+        pensionEmployer:
+          type: number
+        mortgageInterest:
+          type: number
+        helbMonthly:
+          type: number
+        saccoMonthly:
+          type: number
+        hireDate:
+          type: string
+
+    EmployeeUpdate:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        position:
+          type: string
+        departmentId:
+          type: integer
+        employmentType:
+          type: string
+        residentStatus:
+          type: string
+        disabilityExemption:
+          type: boolean
+        basicSalary:
+          type: number
+        houseAllowance:
+          type: number
+        transportAllowance:
+          type: number
+        otherAllowance:
+          type: number
+        nonCashBenefit:
+          type: number
+        insurancePremium:
+          type: number
+        pensionEmployee:
+          type: number
+        pensionEmployer:
+          type: number
+        mortgageInterest:
+          type: number
+        helbMonthly:
+          type: number
+        saccoMonthly:
+          type: number
+        kraPin:
+          type: string
+        nssfNo:
+          type: string
+        shifNo:
+          type: string
+        bankName:
+          type: string
+        bankAccount:
+          type: string
+        payMethod:
+          type: string
+        status:
+          type: string
+
+    PortalAccessInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+
+    PortalAccessResult:
+      type: object
+      required: [tempPassword]
+      properties:
+        tempPassword:
+          type: string
+
+    Timesheet:
+      type: object
+      required: [id, orgId, employeeId, period, daysWorked, normalHours, overtimeHours, holidayHours]
+      properties:
+        id:
+          type: integer
+        orgId:
+          type: integer
+        employeeId:
+          type: integer
+        period:
+          type: string
+        daysWorked:
+          type: integer
+        normalHours:
+          type: integer
+        overtimeHours:
+          type: integer
+        holidayHours:
+          type: integer
+        approvedBy:
+          type: ["integer", "null"]
+        approvedAt:
+          type: ["string", "null"]
+
+    TimesheetRow:
+      type: object
+      required: [timesheet, employee]
+      properties:
+        timesheet:
+          $ref: "#/components/schemas/Timesheet"
+        employee:
+          $ref: "#/components/schemas/Employee"
+
+    TimesheetInput:
+      type: object
+      required: [employeeId, period, daysWorked, normalHours, overtimeHours, holidayHours]
+      properties:
+        employeeId:
+          type: integer
+        period:
+          type: string
+        daysWorked:
+          type: integer
+        normalHours:
+          type: integer
+        overtimeHours:
+          type: integer
+        holidayHours:
+          type: integer
+
+    TimesheetApprovalInput:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: integer
+
+    PayrollRun:
+      type: object
+      required: [id, orgId, period, name, runType, status, employeeCount, grossTotal, netTotal, payeTotal, createdAt]
+      properties:
+        id:
+          type: integer
+        orgId:
+          type: integer
+        period:
+          type: string
+        name:
+          type: string
+        runType:
+          type: string
+        status:
+          type: string
+        statutoryConfigId:
+          type: integer
+        employeeCount:
+          type: integer
+        grossTotal:
+          type: integer
+        netTotal:
+          type: integer
+        payeTotal:
+          type: integer
+        nssfEmployeeTotal:
+          type: integer
+        nssfEmployerTotal:
+          type: integer
+        shifTotal:
+          type: integer
+        housingLevyEmployeeTotal:
+          type: integer
+        housingLevyEmployerTotal:
+          type: integer
+        employerCostTotal:
+          type: integer
+        createdByUserId:
+          type: ["integer", "null"]
+        submittedByUserId:
+          type: ["integer", "null"]
+        approvedByUserId:
+          type: ["integer", "null"]
+        paidByUserId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+        submittedAt:
+          type: ["string", "null"]
+        approvedAt:
+          type: ["string", "null"]
+        paidAt:
+          type: ["string", "null"]
+        reversedAt:
+          type: ["string", "null"]
+
+    PayrollRunInput:
+      type: object
+      required: [period, runType]
+      properties:
+        period:
+          type: string
+          description: "YYYY-MM"
+        runType:
+          type: string
+          enum: [regular, off_cycle, bonus, final]
+        employeeIds:
+          type: array
+          items:
+            type: integer
+
+    PayrollRunResult:
+      type: object
+      required: [run, warnings, durationMs]
+      properties:
+        run:
+          $ref: "#/components/schemas/PayrollRun"
+        warnings:
+          type: array
+          items:
+            type: object
+            properties:
+              empNo:
+                type: string
+              warnings:
+                type: array
+                items:
+                  type: string
+            required: [empNo, warnings]
+        durationMs:
+          type: integer
+
+    PayrollRunDetail:
+      type: object
+      required: [run, payslips]
+      properties:
+        run:
+          $ref: "#/components/schemas/PayrollRun"
+        payslips:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    PayrollActionInput:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [submit, approve, reject, pay, reverse]
+        note:
+          type: string
+
+    PayoutBatch:
+      type: object
+      required: [id, orgId, runId, channel, format, itemCount, totalAmount, checksum, status, createdAt]
+      properties:
+        id:
+          type: integer
+        orgId:
+          type: integer
+        runId:
+          type: integer
+        channel:
+          type: string
+        format:
+          type: string
+        itemCount:
+          type: integer
+        totalAmount:
+          type: integer
+        checksum:
+          type: string
+        storageKey:
+          type: ["string", "null"]
+        status:
+          type: string
+        createdAt:
+          type: string
+
+    PayoutGenerateInput:
+      type: object
+      required: [channel]
+      properties:
+        channel:
+          type: string
+          enum: [bank_eft, pesalink, mpesa_b2c]
+
+    StatutoryFiling:
+      type: object
+      required: [id, orgId, kind, period, itemCount, totalAmount, status, createdAt]
+      properties:
+        id:
+          type: integer
+        orgId:
+          type: integer
+        runId:
+          type: ["integer", "null"]
+        kind:
+          type: string
+        period:
+          type: string
+        itemCount:
+          type: integer
+        totalAmount:
+          type: integer
+        checksum:
+          type: ["string", "null"]
+        storageKey:
+          type: ["string", "null"]
+        status:
+          type: string
+        filedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    FilingGenerateInput:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          enum: [P10, P10A, NSSF, SHIF, AHL, P9A]
+
+    LeaveRequest:
+      type: object
+      required: [id, orgId, employeeId, type, startDate, endDate, days, status, createdAt]
+      properties:
+        id:
+          type: integer
+        orgId:
+          type: integer
+        employeeId:
+          type: integer
+        type:
+          type: string
+        startDate:
+          type: string
+        endDate:
+          type: string
+        days:
+          type: integer
+        reason:
+          type: ["string", "null"]
+        status:
+          type: string
+        decidedByUserId:
+          type: ["integer", "null"]
+        decidedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    LeaveRow:
+      type: object
+      required: [leave, employee]
+      properties:
+        leave:
+          $ref: "#/components/schemas/LeaveRequest"
+        employee:
+          $ref: "#/components/schemas/Employee"
+
+    LeaveInput:
+      type: object
+      required: [type, startDate, endDate]
+      properties:
+        employeeId:
+          type: integer
+        type:
+          type: string
+          enum: [annual, sick, unpaid, maternity, paternity, compassionate]
+        startDate:
+          type: string
+        endDate:
+          type: string
+        reason:
+          type: string
+
+    LeaveDecisionInput:
+      type: object
+      required: [id, action]
+      properties:
+        id:
+          type: integer
+        action:
+          type: string
+          enum: [approve, reject]
+        note:
+          type: string
+
+    Loan:
+      type: object
+      required: [id, orgId, employeeId, type, principal, balance, monthlyInstallment, interestRateBps, status, startDate, createdAt]
+      properties:
+        id:
+          type: integer
+        orgId:
+          type: integer
+        employeeId:
+          type: integer
+        type:
+          type: string
+        principal:
+          type: integer
+        balance:
+          type: integer
+        monthlyInstallment:
+          type: integer
+        interestRateBps:
+          type: integer
+        status:
+          type: string
+        startDate:
+          type: string
+        createdAt:
+          type: string
+
+    LoanRow:
+      type: object
+      required: [loan, employee, repayments]
+      properties:
+        loan:
+          $ref: "#/components/schemas/Loan"
+        employee:
+          $ref: "#/components/schemas/Employee"
+        repayments:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        fringeBenefit:
+          type: object
+          properties:
+            monthlyBenefit:
+              type: integer
+            monthlyTax:
+              type: integer
+          required: [monthlyBenefit, monthlyTax]
+
+    LoanInput:
+      type: object
+      required: [employeeId, type, principal, months]
+      properties:
+        employeeId:
+          type: integer
+        type:
+          type: string
+          enum: [company, sacco, advance, emergency]
+        principal:
+          type: number
+        interestRateBps:
+          type: integer
+        months:
+          type: integer
+        startDate:
+          type: string
+
+    LoanRequest:
+      type: object
+      required: [id, orgId, employeeId, type, amount, months, status, createdAt]
+      properties:
+        id:
+          type: integer
+        orgId:
+          type: integer
+        employeeId:
+          type: integer
+        type:
+          type: string
+        amount:
+          type: integer
+        months:
+          type: integer
+        reason:
+          type: ["string", "null"]
+        status:
+          type: string
+        reviewNote:
+          type: ["string", "null"]
+        loanId:
+          type: ["integer", "null"]
+        decidedByUserId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+        reviewedAt:
+          type: ["string", "null"]
+
+    LoanRequestRow:
+      type: object
+      required: [request, employee]
+      properties:
+        request:
+          $ref: "#/components/schemas/LoanRequest"
+        employee:
+          $ref: "#/components/schemas/Employee"
+
+    LoanRequestInput:
+      type: object
+      required: [type, amount, months]
+      properties:
+        type:
+          type: string
+          enum: [company, sacco, advance, emergency]
+        amount:
+          type: number
+        months:
+          type: integer
+        reason:
+          type: string
+
+    LoanDecisionInput:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [approve, reject]
+        reviewNote:
+          type: string
+
+    ReportData:
+      type: object
+      required: [title, columns, rows, totals]
+      properties:
+        title:
+          type: string
+        run:
+          type: object
+          additionalProperties: true
+        columns:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            type: array
+            items:
+              type: ["string", "number"]
+        totals:
+          type: array
+          items:
+            type: string
+
+    NetToGrossInput:
+      type: object
+      required: [targetNet]
+      properties:
+        targetNet:
+          type: number
+        houseAllowance:
+          type: number
+        transportAllowance:
+          type: number
+        otherAllowance:
+          type: number
+        insurancePremium:
+          type: number
+        pensionEmployee:
+          type: number
+        helbMonthly:
+          type: number
+        employmentType:
+          type: string
+        residentStatus:
+          type: string
+
+    NetToGrossResult:
+      type: object
+      required: [basicSalary, netPay, grossPay, paye, iterations]
+      properties:
+        basicSalary:
+          type: number
+        netPay:
+          type: number
+        grossPay:
+          type: number
+        paye:
+          type: number
+        nssf:
+          type: number
+        shif:
+          type: number
+        housingLevy:
+          type: number
+        iterations:
+          type: integer
+
+    AuditLog:
+      type: object
+      required: [id, seq, orgId, action, entity, actorEmail, prevHash, hash, createdAt]
+      properties:
+        id:
+          type: integer
+        seq:
+          type: integer
+        orgId:
+          type: integer
+        action:
+          type: string
+        entity:
+          type: string
+        entityId:
+          type: ["string", "null"]
+        detail:
+          type: ["string", "null"]
+        actorUserId:
+          type: ["integer", "null"]
+        actorEmail:
+          type: string
+        actorIp:
+          type: ["string", "null"]
+        prevHash:
+          type: string
+        hash:
+          type: string
+        createdAt:
+          type: string
+
+    PortalProfile:
+      type: object
+      required: [employee]
+      properties:
+        employee:
+          $ref: "#/components/schemas/Employee"
+        payslips:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        leaveBalance:
+          type: integer
+
+    P9Data:
+      type: object
+      required: [year, employee, months, totals]
+      properties:
+        year:
+          type: integer
+        employee:
+          $ref: "#/components/schemas/Employee"
+        months:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        totals:
+          type: object
+          additionalProperties: true
