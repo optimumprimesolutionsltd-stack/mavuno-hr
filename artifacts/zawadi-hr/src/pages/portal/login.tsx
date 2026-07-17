@@ -33,8 +33,8 @@ export function PortalLogin() {
       { data: values },
       {
         onSuccess: (data) => {
-          if (data.user.role === "employee" || data.user.role === "admin" || data.user.role === "hr") {
-            toast({ title: "Welcome", description: `Logged in as ${data.user.name}` });
+          if (data.role === "employee" || data.role === "admin" || data.role === "hr") {
+            toast({ title: "Welcome", description: `Logged in as ${data.name}` });
             setLocation("/portal");
           } else {
             toast({ variant: "destructive", title: "Access denied", description: "You do not have portal access." });

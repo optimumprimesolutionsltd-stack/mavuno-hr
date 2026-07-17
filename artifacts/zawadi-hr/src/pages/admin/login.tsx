@@ -34,8 +34,8 @@ export function AdminLogin() {
       { data: values },
       {
         onSuccess: (data) => {
-          if (data.user.role === "admin" || data.user.role === "hr") {
-            toast({ title: "Welcome back", description: `Logged in as ${data.user.name}` });
+          if (data.role === "admin" || data.role === "hr") {
+            toast({ title: "Welcome back", description: `Logged in as ${data.name}` });
             setLocation("/admin");
           } else {
             toast({ variant: "destructive", title: "Access denied", description: "You do not have admin permissions." });
