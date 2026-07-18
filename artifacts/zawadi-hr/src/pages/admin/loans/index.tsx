@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListLoans, useListLoanRequests, useDecideLoanRequest, useCreateLoan } from "@workspace/api-client-react";
+import { useListLoans, useListLoanRequests, useDecideLoanRequest, getListLoansQueryKey, getListLoanRequestsQueryKey } from "@workspace/api-client-react";
 import { formatMoney, formatDate, formatPercent } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,8 +9,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, X, Coins } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { IssueLoanDialog } from "./issue-dialog";
 
 export function LoansAdmin() {
+  const [issuingLoan, setIssuingLoan] = useState(false);
   const { data: loans, isLoading: isLoadingLoans } = useListLoans();
   const { data: requests, isLoading: isLoadingRequests } = useListLoanRequests();
   const decideRequest = useDecideLoanRequest();
@@ -23,11 +25,12 @@ export function LoansAdmin() {
       {
         onSuccess: () => {
           toast({ title: "Decision recorded", description: `Loan request ${action}d.` });
-          queryClient.invalidateQueries({ queryKey: ["/api/loans/requests"] });
-          if (action === 'approve') queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
+          queryClient.invalidateQueries({ queryKey: getListLoanRequestsQueryKey() });
+          if (action === 'approve') queryClient.invalidateQueries({ queryKey: getListLoansQueryKey() });
         },
-        onError: () => {
-          toast({ variant: "destructive", title: "Error", description: "Failed to record decision." });
+        onError: (err: any) => {
+          const msg = err?.data?.error ?? err?.message ?? "Failed to record decision.";
+          toast({ variant: "destructive", title: "Error", description: msg });
         }
       }
     );
@@ -42,10 +45,11 @@ export function LoansAdmin() {
           <h1 className="text-2xl font-bold tracking-tight font-mono">LOANS & ADVANCES</h1>
           <p className="text-muted-foreground text-sm">Manage employee loans, salary advances, and fringe benefits</p>
         </div>
-        <Button className="font-mono bg-primary text-primary-foreground">
+        <Button className="font-mono bg-primary text-primary-foreground" onClick={() => setIssuingLoan(true)}>
           <Coins className="h-4 w-4 mr-2" />
           ISSUE LOAN DIRECTLY
         </Button>
+        <IssueLoanDialog open={issuingLoan} onOpenChange={setIssuingLoan} />
       </div>
 
       <Tabs defaultValue="active" className="w-full">

@@ -121,19 +121,23 @@ router.get("/:id", requireAuth("employee:read"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
     const id = Number(req.params.id);
-    const [emp] = await db.select().from(employees)
+
+    const [row] = await db
+      .select({ employee: employees, department: departments })
+      .from(employees)
+      .leftJoin(departments, eq(employees.departmentId, departments.id))
       .where(and(eq(employees.id, id), eq(employees.orgId, p.orgId)));
-    if (!emp) { res.status(404).json({ error: "Employee not found" }); return; }
+    if (!row) { res.status(404).json({ error: "Employee not found" }); return; }
 
     // Last 12 payslips
-    const slips = await db.select({ p: payslips, r: payrollRuns })
+    const slips = await db.select({ slip: payslips, run: payrollRuns })
       .from(payslips)
       .innerJoin(payrollRuns, eq(payslips.runId, payrollRuns.id))
       .where(and(eq(payslips.employeeId, id), eq(payslips.orgId, p.orgId)))
       .orderBy(payrollRuns.period)
       .limit(12);
 
-    res.json({ ...emp, payslips: slips });
+    res.json({ employee: row.employee, department: row.department, payslips: slips });
   } catch (err) { next(err); }
 });
 

@@ -171,12 +171,38 @@ export function EmployeeDetail() {
         <TabsContent value="history" className="mt-0">
           <Card className="border-border/50 shadow-sm bg-card/30">
             <CardContent className="p-0">
-              {data.payslips && data.payslips.length > 0 ? (
+              {(data as any).payslips && (data as any).payslips.length > 0 ? (
                 <div className="divide-y divide-border/50">
-                  {/* Map payslips when schema provides structure */}
-                  <div className="p-8 text-center text-muted-foreground font-mono text-sm">
-                    Payslip history will appear here after payroll runs.
-                  </div>
+                  {(data as any).payslips.map((item: any, i: number) => {
+                    const slip = item.slip ?? item;
+                    const run = item.run ?? {};
+                    return (
+                      <div key={slip.id ?? i} className="flex items-center justify-between px-6 py-4 hover:bg-muted/20 transition-colors">
+                        <div>
+                          <div className="font-mono text-sm font-semibold">{run.name ?? run.period ?? '-'}</div>
+                          <div className="text-xs text-muted-foreground font-mono mt-0.5">{run.period} • {run.runType?.replace('_',' ')}</div>
+                        </div>
+                        <div className="flex items-center gap-8 text-right">
+                          <div>
+                            <div className="text-xs text-muted-foreground font-mono">GROSS</div>
+                            <div className="font-mono text-sm">{formatMoney(slip.gross ?? 0)}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-muted-foreground font-mono">PAYE</div>
+                            <div className="font-mono text-sm text-muted-foreground">{formatMoney(slip.paye ?? 0)}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-muted-foreground font-mono">NSSF</div>
+                            <div className="font-mono text-sm text-muted-foreground">{formatMoney(slip.nssfEmployee ?? 0)}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-muted-foreground font-mono">NET PAY</div>
+                            <div className="font-mono text-sm font-bold text-primary">{formatMoney(slip.netPay ?? 0)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="p-12 text-center text-muted-foreground font-mono text-sm">

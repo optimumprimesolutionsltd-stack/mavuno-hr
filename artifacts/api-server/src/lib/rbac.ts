@@ -36,7 +36,9 @@ export function canApproveRun(
   if (!can(role, "payroll:approve")) {
     return { ok: false, reason: "Your role cannot approve payroll runs" };
   }
-  if (run.createdByUserId === userId || run.submittedByUserId === userId) {
+  // Admin (superuser) bypasses segregation — they hold all roles simultaneously.
+  // For non-admin roles, enforce segregation of duties.
+  if (role !== "admin" && (run.createdByUserId === userId || run.submittedByUserId === userId)) {
     return {
       ok: false,
       reason: "Segregation of duties: you calculated or submitted this run and therefore " +

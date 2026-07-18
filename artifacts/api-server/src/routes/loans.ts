@@ -40,12 +40,13 @@ const loanDecisionSchema = z.object({
 router.get("/", requireAuth("loan:review"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
-    const rows = await db.select({ loan: loans, emp: employees })
+    const rows = await db.select({ loan: loans, employee: employees })
       .from(loans)
       .innerJoin(employees, eq(loans.employeeId, employees.id))
       .where(eq(loans.orgId, p.orgId))
       .orderBy(desc(loans.createdAt));
-    res.json(rows);
+    // Add fringeBenefit placeholder (fringe tax computed at payroll time, not stored per loan)
+    res.json(rows.map(r => ({ ...r, fringeBenefit: null })));
   } catch (err) { next(err); }
 });
 
@@ -90,7 +91,7 @@ router.post("/", requireAuth("loan:review"), async (req, res, next) => {
 router.get("/requests", requireAuth("loan:review"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
-    const rows = await db.select({ req: loanRequests, emp: employees })
+    const rows = await db.select({ request: loanRequests, employee: employees })
       .from(loanRequests)
       .innerJoin(employees, eq(loanRequests.employeeId, employees.id))
       .where(eq(loanRequests.orgId, p.orgId))

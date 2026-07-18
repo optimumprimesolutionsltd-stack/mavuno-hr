@@ -18,7 +18,7 @@ router.get("/", requireAuth("audit:read"), async (req, res, next) => {
       .orderBy(desc(auditLogs.seq))
       .limit(limit).offset(offset);
 
-    res.json({ rows, limit, offset });
+    res.json(rows);
   } catch (err) { next(err); }
 });
 

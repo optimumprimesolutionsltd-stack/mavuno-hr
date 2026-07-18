@@ -1,34 +1,44 @@
 import { useState } from "react";
-import { useListTimesheets, useApproveTimesheet } from "@workspace/api-client-react";
+import { useListTimesheets, getListTimesheetsQueryKey } from "@workspace/api-client-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
-import { Check, Clock, Calendar } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Check, Calendar } from "lucide-react";
+
+async function patchApproveTimesheet(id: number) {
+  const token = sessionStorage.getItem("sessionToken");
+  const res = await fetch(`/api/timesheets/${id}/approve`, {
+    method: "PATCH",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.error ?? `HTTP ${res.status}`);
+  }
+  return res.json();
+}
 
 export function TimesheetAdmin() {
   const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
   const { data: timesheets, isLoading } = useListTimesheets({ period });
-  const approveTimesheet = useApproveTimesheet();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const handleApprove = (id: number) => {
-    approveTimesheet.mutate(
-      { data: { id } },
-      {
-        onSuccess: () => {
-          toast({ title: "Timesheet Approved" });
-          queryClient.invalidateQueries({ queryKey: ["/api/timesheets"] });
-        },
-        onError: () => {
-          toast({ variant: "destructive", title: "Error", description: "Failed to approve timesheet." });
-        }
-      }
-    );
-  };
+  // Generated hook POSTs to wrong URL — call PATCH /api/timesheets/:id/approve directly
+  const approveMutation = useMutation({
+    mutationFn: patchApproveTimesheet,
+    onSuccess: () => {
+      toast({ title: "Timesheet Approved" });
+      queryClient.invalidateQueries({ queryKey: getListTimesheetsQueryKey() });
+    },
+    onError: (err: any) => {
+      toast({ variant: "destructive", title: "Error", description: err?.message ?? "Failed to approve." });
+    },
+  });
+
+  const handleApprove = (id: number) => approveMutation.mutate(id);
 
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto">

@@ -24,7 +24,7 @@ router.get("/", requireAuth("employee:read"), async (req, res, next) => {
     const p = (req as AuthRequest).principal;
     const per = req.query.period as string | undefined;
 
-    const rows = await db.select({ ts: timesheets, emp: employees })
+    const rows = await db.select({ timesheet: timesheets, employee: employees })
       .from(timesheets)
       .innerJoin(employees, eq(timesheets.employeeId, employees.id))
       .where(and(
