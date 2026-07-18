@@ -33,10 +33,10 @@ export function Reports() {
     }
   }, [runs]);
 
-  const { data: report, isLoading } = useGetReport({
-    query: { type: reportType, runId: runId },
-    options: { query: { enabled: !!runId && !!reportType } },
-  } as any);
+  const { data: report, isLoading } = useGetReport(
+    { type: reportType, runId: runId },
+    { query: { enabled: !!runId && !!reportType } },
+  );
 
   const tier2Provider = (report as any)?.tier2Provider ?? "nssf";
   const tier2ProviderName = (report as any)?.tier2ProviderName ?? "Private Pension Fund";
