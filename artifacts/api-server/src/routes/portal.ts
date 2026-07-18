@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { employees, leaveRequests, loans, loanRepayments, payslips, payrollRuns } from "@workspace/db/schema";
+import { employees, leaveRequests, loans, loanRequests, loanRepayments, payslips, payrollRuns } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
 
@@ -187,6 +187,49 @@ router.get("/p9", requireAuth("self:read"), async (req, res, next) => {
     }), { basicSalary: 0, benefits: 0, grossPay: 0, pension: 0, chargeablePay: 0, taxOnPay: 0, relief: 0, paye: 0 });
 
     res.json({ year, employee: emp, months, totals: p9Totals });
+  } catch (err) { next(err); }
+});
+
+// ── Loan requests (employee-facing) ─────────────────────────────────────────
+const portalLoanRequestSchema = z.object({
+  type: z.enum(["company", "sacco", "advance", "emergency"]),
+  amount: z.string().regex(/^\d{1,12}(\.\d{1,2})?$/, "Invalid amount"),
+  months: z.number().int().min(1).max(60),
+  reason: z.string().max(500).optional(),
+});
+
+function toCentsPortal(val: string): number {
+  return Math.round(parseFloat(val) * 100);
+}
+
+router.get("/loan-requests", requireAuth("self:read"), async (req, res, next) => {
+  try {
+    const empId = requireEmployee(req);
+    const p = (req as AuthRequest).principal;
+    const requests = await db.select().from(loanRequests)
+      .where(and(eq(loanRequests.employeeId, empId), eq(loanRequests.orgId, p.orgId)))
+      .orderBy(desc(loanRequests.createdAt));
+    res.json(requests);
+  } catch (err) { next(err); }
+});
+
+router.post("/loan-requests", requireAuth("self:request"), async (req, res, next) => {
+  try {
+    const empId = requireEmployee(req);
+    const p = (req as AuthRequest).principal;
+
+    const parsed = portalLoanRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return;
+    }
+
+    const { type, amount, months, reason } = parsed.data;
+    const [request] = await db.insert(loanRequests).values({
+      orgId: p.orgId, employeeId: empId, type,
+      amount: toCentsPortal(amount), months, reason: reason ?? null, status: "pending",
+    }).returning();
+
+    res.status(201).json(request);
   } catch (err) { next(err); }
 });
 
