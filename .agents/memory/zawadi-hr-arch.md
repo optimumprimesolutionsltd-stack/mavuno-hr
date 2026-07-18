@@ -12,6 +12,7 @@ description: Full-stack Kenya payroll SaaS — design constraints, auth pattern,
 - `formatMoney(cents)` in frontend.
 - `toCents()` / `fromCents()` in API — `fromCents()` returns a **string** ("70000.00"), not a number.
 - Reports API returns raw cents integers; frontend calls `formatMoney(cell)` directly (no ×100).
+- Employee edit dialog: `centsToStr(cents)` = `(cents / 100).toFixed(2)` for display; backend sends value back as decimal string (e.g. "70000.00"), backend regex `/^\d{1,12}(\.\d{1,2})?$/` validates it, `toCents()` converts to int.
 
 ## Leave days
 - Stored as tenths: 21 days = 210. Display: `Math.round(val / 10)`.
@@ -25,9 +26,21 @@ description: Full-stack Kenya payroll SaaS — design constraints, auth pattern,
 - `breakdown` JSONB on payslips stores: `bands`, `nssfTier1`, `nssfTier2`, `nssfTier1Employer`, `nssfTier2Employer`, `warnings`.
 - `computeSocialSecurity` returns `tier1`, `tier2`, `employee`, `employer`, `tier1Employer`, `tier2Employer`.
 
+## Critical bug patterns to avoid
+- **`writeAudit` must always receive `(tx, entry)` as first arg** — calling it without a transaction crashes the endpoint silently. Always wrap in `db.transaction(async (tx) => writeAudit(tx as any, { ... }))`.
+- **`ApiError` puts parsed body at `e.data`**, NOT `e.response.data`. Error handlers must use `(e?.data as any)?.error ?? e?.message`.
+
+## RBAC summary
+- `admin`: `["*"]` — all permissions
+- `hr`: employee:read/write, leave management (no payroll)
+- `payroll_officer`: payroll:read/calculate/submit (no employee:write, no approve/disburse)
+- `approver`: payroll:read/approve/disburse (no calculate/submit)
+- `employee`/`manager`: self-service only
+- `canApproveRun`: admin bypasses segregation; others cannot approve their own submissions
+
 ## Feature inventory (as of 2026-07-18)
-**Admin:** Dashboard (MoM variance, net payout, recent hires, anniversaries, dual-bar chart), Employees (CRUD, terminate, bulk), Leave (approve), Loans, Payroll (list with color badges, detail with email+PDF), Timesheets, Reports (11 types), Users/RBAC, Audit logs, Settings.
-**Employee portal:** Profile (payslip history with PDF download), Leave, Loans, P9.
+**Admin:** Dashboard (MoM variance, net payout, recent hires, anniversaries, dual-bar chart), Employees (CRUD, terminate, bulk), Leave (approve), Loans, Payroll (list with color badges, detail with email+PDF+payslip-edit), Timesheets, Reports (11 types), Users/RBAC, Audit logs, Settings.
+**Employee portal:** Profile (payslip history with PDF download + eye view), Leave, Loans, P9.
 **API routes:** /auth, /employees, /payroll (+ PDF + email-payslips), /leaves, /loans, /reports, /timesheets, /audit, /portal (+ payslip PDF), /users, /super, /dashboard, /calculator.
 
 ## PDF payslips
@@ -40,10 +53,12 @@ description: Full-stack Kenya payroll SaaS — design constraints, auth pattern,
 muster, paye, nssf, shif, housing, pension, bank, mpesa, cash, gl, p9.
 All money cells = raw cent integers; frontend calls `formatMoney(cell)`.
 
-## DB seed state (as of session)
-- Employees: Jane (75K), John (1M — should be 70K, fix via edit dialog), Alice (75K), Brian (95K).
-- Payroll runs: July=paid, August=pending_approval, September=draft.
+## DB seed state (as of 2026-07-18, after fixes)
+- Employees: Jane (75K), John (70K — fixed from 1M), Alice (75K), Brian (95K).
+- Payroll runs: July=paid (Jane only — historical). August and September were deleted; user must recreate fresh runs including all 4 employees.
 - Super-admin: `optimumprimesolutionsltd@gmail.com`.
 
-## Outstanding TODOs
-- John's salary: change from KES 1,000,000 → KES 70,000 via EDIT SALARY button on his employee detail page, then RECALCULATE the September draft run.
+## Payroll action workflow
+- Draft → submit → pending_approval → approve → approved → pay → paid
+- Only `admin` and `approver` roles can approve. Segregation of duties: non-admin cannot approve their own submission.
+- Actions call `PATCH /api/payroll/:id` with body `{ action: "submit"|"approve"|"reject"|"pay"|"reverse" }`.

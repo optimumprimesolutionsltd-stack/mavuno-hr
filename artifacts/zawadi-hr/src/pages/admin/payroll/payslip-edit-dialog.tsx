@@ -112,8 +112,11 @@ export function PayslipEditDialog({ runId, slip, employee, open, onOpenChange }:
       onOpenChange(false);
     },
     onError: (e: any) => {
-      const msg = e?.response?.data?.error ?? e?.message ?? "Update failed";
-      toast({ variant: "destructive", title: "Update failed", description: msg });
+      // ApiError puts the parsed response body at e.data (not e.response.data)
+      const body = e?.data as any;
+      const msg = body?.error ?? e?.message ?? "Update failed";
+      const detail = body?.issues?.formErrors?.join(", ") ?? undefined;
+      toast({ variant: "destructive", title: msg, description: detail });
     },
   });
 

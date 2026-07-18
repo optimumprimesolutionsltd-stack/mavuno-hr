@@ -504,8 +504,13 @@ router.post("/:id/email-payslips", requireAuth("payroll:read"), async (req, res,
       }
     }
 
-    await writeAudit({ orgId: p.orgId, userId: p.userId, action: "payroll:email_payslips",
-      detail: `Emailed ${sent} payslips for run ${run.name}` });
+    await db.transaction(async (tx) => {
+      await writeAudit(tx as any, {
+        orgId: p.orgId, action: "PAYROLL_EMAIL_PAYSLIPS", entity: "payroll_runs", entityId: id,
+        detail: `Emailed ${sent}/${rows.length} payslips for run ${run.name}`,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+      });
+    });
 
     res.json({ sent, total: rows.length, errors });
   } catch (err) { next(err); }
