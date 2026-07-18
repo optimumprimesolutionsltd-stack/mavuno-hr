@@ -32,8 +32,9 @@ export function PayrollList() {
           queryClient.invalidateQueries({ queryKey: ["/api/payroll/runs"] }); // Fallback invalidate
           setOpen(false);
         },
-        onError: () => {
-          toast({ variant: "destructive", title: "Error", description: "Failed to create payroll run." });
+        onError: (err: any) => {
+          const msg = err?.data?.error || err?.message || "Failed to create payroll run.";
+          toast({ variant: "destructive", title: "Error", description: msg });
         }
       }
     );
