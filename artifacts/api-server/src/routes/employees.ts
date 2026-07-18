@@ -225,6 +225,65 @@ router.delete("/:id", requireAuth("employee:write"), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Bulk import ────────────────────────────────────────────────────────────
+router.post("/bulk", requireAuth("employee:write"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const body = req.body as { rows?: unknown[] };
+    if (!Array.isArray(body.rows) || body.rows.length === 0) {
+      res.status(422).json({ error: "rows must be a non-empty array" }); return;
+    }
+    if (body.rows.length > 500) {
+      res.status(422).json({ error: "Maximum 500 rows per import" }); return;
+    }
+
+    const errors: { row: number; message: string }[] = [];
+    const validRows: z.infer<typeof employeeBaseSchema>[] = [];
+
+    for (let i = 0; i < body.rows.length; i++) {
+      const parsed = employeeBaseSchema.safeParse(body.rows[i]);
+      if (!parsed.success) {
+        const flat = parsed.error.flatten();
+        const msgs = Object.entries(flat.fieldErrors)
+          .map(([f, e]) => `${f}: ${(e as string[]).join(", ")}`)
+          .join("; ");
+        errors.push({ row: i + 1, message: msgs || "Invalid data" });
+      } else {
+        validRows.push(parsed.data);
+      }
+    }
+
+    if (validRows.length === 0) {
+      res.status(422).json({ imported: 0, skipped: errors.length, errors }); return;
+    }
+
+    // Insert valid rows inside a transaction, generating empNo for each
+    const inserted: string[] = [];
+    await db.transaction(async (tx) => {
+      for (const row of validRows) {
+        const [countRow] = await tx.select({ count: sql<number>`count(*)` })
+          .from(employees).where(eq(employees.orgId, p.orgId));
+        const n = Number(countRow?.count ?? 0) + 1;
+        const empNo = `EMP${String(n).padStart(4, "0")}`;
+        const [emp] = await tx.insert(employees).values({
+          orgId: p.orgId, empNo, ...toRow(row),
+        }).returning({ empNo: employees.empNo });
+        inserted.push(emp.empNo);
+      }
+    });
+
+    await db.transaction(async (tx) => {
+      await writeAudit(tx as any, {
+        orgId: p.orgId, action: "EMPLOYEES_BULK_IMPORTED", entity: "employees", entityId: null,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        after: { count: inserted.length, empNos: inserted },
+      });
+    });
+
+    res.status(201).json({ imported: inserted.length, skipped: errors.length, errors });
+  } catch (err) { next(err); }
+});
+
 router.post("/:id/portal-access", requireAuth("employee:write"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;

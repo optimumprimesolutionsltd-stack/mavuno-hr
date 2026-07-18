@@ -6,14 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, MoreHorizontal } from "lucide-react";
+import { Search, UserPlus, MoreHorizontal, FileSpreadsheet } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { OnboardDialog } from "./onboard-dialog";
+import { ImportDialog } from "./import-dialog";
 
 export function EmployeeList() {
   const { data: employees, isLoading } = useListEmployees();
   const [search, setSearch] = useState("");
   const [onboarding, setOnboarding] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const filtered = employees?.filter(r => 
     r.employee.firstName.toLowerCase().includes(search.toLowerCase()) ||
@@ -25,15 +27,22 @@ export function EmployeeList() {
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto">
       <OnboardDialog open={onboarding} onOpenChange={setOnboarding} />
+      <ImportDialog open={importing} onOpenChange={setImporting} />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight font-mono">EMPLOYEES</h1>
           <p className="text-muted-foreground text-sm">Manage staff roster and payroll details</p>
         </div>
-        <Button className="font-mono" onClick={() => setOnboarding(true)}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          ONBOARD EMPLOYEE
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="font-mono" onClick={() => setImporting(true)}>
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            IMPORT
+          </Button>
+          <Button className="font-mono" onClick={() => setOnboarding(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            ONBOARD EMPLOYEE
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-4 bg-card/50 p-4 rounded-lg border border-border/50">
