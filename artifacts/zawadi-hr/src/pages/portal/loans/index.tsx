@@ -120,12 +120,14 @@ export function PortalLoans() {
                       ))}
                     </div>
 
-                    {/* Total repayable summary */}
-                    {row.loan.monthlyInstallment > 0 && row.loan.remainingMonths > 0 && (
+                    {/* Total repayable summary — compute remainingMonths from balance */}
+                    {row.loan.monthlyInstallment > 0 && row.loan.balance > 0 && (
                       <div className="flex items-center justify-between rounded-lg border border-border/30 bg-muted/10 px-4 py-2.5 mb-4 font-mono text-xs">
-                        <span className="text-muted-foreground">TOTAL REMAINING REPAYABLE</span>
+                        <span className="text-muted-foreground">
+                          TOTAL REMAINING ({Math.ceil(row.loan.balance / row.loan.monthlyInstallment)} months)
+                        </span>
                         <span className="font-bold">
-                          {formatMoney(row.loan.monthlyInstallment * row.loan.remainingMonths)}
+                          {formatMoney(row.loan.balance)}
                         </span>
                       </div>
                     )}

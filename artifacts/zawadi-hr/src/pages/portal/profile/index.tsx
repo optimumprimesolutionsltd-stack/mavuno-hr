@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { useGetPortalProfile } from "@workspace/api-client-react";
 import { formatMoney, formatDate } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { User, Mail, Briefcase, Landmark, Download, FileText } from "lucide-react";
+import { User, Briefcase, FileText, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PayslipDialog } from "./payslip-dialog";
 
 export function PortalProfile() {
   const { data: profile, isLoading } = useGetPortalProfile();
+  const [selectedSlip, setSelectedSlip] = useState<any | null>(null);
 
   if (isLoading || !profile) {
     return <div className="animate-pulse space-y-4 max-w-4xl mx-auto"><div className="h-8 w-64 bg-muted rounded"></div><Card className="h-64"></Card></div>;
@@ -82,22 +85,41 @@ export function PortalProfile() {
                 <TableHead className="font-mono text-xs text-right">GROSS PAY</TableHead>
                 <TableHead className="font-mono text-xs text-right">DEDUCTIONS</TableHead>
                 <TableHead className="font-mono text-xs text-right text-primary">NET PAY</TableHead>
-                <TableHead className="w-[100px]"></TableHead>
+                <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {payslips && payslips.length > 0 ? (
-                payslips.map((slip: any, i) => {
-                  const deductions = (slip.paye || 0) + (slip.nssfEmployee || 0) + (slip.shif || 0) + (slip.housingLevyEmployee || 0);
+                payslips.map((slip: any, i: number) => {
+                  // Include ALL deductions so the total reconciles with netPay
+                  const totalDeductions =
+                    (slip.paye || 0) +
+                    (slip.nssfEmployee || 0) +
+                    (slip.shif || 0) +
+                    (slip.housingLevyEmployee || 0) +
+                    (slip.helb || 0) +
+                    (slip.sacco || 0) +
+                    (slip.loanDeduction || 0) +
+                    (slip.pension || 0) +
+                    (slip.adjustmentDeductions || 0);
                   return (
-                    <TableRow key={i} className="hover:bg-muted/20">
+                    <TableRow
+                      key={i}
+                      className="hover:bg-muted/20 cursor-pointer"
+                      onClick={() => setSelectedSlip(slip)}
+                    >
                       <TableCell className="font-mono text-sm">{slip.period || 'Unknown'}</TableCell>
-                      <TableCell className="text-right font-mono text-sm">{formatMoney(slip.grossPay || 0)}</TableCell>
-                      <TableCell className="text-right font-mono text-sm text-destructive">{formatMoney(deductions)}</TableCell>
+                      <TableCell className="text-right font-mono text-sm">{formatMoney(slip.grossPay || slip.gross || 0)}</TableCell>
+                      <TableCell className="text-right font-mono text-sm text-destructive">{formatMoney(totalDeductions)}</TableCell>
                       <TableCell className="text-right font-mono text-sm text-primary font-bold">{formatMoney(slip.netPay || 0)}</TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <Download className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={(e) => { e.stopPropagation(); setSelectedSlip(slip); }}
+                        >
+                          <Eye className="h-4 w-4 text-muted-foreground hover:text-primary" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -114,6 +136,13 @@ export function PortalProfile() {
           </Table>
         </CardContent>
       </Card>
+
+      <PayslipDialog
+        slip={selectedSlip}
+        open={!!selectedSlip}
+        onOpenChange={(v) => { if (!v) setSelectedSlip(null); }}
+        employeeName={`${employee.firstName} ${employee.lastName}`}
+      />
     </div>
   );
 }
