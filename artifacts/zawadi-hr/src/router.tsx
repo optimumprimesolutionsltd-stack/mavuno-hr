@@ -10,6 +10,7 @@ import { TimesheetAdmin } from "@/pages/admin/timesheets";
 import { LoansAdmin } from "@/pages/admin/loans";
 import { Reports } from "@/pages/admin/reports";
 import { AuditLog } from "@/pages/admin/audit";
+import { UsersAdmin } from "@/pages/admin/users";
 
 import { PortalLogin } from "@/pages/portal/login";
 import { PortalProfile } from "@/pages/portal/profile";
@@ -63,6 +64,7 @@ export function Router() {
               <Route path="/admin/loans" component={LoansAdmin} />
               <Route path="/admin/reports" component={Reports} />
               <Route path="/admin/audit" component={AuditLog} />
+              <Route path="/admin/users" component={UsersAdmin} />
               <Route><Redirect to="/admin" /></Route>
             </Switch>
           </AdminLayout>

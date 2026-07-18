@@ -14,7 +14,8 @@ import {
   ShieldAlert, 
   LogOut,
   LayoutDashboard,
-  Loader2
+  Loader2,
+  KeyRound
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { href: "/admin/loans", label: "Loans", icon: Coins },
   { href: "/admin/reports", label: "Reports", icon: FileText },
   { href: "/admin/audit", label: "Audit Log", icon: ShieldAlert },
+  { href: "/admin/users", label: "Access & Logins", icon: KeyRound },
 ];
 
 export function AdminGuard({ children }: { children: ReactNode }) {
