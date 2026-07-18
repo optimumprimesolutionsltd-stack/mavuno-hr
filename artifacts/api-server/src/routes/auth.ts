@@ -111,6 +111,7 @@ const registerSchema = z.object({
   slug:         z.string().min(2).max(64).regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers, and hyphens only"),
   countryCode:  z.string().length(2).default("KE"),
   currencyCode: z.string().min(3).max(4).default("KES"),
+  kraPin:       z.string().max(20).optional(),
   adminName:    z.string().min(2).max(120),
   adminEmail:   z.string().email().max(255),
   password:     z.string().min(12).max(200),
@@ -123,7 +124,7 @@ router.post("/register", async (req, res, next) => {
       res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() });
       return;
     }
-    const { companyName, slug, countryCode, currencyCode, adminName, adminEmail, password } = parsed.data;
+    const { companyName, slug, countryCode, currencyCode, kraPin, adminName, adminEmail, password } = parsed.data;
 
     // Slug uniqueness
     const [existing] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.slug, slug));
@@ -145,6 +146,7 @@ router.post("/register", async (req, res, next) => {
         plan: "trial",
         seatLimit: 25,
         status: "active",
+        ...(kraPin ? { kraPin: kraPin.toUpperCase() } : {}),
       }).returning({ id: organizations.id });
 
       const [user] = await tx.insert(users).values({

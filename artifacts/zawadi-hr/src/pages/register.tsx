@@ -31,6 +31,7 @@ const step1Schema = z.object({
                   .regex(/^[a-z0-9-]+$/, "Only lowercase letters, numbers, and hyphens"),
   countryCode:  z.string().min(2),
   currencyCode: z.string().min(3),
+  kraPin:       z.string().max(20).optional(),
 });
 
 const step2Schema = z.object({
@@ -70,7 +71,7 @@ export function Register() {
   // Step 1 form
   const form1 = useForm<Step1>({
     resolver: zodResolver(step1Schema),
-    defaultValues: { companyName: "", slug: "", countryCode: "KE", currencyCode: "KES" },
+    defaultValues: { companyName: "", slug: "", countryCode: "KE", currencyCode: "KES", kraPin: "" },
   });
 
   // Step 2 form
@@ -111,6 +112,7 @@ export function Register() {
           slug:         step1Data.slug,
           countryCode:  step1Data.countryCode,
           currencyCode: step1Data.currencyCode,
+          kraPin:       step1Data.kraPin || undefined,
           adminName:    values.adminName,
           adminEmail:   values.adminEmail,
           password:     values.password,
@@ -240,6 +242,26 @@ export function Register() {
                       <FormLabel>Currency</FormLabel>
                       <FormControl>
                         <Input {...field} className="bg-background/50 font-mono uppercase" maxLength={4} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  {/* KRA PIN */}
+                  <FormField control={form1.control} name="kraPin" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Company KRA PIN
+                        <span className="ml-1.5 text-xs text-muted-foreground font-normal">(optional)</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="P000000000X"
+                          className="bg-background/50 font-mono uppercase"
+                          maxLength={20}
+                          onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
