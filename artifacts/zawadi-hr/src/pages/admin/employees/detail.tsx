@@ -181,7 +181,7 @@ export function EmployeeDetail() {
                   </div>
                   <div>
                     <span className="text-muted-foreground block text-xs mb-0.5">Leave Bal.</span>
-                    {employee.leaveBalance} days
+                    {Math.round((employee.leaveBalance ?? 210) / 10)} days
                   </div>
                 </div>
               </CardContent>

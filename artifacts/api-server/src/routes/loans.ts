@@ -195,6 +195,7 @@ router.patch("/requests/:id/edit", requireAuth("loan:review"), async (req, res, 
       (updates as any).interestRateBps = parsed.data.interestRateBps;
     }
 
+
     const [updated] = await db.update(loanRequests).set(updates).where(eq(loanRequests.id, id)).returning();
 
     await db.transaction(async (tx) => {

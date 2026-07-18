@@ -41,6 +41,10 @@ export function PortalLeave() {
   const [reason, setReason] = useState("");
 
   const handleSubmit = () => {
+    if (endDate && startDate && endDate < startDate) {
+      toast({ variant: "destructive", title: "Invalid dates", description: "End date must be on or after the start date." });
+      return;
+    }
     createLeave.mutate(
       { data: { type, startDate, endDate, reason } },
       {

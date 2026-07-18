@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { useListPayrollRuns, useCreatePayrollRun } from "@workspace/api-client-react";
+import { useListPayrollRuns, useCreatePayrollRun, getListPayrollRunsQueryKey } from "@workspace/api-client-react";
 import { formatMoney, formatPeriod, formatDateTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,7 +29,7 @@ export function PayrollList() {
       {
         onSuccess: () => {
           toast({ title: "Run Created", description: `Payroll run for ${period} created.` });
-          queryClient.invalidateQueries({ queryKey: ["/api/payroll/runs"] }); // Fallback invalidate
+          queryClient.invalidateQueries({ queryKey: getListPayrollRunsQueryKey() });
           setOpen(false);
         },
         onError: (err: any) => {

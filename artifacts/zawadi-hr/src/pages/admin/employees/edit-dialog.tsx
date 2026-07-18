@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { customFetch, getListEmployeesQueryKey } from "@workspace/api-client-react";
+import { customFetch, getListEmployeesQueryKey, getGetEmployeeQueryKey } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -161,7 +161,10 @@ export function EditEmployeeDialog({ employee, open, onOpenChange }: Props) {
     onSuccess: () => {
       toast({ title: "Saved", description: "Employee details updated." });
       qc.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
-      qc.invalidateQueries({ queryKey: ["getEmployee"] });
+      // Refresh the employee detail page if it's open for this employee
+      if (employee) {
+        qc.invalidateQueries({ queryKey: getGetEmployeeQueryKey(employee.id) });
+      }
       onOpenChange(false);
     },
     onError: (e: any) => {
