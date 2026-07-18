@@ -10,14 +10,16 @@ import { Search, UserPlus, MoreHorizontal, FileSpreadsheet } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { OnboardDialog } from "./onboard-dialog";
 import { ImportDialog } from "./import-dialog";
+import { EditEmployeeDialog } from "./edit-dialog";
 
 export function EmployeeList() {
   const { data: employees, isLoading } = useListEmployees();
   const [search, setSearch] = useState("");
   const [onboarding, setOnboarding] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [editEmployee, setEditEmployee] = useState<any | null>(null);
 
-  const filtered = employees?.filter(r => 
+  const filtered = employees?.filter(r =>
     r.employee.firstName.toLowerCase().includes(search.toLowerCase()) ||
     r.employee.lastName.toLowerCase().includes(search.toLowerCase()) ||
     r.employee.empNo.toLowerCase().includes(search.toLowerCase()) ||
@@ -28,6 +30,12 @@ export function EmployeeList() {
     <div className="space-y-6 max-w-[1200px] mx-auto">
       <OnboardDialog open={onboarding} onOpenChange={setOnboarding} />
       <ImportDialog open={importing} onOpenChange={setImporting} />
+      <EditEmployeeDialog
+        employee={editEmployee}
+        open={!!editEmployee}
+        onOpenChange={(v) => { if (!v) setEditEmployee(null); }}
+      />
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight font-mono">EMPLOYEES</h1>
@@ -48,9 +56,9 @@ export function EmployeeList() {
       <div className="flex items-center gap-4 bg-card/50 p-4 rounded-lg border border-border/50">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search by name, ID, email..." 
-            className="pl-9 bg-background/50" 
+          <Input
+            placeholder="Search by name, ID, email..."
+            className="pl-9 bg-background/50"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -95,16 +103,16 @@ export function EmployeeList() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs border border-primary/20">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs border border-primary/20 shrink-0">
                         {row.employee.firstName.charAt(0)}{row.employee.lastName.charAt(0)}
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <div className="font-medium">
                           <Link href={`/admin/employees/${row.employee.id}`} className="hover:text-primary transition-colors">
                             {row.employee.firstName} {row.employee.lastName}
                           </Link>
                         </div>
-                        <div className="text-xs text-muted-foreground">{row.employee.email}</div>
+                        <div className="text-xs text-muted-foreground truncate">{row.employee.email}</div>
                       </div>
                     </div>
                   </TableCell>
@@ -131,7 +139,9 @@ export function EmployeeList() {
                         <DropdownMenuItem asChild>
                           <Link href={`/admin/employees/${row.employee.id}`}>View Profile</Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem>Edit Details</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setEditEmployee(row.employee)}>
+                          Edit Details
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

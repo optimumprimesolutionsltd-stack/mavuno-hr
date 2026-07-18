@@ -47,10 +47,17 @@ async function createPasswordResetTokensTable(): Promise<void> {
   `);
 }
 
+async function addEmployeeTerminationReason(): Promise<void> {
+  await db.execute(sql`
+    ALTER TABLE employees ADD COLUMN IF NOT EXISTS termination_reason TEXT;
+  `);
+}
+
 export async function runStartupMigrations(): Promise<void> {
   try {
     await migrateAdminCredentials();
     await createPasswordResetTokensTable();
+    await addEmployeeTerminationReason();
   } catch (err) {
     logger.error({ err }, "startup-migration: failed (non-fatal)");
   }

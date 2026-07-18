@@ -225,6 +225,48 @@ router.delete("/:id", requireAuth("employee:write"), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── POST /:id/terminate — richer termination with reason ───────────────────
+const terminateSchema = z.object({
+  terminationDate: isoDate,
+  terminationReason: z.string().max(500).optional(),
+});
+
+router.post("/:id/terminate", requireAuth("employee:write"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+    const [existing] = await db.select().from(employees)
+      .where(and(eq(employees.id, id), eq(employees.orgId, p.orgId)));
+    if (!existing) { res.status(404).json({ error: "Employee not found" }); return; }
+    if (existing.status === "terminated") {
+      res.status(409).json({ error: "Employee is already terminated" }); return;
+    }
+
+    const parsed = terminateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return;
+    }
+
+    const { terminationDate, terminationReason } = parsed.data;
+
+    const [updated] = await db.update(employees)
+      .set({ status: "terminated", terminationDate, terminationReason: terminationReason ?? null } as any)
+      .where(eq(employees.id, id))
+      .returning();
+
+    await db.transaction(async (tx) => {
+      await writeAudit(tx as any, {
+        orgId: p.orgId, action: "EMPLOYEE_TERMINATED", entity: "employees", entityId: id,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        before: { status: existing.status },
+        after: { status: "terminated", terminationDate, terminationReason },
+      });
+    });
+
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
 // ── Bulk import ────────────────────────────────────────────────────────────
 router.post("/bulk", requireAuth("employee:write"), async (req, res, next) => {
   try {
