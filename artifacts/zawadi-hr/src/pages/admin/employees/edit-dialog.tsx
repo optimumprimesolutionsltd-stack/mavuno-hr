@@ -117,7 +117,6 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
   const update = useMutation({
     mutationFn: () => {
       if (!employee) throw new Error("No employee");
-      // Build payload — only include fields that have values; use undefined for optional empties
       const payload: Record<string, unknown> = {
         firstName: form.firstName,
         lastName: form.lastName,
@@ -142,7 +141,6 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
         workDaysPerWeek: form.workDaysPerWeek,
         worksOnHolidays: form.worksOnHolidays === "yes",
       };
-      // Optional fields: only send if non-empty
       if (form.phone) payload.phone = form.phone;
       if (form.nationalId) payload.nationalId = form.nationalId;
       if (form.kraPin) payload.kraPin = form.kraPin;
@@ -162,22 +160,16 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
     onSuccess: () => {
       toast({ title: "Saved", description: "Employee details updated." });
       qc.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
-      // Refresh the employee detail page if it's open for this employee
       if (employee) {
         qc.invalidateQueries({ queryKey: getGetEmployeeQueryKey(employee.id) });
       }
       onOpenChange(false);
     },
     onError: (e: any) => {
-      // ApiError stores the parsed response body at e.data (not e.response.data)
       const msg = (e?.data as any)?.error ?? e?.message ?? "Update failed";
       toast({ variant: "destructive", title: "Update failed", description: msg });
     },
   });
-
-  function set(key: string, val: string) {
-    setForm((f) => ({ ...f, [key]: val }));
-  }
 
   function handleSave() {
     if (!employee) return;
@@ -193,23 +185,35 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
 
   if (!employee) return null;
 
-  const F = ({ label, k, type = "text", placeholder = "" }: { label: string; k: string; type?: string; placeholder?: string }) => (
+  // ── Render helpers called as plain functions (NOT as React components) ──────
+  // IMPORTANT: defining these as `const F = () => <jsx>` inside a component body
+  // causes React to treat each render's F as a NEW component type, unmounting and
+  // remounting all inputs on every keystroke (loses focus mid-type). Instead we
+  // call them as plain functions: {textField(...)} / {selectField(...)}
+  const textField = (label: string, key: keyof typeof form, type = "text", placeholder = "") => (
     <div className="space-y-1.5">
       <Label className="text-xs font-mono text-muted-foreground">{label}</Label>
       <Input
         type={type}
-        value={(form as any)[k]}
-        onChange={(e) => set(k, e.target.value)}
+        value={form[key]}
+        onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
         placeholder={placeholder}
         className="bg-background/50"
       />
     </div>
   );
 
-  const S = ({ label, k, options }: { label: string; k: string; options: { value: string; label: string }[] }) => (
+  const selectField = (
+    label: string,
+    key: keyof typeof form,
+    options: { value: string; label: string }[],
+  ) => (
     <div className="space-y-1.5">
       <Label className="text-xs font-mono text-muted-foreground">{label}</Label>
-      <Select value={(form as any)[k]} onValueChange={(v) => set(k, v)}>
+      <Select
+        value={form[key] as string}
+        onValueChange={(v) => setForm((f) => ({ ...f, [key]: v }))}
+      >
         <SelectTrigger className="bg-background/50"><SelectValue /></SelectTrigger>
         <SelectContent>
           {options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
@@ -244,99 +248,103 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
           </TabsList>
 
           <div className="flex-1 overflow-y-auto py-4 px-1">
+
+            {/* ── Personal ── */}
             <TabsContent value="personal" className="mt-0 space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <F label="FIRST NAME" k="firstName" />
-                <F label="LAST NAME" k="lastName" />
+                {textField("FIRST NAME", "firstName")}
+                {textField("LAST NAME", "lastName")}
               </div>
-              <F label="EMAIL" k="email" type="email" />
+              {textField("EMAIL", "email", "email")}
               <div className="grid grid-cols-2 gap-4">
-                <F label="PHONE" k="phone" placeholder="+254 7xx xxx xxx" />
-                <F label="NATIONAL ID" k="nationalId" />
+                {textField("PHONE", "phone", "text", "+254 7xx xxx xxx")}
+                {textField("NATIONAL ID", "nationalId")}
               </div>
-              <S label="GENDER" k="gender" options={[
+              {selectField("GENDER", "gender", [
                 { value: "male", label: "Male" },
                 { value: "female", label: "Female" },
                 { value: "other", label: "Other" },
-              ]} />
+              ])}
             </TabsContent>
 
+            {/* ── Employment ── */}
             <TabsContent value="employment" className="mt-0 space-y-4">
-              <F label="POSITION / JOB TITLE" k="position" />
+              {textField("POSITION / JOB TITLE", "position")}
               <div className="grid grid-cols-2 gap-4">
-                <F label="HIRE DATE" k="hireDate" type="date" />
-                <S label="EMPLOYMENT TYPE" k="employmentType" options={[
+                {textField("HIRE DATE", "hireDate", "date")}
+                {selectField("EMPLOYMENT TYPE", "employmentType", [
                   { value: "permanent", label: "Permanent" },
                   { value: "contract", label: "Contract" },
                   { value: "casual", label: "Casual" },
-                ]} />
+                ])}
               </div>
               <div className="pt-2 border-t border-border/50">
                 <p className="text-xs font-mono text-muted-foreground mb-3">WORK SCHEDULE</p>
                 <div className="grid grid-cols-2 gap-4">
-                  <S label="WORKING DAYS PER WEEK" k="workDaysPerWeek" options={[
+                  {selectField("WORKING DAYS PER WEEK", "workDaysPerWeek", [
                     { value: "5", label: "5 days (Mon – Fri)" },
                     { value: "6", label: "6 days (Mon – Sat)" },
-                  ]} />
-                  <S label="WORKS ON PUBLIC HOLIDAYS?" k="worksOnHolidays" options={[
+                  ])}
+                  {selectField("WORKS ON PUBLIC HOLIDAYS?", "worksOnHolidays", [
                     { value: "no", label: "No — holidays not counted" },
                     { value: "yes", label: "Yes — holidays count as leave" },
-                  ]} />
+                  ])}
                 </div>
               </div>
               <div className="pt-2 border-t border-border/50">
                 <p className="text-xs font-mono text-muted-foreground mb-3">COMPENSATION</p>
                 <div className="grid grid-cols-2 gap-4">
-                  <F label="BASIC SALARY (KES)" k="basicSalary" placeholder="50000.00" />
-                  <F label="HOUSE ALLOWANCE" k="houseAllowance" placeholder="0" />
-                  <F label="TRANSPORT ALLOWANCE" k="transportAllowance" placeholder="0" />
-                  <F label="OTHER ALLOWANCE" k="otherAllowance" placeholder="0" />
+                  {textField("BASIC SALARY (KES)", "basicSalary", "text", "50000.00")}
+                  {textField("HOUSE ALLOWANCE", "houseAllowance", "text", "0")}
+                  {textField("TRANSPORT ALLOWANCE", "transportAllowance", "text", "0")}
+                  {textField("OTHER ALLOWANCE", "otherAllowance", "text", "0")}
                 </div>
               </div>
               <div className="pt-2 border-t border-border/50">
                 <p className="text-xs font-mono text-muted-foreground mb-3">DEDUCTIONS</p>
                 <div className="grid grid-cols-2 gap-4">
-                  <F label="INSURANCE PREMIUM" k="insurancePremium" placeholder="0" />
-                  <F label="PENSION (EMPLOYEE)" k="pensionEmployee" placeholder="0" />
-                  <F label="PENSION (EMPLOYER)" k="pensionEmployer" placeholder="0" />
-                  <F label="HELB MONTHLY" k="helbMonthly" placeholder="0" />
-                  <F label="SACCO MONTHLY" k="saccoMonthly" placeholder="0" />
-                  <F label="MORTGAGE INTEREST" k="mortgageInterest" placeholder="0" />
+                  {textField("INSURANCE PREMIUM", "insurancePremium", "text", "0")}
+                  {textField("PENSION (EMPLOYEE)", "pensionEmployee", "text", "0")}
+                  {textField("PENSION (EMPLOYER)", "pensionEmployer", "text", "0")}
+                  {textField("HELB MONTHLY", "helbMonthly", "text", "0")}
+                  {textField("SACCO MONTHLY", "saccoMonthly", "text", "0")}
+                  {textField("MORTGAGE INTEREST", "mortgageInterest", "text", "0")}
                 </div>
               </div>
             </TabsContent>
 
+            {/* ── Payment ── */}
             <TabsContent value="payment" className="mt-0 space-y-4">
-              <S label="PAY METHOD" k="payMethod" options={[
+              {selectField("PAY METHOD", "payMethod", [
                 { value: "bank", label: "Bank Transfer" },
                 { value: "mpesa", label: "M-Pesa" },
                 { value: "cash", label: "Cash" },
-              ]} />
+              ])}
               {form.payMethod === "bank" && (
                 <div className="space-y-4">
-                  <F label="BANK NAME" k="bankName" placeholder="Equity Bank" />
+                  {textField("BANK NAME", "bankName", "text", "Equity Bank")}
                   <div className="grid grid-cols-2 gap-4">
-                    <F label="BRANCH CODE" k="bankBranchCode" placeholder="001" />
-                    <F label="ACCOUNT NUMBER" k="bankAccount" placeholder="0123456789" />
+                    {textField("BRANCH CODE", "bankBranchCode", "text", "001")}
+                    {textField("ACCOUNT NUMBER", "bankAccount", "text", "0123456789")}
                   </div>
                 </div>
               )}
-              {form.payMethod === "mpesa" && (
-                <F label="M-PESA PHONE" k="mpesaPhone" placeholder="+254 7xx xxx xxx" />
-              )}
+              {form.payMethod === "mpesa" && textField("M-PESA PHONE", "mpesaPhone", "text", "+254 7xx xxx xxx")}
             </TabsContent>
 
+            {/* ── Compliance ── */}
             <TabsContent value="compliance" className="mt-0 space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <F label="KRA PIN" k="kraPin" placeholder="A000000000B" />
-                <F label="NSSF NO" k="nssfNo" />
-                <F label="SHIF NO" k="shifNo" />
+                {textField("KRA PIN", "kraPin", "text", "A000000000B")}
+                {textField("NSSF NO", "nssfNo")}
+                {textField("SHIF NO", "shifNo")}
               </div>
-              <S label="RESIDENT STATUS" k="residentStatus" options={[
+              {selectField("RESIDENT STATUS", "residentStatus", [
                 { value: "resident", label: "Resident" },
                 { value: "non_resident", label: "Non-Resident" },
-              ]} />
+              ])}
             </TabsContent>
+
           </div>
         </Tabs>
 

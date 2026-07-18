@@ -29,6 +29,11 @@ async function buildAll() {
     // - use path traversal to read files (e.g. @google-cloud/secret-manager loads sibling .proto files)
     external: [
       "*.node",
+      // pdfkit → fontkit → @swc/helpers uses CJS require() which must resolve
+      // from fontkit's own node_modules, not from the bundle output directory.
+      // Externalizing pdfkit (and fontkit) keeps that resolution correct.
+      "pdfkit",
+      "fontkit",
       "@node-rs/argon2",
       "@node-rs/argon2-linux-x64-gnu",
       "@node-rs/argon2-linux-x64-musl",

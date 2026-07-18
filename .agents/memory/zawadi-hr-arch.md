@@ -29,6 +29,8 @@ description: Full-stack Kenya payroll SaaS — design constraints, auth pattern,
 ## Critical bug patterns to avoid
 - **`writeAudit` must always receive `(tx, entry)` as first arg** — calling it without a transaction crashes the endpoint silently. Always wrap in `db.transaction(async (tx) => writeAudit(tx as any, { ... }))`.
 - **`ApiError` puts parsed body at `e.data`**, NOT `e.response.data`. Error handlers must use `(e?.data as any)?.error ?? e?.message`.
+- **Never define helper components (F, S, etc.) inside a React component body** — each render creates a new function reference (new type), causing React to unmount/remount the element on every state change, breaking keyboard input mid-type. Use plain render functions called as `{textField(...)}` instead of `<F ...>`. This pattern was the root cause of salary and phone fields saving only 1-2 characters.
+- **pdfkit must be marked external in esbuild** — when bundled into `dist/index.mjs`, fontkit's `require('@swc/helpers/...')` resolves from the bundle output dir (not fontkit's node_modules), breaking PDF generation with MODULE_NOT_FOUND. Keep `"pdfkit"` and `"fontkit"` in the `external` array in `build.mjs`.
 
 ## RBAC summary
 - `admin`: `["*"]` — all permissions
@@ -36,26 +38,28 @@ description: Full-stack Kenya payroll SaaS — design constraints, auth pattern,
 - `payroll_officer`: payroll:read/calculate/submit (no employee:write, no approve/disburse)
 - `approver`: payroll:read/approve/disburse (no calculate/submit)
 - `employee`/`manager`: self-service only
-- `canApproveRun`: admin bypasses segregation; others cannot approve their own submissions
+- `canApproveRun`: admin bypasses segregation; others cannot approve their own submission.
 
-## Feature inventory (as of 2026-07-18)
-**Admin:** Dashboard (MoM variance, net payout, recent hires, anniversaries, dual-bar chart), Employees (CRUD, terminate, bulk), Leave (approve), Loans, Payroll (list with color badges, detail with email+PDF+payslip-edit), Timesheets, Reports (11 types), Users/RBAC, Audit logs, Settings.
-**Employee portal:** Profile (payslip history with PDF download + eye view), Leave, Loans, P9.
-**API routes:** /auth, /employees, /payroll (+ PDF + email-payslips), /leaves, /loans, /reports, /timesheets, /audit, /portal (+ payslip PDF), /users, /super, /dashboard, /calculator.
+## Feature inventory (verified by E2E test 2026-07-18)
+**Admin:** Dashboard (MoM variance, net payout, recent hires, anniversaries, dual-bar chart), Employees (CRUD, portal-access, terminate, bulk), Leave (approve), Loans, Payroll (list → detail → calculate → submit → approve → pay → email payslips + PDF), Reports (11 types), Users/RBAC.
+**Note:** No standalone `/admin/audit` or `/admin/settings` page routes exist; audit events visible in dashboard Security Log only.
+**Employee portal:** Profile + payslip history (PDF download), Leave, Loans, P9.
+**API routes:** /auth, /employees (+ /portal-access), /payroll (+ PDF + email-payslips), /leaves, /loans, /reports, /timesheets, /audit, /portal (+ payslip PDF), /users, /super, /dashboard, /calculator.
 
 ## PDF payslips
 - Generated server-side with pdfkit (`artifacts/api-server/src/lib/pdf-payslip.ts`).
 - Admin: `GET /api/payroll/:id/payslips/:slipId/pdf` and `POST /api/payroll/:id/email-payslips`.
 - Portal: `GET /api/portal/payslip/:slipId/pdf` (employee downloads own slip).
 - Email sent via nodemailer+Gmail with PDF attachment (`sendPayslipEmail` in `mailer.ts`).
+- **pdfkit must be external in esbuild** — see bug patterns above.
 
 ## Reports (11 types)
 muster, paye, nssf, shif, housing, pension, bank, mpesa, cash, gl, p9.
 All money cells = raw cent integers; frontend calls `formatMoney(cell)`.
 
-## DB seed state (as of 2026-07-18, after fixes)
-- Employees: Jane (75K), John (70K — fixed from 1M), Alice (75K), Brian (95K).
-- Payroll runs: July=paid (Jane only — historical). August and September were deleted; user must recreate fresh runs including all 4 employees.
+## DB state (as of 2026-07-18 end of session)
+- Employees: Jane/EMP0001 (75K), John/EMP0002 (70K), Alice/EMP0003 (75K), Brian/EMP0004 (95K), Test/EMP0005 (55K), FYr0DM/EMP0006 (terminated).
+- Payroll runs: July=paid (Jane only — historical), August=paid (all employees, run id=4).
 - Super-admin: `optimumprimesolutionsltd@gmail.com`.
 
 ## Payroll action workflow

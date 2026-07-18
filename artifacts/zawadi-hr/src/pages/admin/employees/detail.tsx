@@ -1,14 +1,20 @@
 import { useState } from "react";
 import { useRoute, Link, useLocation } from "wouter";
-import { useGetEmployee } from "@workspace/api-client-react";
+import { useMutation } from "@tanstack/react-query";
+import { useGetEmployee, customFetch } from "@workspace/api-client-react";
 import { formatMoney, formatDate } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  ArrowLeft, User, Briefcase, Landmark, FileText, Pencil, UserX, AlertCircle,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  ArrowLeft, User, Briefcase, Landmark, FileText, Pencil, UserX, AlertCircle, KeyRound, Loader2,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { EditEmployeeDialog } from "./edit-dialog";
 import { TerminateDialog } from "./terminate-dialog";
 
@@ -16,14 +22,32 @@ export function EmployeeDetail() {
   const [, params] = useRoute("/admin/employees/:id");
   const id = parseInt(params?.id || "0", 10);
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [editOpen, setEditOpen] = useState(false);
   const [editTab, setEditTab] = useState<"personal" | "employment" | "payment" | "compliance">("personal");
   const [terminateOpen, setTerminateOpen] = useState(false);
+  const [portalResult, setPortalResult] = useState<{ tempPassword?: string; message: string } | null>(null);
 
   function openEdit(tab: "personal" | "employment" | "payment" | "compliance" = "personal") {
     setEditTab(tab);
     setEditOpen(true);
   }
+
+  const grantPortal = useMutation({
+    mutationFn: () =>
+      customFetch(`/api/employees/${id}/portal-access`, { method: "POST" }) as Promise<{
+        ok: boolean;
+        tempPassword?: string;
+        message: string;
+      }>,
+    onSuccess: (result) => {
+      setPortalResult(result);
+    },
+    onError: (e: any) => {
+      const msg = (e?.data as any)?.error ?? e?.message ?? "Failed to grant portal access";
+      toast({ variant: "destructive", title: "Portal access failed", description: msg });
+    },
+  });
 
   const { data, isLoading, error } = useGetEmployee(id, {
     query: { enabled: !!id },
@@ -88,6 +112,19 @@ export function EmployeeDetail() {
               >
                 <Pencil className="h-3.5 w-3.5" />
                 EDIT
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="font-mono gap-1.5"
+                onClick={() => grantPortal.mutate()}
+                disabled={grantPortal.isPending}
+                title="Grant or view portal access for this employee"
+              >
+                {grantPortal.isPending
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <KeyRound className="h-3.5 w-3.5" />}
+                PORTAL ACCESS
               </Button>
               <Button
                 variant="outline"
@@ -366,6 +403,41 @@ export function EmployeeDetail() {
         onOpenChange={setTerminateOpen}
         onSuccess={() => setLocation("/admin/employees")}
       />
+
+      {/* Portal Access Result Dialog */}
+      <Dialog open={!!portalResult} onOpenChange={(v) => { if (!v) setPortalResult(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-mono flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-primary" />
+              PORTAL ACCESS
+            </DialogTitle>
+            <DialogDescription>
+              {portalResult?.tempPassword
+                ? "New portal account created. Share the temporary password securely — it will not be shown again."
+                : portalResult?.message}
+            </DialogDescription>
+          </DialogHeader>
+          {portalResult?.tempPassword && (
+            <div className="space-y-3 pt-2">
+              <div>
+                <p className="text-xs font-mono text-muted-foreground mb-1.5">EMPLOYEE EMAIL</p>
+                <Input readOnly value={employee.email} className="font-mono bg-muted/30" />
+              </div>
+              <div>
+                <p className="text-xs font-mono text-muted-foreground mb-1.5">TEMPORARY PASSWORD</p>
+                <Input readOnly value={portalResult.tempPassword} className="font-mono bg-muted/30 text-primary font-bold" />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                The employee must change this password on first login.
+              </p>
+            </div>
+          )}
+          <div className="flex justify-end pt-2">
+            <Button onClick={() => setPortalResult(null)} className="font-mono">DONE</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
