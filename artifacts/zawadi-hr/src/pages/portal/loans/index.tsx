@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusCircle, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { PlusCircle, Clock, CheckCircle2, XCircle, Info } from "lucide-react";
 import { LoanRequestDialog } from "./request-dialog";
 
 function usePortalLoanRequests() {
@@ -27,6 +27,10 @@ const TYPE_LABELS: Record<string, string> = {
   company: "Company Loan", sacco: "SACCO Loan",
   advance: "Salary Advance", emergency: "Emergency Advance",
 };
+
+function fmtKes(n: number) {
+  return n.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 export function PortalLoans() {
   const { data: loans, isLoading: loansLoading } = useListPortalLoans();
@@ -75,83 +79,112 @@ export function PortalLoans() {
               </CardContent>
             </Card>
           ) : (
-            loans.map((row) => (
-              <Card key={row.loan.id} className="border-border/50 bg-card/30 overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-10 -mt-10 blur-2xl" />
-                <CardHeader className="border-b border-border/30 pb-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <Badge variant="outline" className="mb-2 font-mono text-[10px] capitalize bg-background">
-                        {TYPE_LABELS[row.loan.type] ?? row.loan.type}
-                      </Badge>
-                      <CardTitle className="font-mono text-xl text-primary">{formatMoney(row.loan.balance)}</CardTitle>
-                      <p className="text-xs text-muted-foreground mt-1 font-mono">REMAINING BALANCE</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-mono text-muted-foreground">Original Amount</div>
-                      <div className="font-mono font-medium">{formatMoney(row.loan.principal)}</div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    {[
-                      ["Installment", formatMoney(row.loan.monthlyInstallment)],
-                      ["Interest Rate", formatPercent(row.loan.interestRateBps)],
-                      ["Start Date", formatDate(row.loan.startDate)],
-                      ["Status", row.loan.status],
-                    ].map(([label, val]) => (
-                      <div key={String(label)}>
-                        <div className="text-xs text-muted-foreground mb-1">{label}</div>
-                        {label === "Status" ? (
-                          <Badge variant={val === "active" ? "default" : "secondary"} className="font-mono text-[10px]">
-                            {String(val).toUpperCase()}
-                          </Badge>
-                        ) : (
-                          <div className="font-mono text-sm font-medium">{val}</div>
-                        )}
+            (loans as any[]).map((row) => {
+              const fbt = row.fringeBenefit as { monthlyBenefit: number; monthlyTax: number } | null;
+              return (
+                <Card key={row.loan.id} className="border-border/50 bg-card/30 overflow-hidden relative">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-10 -mt-10 blur-2xl" />
+                  <CardHeader className="border-b border-border/30 pb-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <Badge variant="outline" className="mb-2 font-mono text-[10px] capitalize bg-background">
+                          {TYPE_LABELS[row.loan.type] ?? row.loan.type}
+                        </Badge>
+                        <CardTitle className="font-mono text-xl text-primary">{formatMoney(row.loan.balance)}</CardTitle>
+                        <p className="text-xs text-muted-foreground mt-1 font-mono">REMAINING BALANCE</p>
                       </div>
-                    ))}
-                  </div>
+                      <div className="text-right">
+                        <div className="text-sm font-mono text-muted-foreground">Original Amount</div>
+                        <div className="font-mono font-medium">{formatMoney(row.loan.principal)}</div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                      {[
+                        ["Monthly Installment", formatMoney(row.loan.monthlyInstallment)],
+                        ["Interest Rate", formatPercent(row.loan.interestRateBps)],
+                        ["Start Date", formatDate(row.loan.startDate)],
+                        ["Status", row.loan.status],
+                      ].map(([label, val]) => (
+                        <div key={String(label)}>
+                          <div className="text-xs text-muted-foreground mb-1">{label}</div>
+                          {label === "Status" ? (
+                            <Badge variant={val === "active" ? "default" : "secondary"} className="font-mono text-[10px]">
+                              {String(val).toUpperCase()}
+                            </Badge>
+                          ) : (
+                            <div className="font-mono text-sm font-medium">{val}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
 
-                  <h4 className="text-xs font-mono text-muted-foreground mb-3 border-b border-border/30 pb-2">REPAYMENT HISTORY</h4>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader className="bg-muted/10">
-                        <TableRow>
-                          <TableHead className="font-mono text-xs py-2 h-8">DATE</TableHead>
-                          <TableHead className="font-mono text-xs py-2 h-8">TYPE</TableHead>
-                          <TableHead className="font-mono text-xs py-2 h-8 text-right">AMOUNT</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {row.repayments?.length > 0 ? (
-                          row.repayments.map((rep: any, i: number) => (
-                            <TableRow key={i} className="hover:bg-muted/10">
-                              <TableCell className="font-mono text-xs py-2 text-muted-foreground">
-                                {formatDate(rep.date || rep.createdAt)}
-                              </TableCell>
-                              <TableCell className="font-mono text-xs py-2 uppercase">
-                                {rep.type || "PAYROLL DEDUCTION"}
-                              </TableCell>
-                              <TableCell className="text-right font-mono text-xs py-2">
-                                {formatMoney(rep.amount || rep.principalAmount || 0)}
+                    {/* Total repayable summary */}
+                    {row.loan.monthlyInstallment > 0 && row.loan.remainingMonths > 0 && (
+                      <div className="flex items-center justify-between rounded-lg border border-border/30 bg-muted/10 px-4 py-2.5 mb-4 font-mono text-xs">
+                        <span className="text-muted-foreground">TOTAL REMAINING REPAYABLE</span>
+                        <span className="font-bold">
+                          {formatMoney(row.loan.monthlyInstallment * row.loan.remainingMonths)}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Fringe Benefit Tax notice (company loans only — employer cost) */}
+                    {fbt && (
+                      <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 mb-4 text-xs text-amber-700 dark:text-amber-400">
+                        <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                        <div className="space-y-0.5">
+                          <p className="font-mono font-semibold">FRINGE BENEFIT TAX (FBT) — EMPLOYER COST</p>
+                          <p>
+                            Your company loan carries an FBT of{" "}
+                            <strong>KES {fmtKes(fbt.monthlyTax / 100)} / month</strong>{" "}
+                            (benefit: KES {fmtKes(fbt.monthlyBenefit / 100)} / month). This is paid by your employer — it does{" "}
+                            <em>not</em> reduce your take-home pay.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    <h4 className="text-xs font-mono text-muted-foreground mb-3 border-b border-border/30 pb-2">REPAYMENT HISTORY</h4>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader className="bg-muted/10">
+                          <TableRow>
+                            <TableHead className="font-mono text-xs py-2 h-8">DATE</TableHead>
+                            <TableHead className="font-mono text-xs py-2 h-8">TYPE</TableHead>
+                            <TableHead className="font-mono text-xs py-2 h-8 text-right">AMOUNT</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {row.repayments?.length > 0 ? (
+                            row.repayments.map((rep: any, i: number) => (
+                              <TableRow key={i} className="hover:bg-muted/10">
+                                <TableCell className="font-mono text-xs py-2 text-muted-foreground">
+                                  {formatDate(rep.date || rep.createdAt)}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs py-2 uppercase">
+                                  {rep.type || "PAYROLL DEDUCTION"}
+                                </TableCell>
+                                <TableCell className="text-right font-mono text-xs py-2">
+                                  {formatMoney(rep.amount || rep.principalAmount || 0)}
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={3} className="text-center py-4 text-muted-foreground font-mono text-xs">
+                                NO REPAYMENTS YET
                               </TableCell>
                             </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={3} className="text-center py-4 text-muted-foreground font-mono text-xs">
-                              NO REPAYMENTS YET
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </TabsContent>
 

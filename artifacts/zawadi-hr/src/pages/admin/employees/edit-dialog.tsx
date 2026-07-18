@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useUpdateEmployee, useListEmployees, getListEmployeesQueryKey } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { customFetch, getListEmployeesQueryKey } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -57,7 +57,7 @@ interface Props {
 
 function centsToStr(cents: number | null | undefined): string {
   if (!cents) return "0";
-  return (cents / 100).toFixed(2);
+  return (Number(cents) / 100).toFixed(2);
 }
 
 export function EditEmployeeDialog({ employee, open, onOpenChange }: Props) {
@@ -113,37 +113,20 @@ export function EditEmployeeDialog({ employee, open, onOpenChange }: Props) {
     });
   }, [employee]);
 
-  const update = useUpdateEmployee({
-    mutation: {
-      onSuccess: () => {
-        toast({ title: "Saved", description: "Employee details updated." });
-        qc.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
-        qc.invalidateQueries({ queryKey: ["getEmployee"] });
-        onOpenChange(false);
-      },
-      onError: (e: any) => {
-        const msg = e?.response?.data?.error ?? e?.message ?? "Update failed";
-        toast({ variant: "destructive", title: "Update failed", description: msg });
-      },
-    },
-  });
-
-  function set(key: string, val: string) {
-    setForm((f) => ({ ...f, [key]: val }));
-  }
-
-  function handleSave() {
-    if (!employee) return;
-    update.mutate({
-      id: employee.id,
-      data: {
-        firstName: form.firstName, lastName: form.lastName,
-        email: form.email, phone: form.phone || undefined,
-        gender: form.gender as any, nationalId: form.nationalId || undefined,
-        position: form.position, hireDate: form.hireDate,
-        employmentType: form.employmentType as any,
-        residentStatus: form.residentStatus as any,
-        basicSalary: form.basicSalary,
+  const update = useMutation({
+    mutationFn: () => {
+      if (!employee) throw new Error("No employee");
+      // Build payload — only include fields that have values; use undefined for optional empties
+      const payload: Record<string, unknown> = {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        gender: form.gender,
+        position: form.position,
+        hireDate: form.hireDate || undefined,
+        employmentType: form.employmentType,
+        residentStatus: form.residentStatus,
+        basicSalary: form.basicSalary || "0",
         houseAllowance: form.houseAllowance || "0",
         transportAllowance: form.transportAllowance || "0",
         otherAllowance: form.otherAllowance || "0",
@@ -154,18 +137,53 @@ export function EditEmployeeDialog({ employee, open, onOpenChange }: Props) {
         mortgageInterest: form.mortgageInterest || "0",
         helbMonthly: form.helbMonthly || "0",
         saccoMonthly: form.saccoMonthly || "0",
-        payMethod: form.payMethod as any,
-        bankName: form.bankName || undefined,
-        bankAccount: form.bankAccount || undefined,
-        bankBranchCode: form.bankBranchCode || undefined,
-        mpesaPhone: form.mpesaPhone || undefined,
-        kraPin: form.kraPin || undefined,
-        nssfNo: form.nssfNo || undefined,
-        shifNo: form.shifNo || undefined,
-        workDaysPerWeek: form.workDaysPerWeek as any,
+        payMethod: form.payMethod,
+        workDaysPerWeek: form.workDaysPerWeek,
         worksOnHolidays: form.worksOnHolidays === "yes",
-      },
-    });
+      };
+      // Optional fields: only send if non-empty
+      if (form.phone) payload.phone = form.phone;
+      if (form.nationalId) payload.nationalId = form.nationalId;
+      if (form.kraPin) payload.kraPin = form.kraPin;
+      if (form.nssfNo) payload.nssfNo = form.nssfNo;
+      if (form.shifNo) payload.shifNo = form.shifNo;
+      if (form.bankName) payload.bankName = form.bankName;
+      if (form.bankAccount) payload.bankAccount = form.bankAccount;
+      if (form.bankBranchCode) payload.bankBranchCode = form.bankBranchCode;
+      if (form.mpesaPhone) payload.mpesaPhone = form.mpesaPhone;
+
+      return customFetch(`/api/employees/${employee.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Saved", description: "Employee details updated." });
+      qc.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
+      qc.invalidateQueries({ queryKey: ["getEmployee"] });
+      onOpenChange(false);
+    },
+    onError: (e: any) => {
+      const msg = e?.response?.data?.error ?? e?.message ?? "Update failed";
+      toast({ variant: "destructive", title: "Update failed", description: msg });
+    },
+  });
+
+  function set(key: string, val: string) {
+    setForm((f) => ({ ...f, [key]: val }));
+  }
+
+  function handleSave() {
+    if (!employee) return;
+    if (!form.firstName.trim()) { toast({ variant: "destructive", title: "First name is required" }); return; }
+    if (!form.lastName.trim()) { toast({ variant: "destructive", title: "Last name is required" }); return; }
+    if (!form.email.trim()) { toast({ variant: "destructive", title: "Email is required" }); return; }
+    if (!form.position.trim()) { toast({ variant: "destructive", title: "Position is required" }); return; }
+    if (!form.basicSalary || parseFloat(form.basicSalary) <= 0) {
+      toast({ variant: "destructive", title: "Basic salary must be greater than 0" }); return;
+    }
+    update.mutate();
   }
 
   if (!employee) return null;
@@ -264,7 +282,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange }: Props) {
               <div className="pt-2 border-t border-border/50">
                 <p className="text-xs font-mono text-muted-foreground mb-3">COMPENSATION</p>
                 <div className="grid grid-cols-2 gap-4">
-                  <F label="BASIC SALARY (KES)" k="basicSalary" placeholder="50000" />
+                  <F label="BASIC SALARY (KES)" k="basicSalary" placeholder="50000.00" />
                   <F label="HOUSE ALLOWANCE" k="houseAllowance" placeholder="0" />
                   <F label="TRANSPORT ALLOWANCE" k="transportAllowance" placeholder="0" />
                   <F label="OTHER ALLOWANCE" k="otherAllowance" placeholder="0" />

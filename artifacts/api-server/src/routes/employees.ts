@@ -190,6 +190,8 @@ router.patch("/:id", requireAuth("employee:write"), async (req, res, next) => {
     if (b.helbMonthly !== undefined) updateData.helbMonthly = toCents(b.helbMonthly);
     if (b.saccoMonthly !== undefined) updateData.saccoMonthly = toCents(b.saccoMonthly);
     if (b.hireDate !== undefined) updateData.hireDate = b.hireDate;
+    if (b.workDaysPerWeek !== undefined) updateData.workDaysPerWeek = b.workDaysPerWeek;
+    if (b.worksOnHolidays !== undefined) updateData.worksOnHolidays = b.worksOnHolidays;
 
     const [updated] = await db.update(employees).set(updateData).where(eq(employees.id, id)).returning();
 

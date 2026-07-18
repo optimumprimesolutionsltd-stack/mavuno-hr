@@ -2,9 +2,11 @@ import { Router } from "express";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { employees, leaveRequests, loans, loanRequests, loanRepayments, payslips, payrollRuns } from "@workspace/db/schema";
+import { employees, leaveRequests, loans, loanRequests, loanRepayments, payslips, payrollRuns, organizations } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
+import { computeLoanFringeBenefitTax } from "../lib/payroll.js";
+import { resolveConfig } from "../lib/statutory-resolve.js";
 
 const router = Router();
 
@@ -170,12 +172,28 @@ router.get("/loans", requireAuth("self:read"), async (req, res, next) => {
       .where(and(eq(loans.employeeId, empId), eq(loans.orgId, p.orgId)))
       .orderBy(desc(loans.createdAt));
 
-    // Attach repayment history for each loan
+    // Resolve statutory config for FBT (company loans only)
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, p.orgId));
+    const currentPeriod = new Date().toISOString().slice(0, 7);
+    let cfg: Awaited<ReturnType<typeof resolveConfig>>["config"] | null = null;
+    try {
+      const resolved = await resolveConfig(db as any, p.orgId, org?.countryCode ?? "KE", currentPeriod);
+      cfg = resolved.config;
+    } catch { /* no config — FBT not computable */ }
+
+    // Attach repayment history and FBT for each loan
     const withHistory = await Promise.all(myLoans.map(async (loan) => {
       const repayments = await db.select().from(loanRepayments)
         .where(eq(loanRepayments.loanId, loan.id))
         .orderBy(desc(loanRepayments.createdAt)).limit(24);
-      return { loan, repayments };
+
+      let fringeBenefit: { monthlyBenefit: number; monthlyTax: number } | null = null;
+      if (loan.type === "company" && cfg) {
+        const fbt = computeLoanFringeBenefitTax(loan.balance as any, loan.interestRateBps, cfg);
+        if (fbt.monthlyTax > 0) fringeBenefit = fbt;
+      }
+
+      return { loan, repayments, fringeBenefit };
     }));
 
     res.json(withHistory);
