@@ -41,7 +41,7 @@ router.get("/", requireAuth("leave:admin"), async (req, res, next) => {
     const p = (req as AuthRequest).principal;
     const status = req.query.status as string | undefined;
 
-    let q = db.select({ leave: leaveRequests, emp: employees })
+    let q = db.select({ leave: leaveRequests, employee: employees })
       .from(leaveRequests)
       .innerJoin(employees, eq(leaveRequests.employeeId, employees.id))
       .where(eq(leaveRequests.orgId, p.orgId))
@@ -97,14 +97,7 @@ router.patch("/:id", requireAuth("leave:approve"), async (req, res, next) => {
       status: newStatus, decidedByUserId: p.userId, decidedAt: new Date(),
     }).where(eq(leaveRequests.id, id)).returning();
 
-    // Deduct from balance if approved annual/compassionate/study
-    if (action === "approve" && ["annual","compassionate","study"].includes(leave.type)) {
-      await db.update(employees).set({
-        leaveBalance: db.select({ bal: employees.leaveBalance })
-          .from(employees).where(eq(employees.id, leave.employeeId)) as any,
-      });
-      // Simplified: just note the deduction in audit
-    }
+    // Balance is computed dynamically in portal/me from approved leave rows — no separate deduction needed here.
 
     await db.transaction(async (tx) => {
       await writeAudit(tx as any, {

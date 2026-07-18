@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListLeaves, useDecideLeave } from "@workspace/api-client-react";
+import { useListLeaves, useDecideLeave, getListLeavesQueryKey } from "@workspace/api-client-react";
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,7 +22,7 @@ export function LeaveAdmin() {
       {
         onSuccess: () => {
           toast({ title: "Decision recorded", description: `Leave request ${action}d successfully.` });
-          queryClient.invalidateQueries({ queryKey: ["/api/leaves"] });
+          queryClient.invalidateQueries({ queryKey: getListLeavesQueryKey() });
         },
         onError: () => {
           toast({ variant: "destructive", title: "Error", description: "Failed to record decision." });
@@ -97,7 +97,7 @@ export function LeaveAdmin() {
                     <div className="text-xs text-muted-foreground font-mono">to {formatDate(row.leave.endDate)}</div>
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm">
-                    {row.leave.days}
+                    {Math.round((row.leave.days ?? 0) / 10)}
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge variant={row.leave.status === 'pending' ? 'outline' : row.leave.status === 'approved' ? 'default' : 'destructive'} className="font-mono text-[10px]">

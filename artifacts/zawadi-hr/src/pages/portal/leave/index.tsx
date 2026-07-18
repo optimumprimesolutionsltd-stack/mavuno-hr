@@ -132,7 +132,7 @@ export function PortalLeave() {
                     <div className="text-sm font-mono">{formatDate(row.startDate)}</div>
                     <div className="text-xs text-muted-foreground font-mono">to {formatDate(row.endDate)}</div>
                   </TableCell>
-                  <TableCell className="text-right font-mono text-sm">{row.days}</TableCell>
+                  <TableCell className="text-right font-mono text-sm">{Math.round((row.days ?? 0) / 10)}</TableCell>
                   <TableCell className="text-right">
                     <Badge variant={row.status === 'pending' ? 'outline' : row.status === 'approved' ? 'default' : 'destructive'} className="font-mono text-[10px]">
                       {row.status.toUpperCase()}
