@@ -20,10 +20,25 @@ export function AdminDashboard() {
     );
   }
 
-  const pieData = data.deptCosts.map((d, i) => ({
+  // Safe accessors — default to empty arrays/zeros so nothing crashes on a fresh org
+  const runs: { period: string; gross: number }[] = (data as any).runs ?? [];
+  const deptCosts: { name: string; gross: number }[] = (data as any).deptCosts ?? [];
+  const pendingLeaves: { leave: { id: number; type: string; days: number }; employee: { firstName: string; lastName: string } }[] =
+    (data as any).pendingLeaves ?? [];
+  const auditLogItems: { id: number; action: string; detail: string | null; createdAt: string }[] =
+    (data as any).auditLogs ?? [];
+
+  const headcount: number = (data as any).headcount ?? 0;
+  const monthlyGross: number = (data as any).monthlyGross ?? 0;
+  const avgCostPerEmployee: number = (data as any).avgCostPerEmployee ?? 0;
+  const pendingLeaveCount: number = (data as any).pendingLeaveCount ?? 0;
+  const loanBalance: number = (data as any).loanBalance ?? 0;
+  const activeLoanCount: number = (data as any).activeLoanCount ?? 0;
+
+  const pieData = deptCosts.map((d, i) => ({
     name: d.name,
     value: d.gross,
-    color: `hsl(var(--chart-${(i % 5) + 1}))`
+    color: `hsl(var(--chart-${(i % 5) + 1}))`,
   }));
 
   return (
@@ -45,10 +60,8 @@ export function AdminDashboard() {
             <Users className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-mono">{data.headcount}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Active employees
-            </p>
+            <div className="text-3xl font-bold font-mono">{headcount}</div>
+            <p className="text-xs text-muted-foreground mt-1">Active employees</p>
           </CardContent>
         </Card>
 
@@ -59,10 +72,8 @@ export function AdminDashboard() {
             <Wallet className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-mono text-primary">{formatMoney(data.monthlyGross)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {formatMoney(data.avgCostPerEmployee)} avg per employee
-            </p>
+            <div className="text-3xl font-bold font-mono text-primary">{formatMoney(monthlyGross)}</div>
+            <p className="text-xs text-muted-foreground mt-1">{formatMoney(avgCostPerEmployee)} avg per employee</p>
           </CardContent>
         </Card>
 
@@ -73,10 +84,8 @@ export function AdminDashboard() {
             <Calendar className="h-4 w-4 text-chart-2" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-mono">{data.pendingLeaveCount}</div>
-            <p className="text-xs text-muted-foreground mt-1 text-chart-2/80">
-              Requires attention
-            </p>
+            <div className="text-3xl font-bold font-mono">{pendingLeaveCount}</div>
+            <p className="text-xs text-muted-foreground mt-1 text-chart-2/80">Requires attention</p>
           </CardContent>
         </Card>
 
@@ -87,10 +96,8 @@ export function AdminDashboard() {
             <Coins className="h-4 w-4 text-chart-3" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-mono">{formatMoney(data.loanBalance)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Across {data.activeLoanCount} employees
-            </p>
+            <div className="text-3xl font-bold font-mono">{formatMoney(loanBalance)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Across {activeLoanCount} employees</p>
           </CardContent>
         </Card>
       </div>
@@ -107,19 +114,26 @@ export function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={[...data.runs].reverse()} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
-                  <XAxis dataKey="period" fontSize={12} tickLine={false} axisLine={false} tickMargin={10} />
-                  <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v/100/1000).toFixed(0)}k`} width={50} />
-                  <Tooltip 
-                    cursor={{fill: 'hsl(var(--muted))'}}
-                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
-                    itemStyle={{ color: 'hsl(var(--foreground))' }}
-                    formatter={(value: number) => [formatMoney(value), "Gross Pay"]}
-                  />
-                  <Bar dataKey="gross" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {runs.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={runs} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
+                    <XAxis dataKey="period" fontSize={12} tickLine={false} axisLine={false} tickMargin={10} />
+                    <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 100 / 1000).toFixed(0)}k`} width={50} />
+                    <Tooltip
+                      cursor={{ fill: "hsl(var(--muted))" }}
+                      contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
+                      itemStyle={{ color: "hsl(var(--foreground))" }}
+                      formatter={(value: number) => [formatMoney(value), "Gross Pay"]}
+                    />
+                    <Bar dataKey="gross" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground text-sm flex-col gap-2">
+                  <TrendingUp className="h-12 w-12 opacity-20" />
+                  No payroll runs yet
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -135,23 +149,14 @@ export function AdminDashboard() {
               {pieData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                      stroke="none"
-                    >
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
                       {pieData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip 
+                    <Tooltip
                       formatter={(value: number) => formatMoney(value)}
-                      contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
+                      contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -167,7 +172,7 @@ export function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pending Actions */}
+        {/* Pending Leaves */}
         <Card className="border-border/50 bg-card/50 shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center text-chart-2">
@@ -176,9 +181,9 @@ export function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {data.pendingLeaves.length > 0 ? (
+            {pendingLeaves.length > 0 ? (
               <div className="space-y-4">
-                {data.pendingLeaves.slice(0, 5).map((item) => (
+                {pendingLeaves.slice(0, 5).map((item) => (
                   <div key={item.leave.id} className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-background/50">
                     <div>
                       <p className="font-medium text-sm">{item.employee.firstName} {item.employee.lastName}</p>
@@ -194,25 +199,29 @@ export function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Audit Log Snippet */}
+        {/* Audit Log */}
         <Card className="border-border/50 bg-card/50 shadow-sm">
           <CardHeader>
             <CardTitle className="font-mono">SECURITY LOG</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-0.5">
-              {data.auditLogs.slice(0, 6).map((log) => (
-                <div key={log.id} className="flex items-start gap-4 py-2 border-b border-border/30 last:border-0 text-sm">
-                  <div className="text-muted-foreground font-mono text-xs w-16 shrink-0 mt-0.5">
-                    {new Date(log.createdAt).toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute:'2-digit'})}
+            {auditLogItems.length > 0 ? (
+              <div className="space-y-0.5">
+                {auditLogItems.map((log) => (
+                  <div key={log.id} className="flex items-start gap-4 py-2 border-b border-border/30 last:border-0 text-sm">
+                    <div className="text-muted-foreground font-mono text-xs w-16 shrink-0 mt-0.5">
+                      {new Date(log.createdAt).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                    <div>
+                      <span className="font-medium text-primary mr-2 uppercase text-xs">{log.action}</span>
+                      <span className="text-muted-foreground">{log.detail || "System action"}</span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-medium text-primary mr-2 uppercase text-xs">{log.action}</span>
-                    <span className="text-muted-foreground">{log.detail || 'System action'}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground text-sm">No audit events yet</div>
+            )}
           </CardContent>
         </Card>
       </div>
