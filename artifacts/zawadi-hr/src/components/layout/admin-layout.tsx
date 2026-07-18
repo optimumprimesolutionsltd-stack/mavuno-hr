@@ -11,7 +11,6 @@ import {
   Clock,
   Coins,
   FileText,
-  ShieldAlert,
   LogOut,
   LayoutDashboard,
   Loader2,
@@ -33,7 +32,6 @@ const NAV_ITEMS = [
   { href: "/admin/timesheets", label: "Timesheets", icon: Clock },
   { href: "/admin/loans", label: "Loans", icon: Coins },
   { href: "/admin/reports", label: "Reports", icon: FileText },
-  { href: "/admin/audit", label: "Audit Log", icon: ShieldAlert },
   { href: "/admin/users", label: "Access & Logins", icon: KeyRound },
 ];
 
