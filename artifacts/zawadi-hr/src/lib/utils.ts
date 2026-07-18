@@ -5,40 +5,53 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export const formatMoney = (cents: number) => 
-  new Intl.NumberFormat('en-KE', { 
+export const formatMoney = (cents: number | null | undefined) => {
+  if (cents == null || isNaN(cents)) return "KES 0.00";
+  return new Intl.NumberFormat('en-KE', { 
     style: 'currency', 
     currency: 'KES', 
     minimumFractionDigits: 2 
   }).format(cents / 100);
+};
 
-export const formatPercent = (bps: number) =>
-  `${(bps / 100).toFixed(2)}%`;
+export const formatPercent = (bps: number | null | undefined) => {
+  if (bps == null || isNaN(bps)) return "0.00%";
+  return `${(bps / 100).toFixed(2)}%`;
+};
 
-export const formatDate = (dateString: string) => {
-  if (!dateString) return "";
+export const formatDate = (dateString: string | null | undefined) => {
+  if (!dateString) return "—";
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return "—";
   return new Intl.DateTimeFormat('en-KE', {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
-  }).format(new Date(dateString));
+  }).format(d);
 };
 
-export const formatDateTime = (dateString: string) => {
-  if (!dateString) return "";
+export const formatDateTime = (dateString: string | null | undefined) => {
+  if (!dateString) return "—";
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return "—";
   return new Intl.DateTimeFormat('en-KE', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
-  }).format(new Date(dateString));
+  }).format(d);
 };
 
-export const formatPeriod = (period: string) => {
-  if (!period) return "";
-  const [year, month] = period.split('-');
-  const date = new Date(parseInt(year), parseInt(month) - 1);
+export const formatPeriod = (period: string | null | undefined) => {
+  if (!period) return "—";
+  const parts = period.split('-');
+  if (parts.length < 2) return period;
+  const year = parseInt(parts[0]);
+  const month = parseInt(parts[1]);
+  if (isNaN(year) || isNaN(month)) return period;
+  const date = new Date(year, month - 1);
+  if (isNaN(date.getTime())) return period;
   return new Intl.DateTimeFormat('en-KE', {
     year: 'numeric',
     month: 'long'

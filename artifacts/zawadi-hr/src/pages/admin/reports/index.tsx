@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGetReport, useListPayrollRuns } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ const REPORT_TYPES = [
   { id: "housing", label: "Affordable Housing Levy" },
   { id: "bank", label: "Bank Schedule / Payouts" },
   { id: "muster", label: "Muster Roll (Master Payroll)" },
-  { id: "journal", label: "General Ledger Journal" },
+  { id: "gl", label: "General Ledger Journal" },
 ];
 
 export function Reports() {
@@ -22,10 +22,12 @@ export function Reports() {
   const [reportType, setReportType] = useState<string>("muster");
   const [runId, setRunId] = useState<number | undefined>();
 
-  // Set default runId once loaded
-  if (runs && runs.length > 0 && !runId) {
-    setRunId(runs[0].id);
-  }
+  // Set default runId once loaded (useEffect avoids setState-during-render warning)
+  useEffect(() => {
+    if (runs && runs.length > 0 && !runId) {
+      setRunId(runs[0].id);
+    }
+  }, [runs]);
 
   const { data: report, isLoading } = useGetReport({
     query: { type: reportType, runId: runId },

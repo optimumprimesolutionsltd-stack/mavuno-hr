@@ -32,8 +32,8 @@ export function LeaveAdmin() {
   };
 
   const filtered = leaves?.filter(r => 
-    r.employee.firstName.toLowerCase().includes(search.toLowerCase()) ||
-    r.employee.lastName.toLowerCase().includes(search.toLowerCase())
+    r.employee?.firstName?.toLowerCase().includes(search.toLowerCase()) ||
+    r.employee?.lastName?.toLowerCase().includes(search.toLowerCase())
   ) || [];
 
   return (

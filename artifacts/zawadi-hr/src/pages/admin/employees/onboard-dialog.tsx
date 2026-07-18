@@ -171,15 +171,15 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <Label className="text-xs font-mono text-muted-foreground">FIRST NAME *</Label>
-              <Input value={form.firstName} onChange={set("firstName")} placeholder="John" className="bg-background/50" autoFocus />
+              <Input value={form.firstName} onChange={set("firstName")} placeholder="First name" className="bg-background/50" autoFocus />
             </div>
             <div className="space-y-1">
               <Label className="text-xs font-mono text-muted-foreground">LAST NAME *</Label>
-              <Input value={form.lastName} onChange={set("lastName")} placeholder="Kamau" className="bg-background/50" />
+              <Input value={form.lastName} onChange={set("lastName")} placeholder="Last name" className="bg-background/50" />
             </div>
             <div className="col-span-2 space-y-1">
               <Label className="text-xs font-mono text-muted-foreground">EMAIL *</Label>
-              <Input type="email" value={form.email} onChange={set("email")} placeholder="john.kamau@company.co.ke" className="bg-background/50" />
+              <Input type="email" value={form.email} onChange={set("email")} placeholder="employee@company.co.ke" className="bg-background/50" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs font-mono text-muted-foreground">PHONE</Label>
@@ -198,7 +198,7 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
             </div>
             <div className="col-span-2 space-y-1">
               <Label className="text-xs font-mono text-muted-foreground">NATIONAL ID</Label>
-              <Input value={form.nationalId} onChange={set("nationalId")} placeholder="12345678" className="bg-background/50" />
+              <Input value={form.nationalId} onChange={set("nationalId")} placeholder="National ID number" className="bg-background/50" />
             </div>
           </div>
         )}
@@ -272,7 +272,7 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs font-mono text-muted-foreground">ACCOUNT NUMBER *</Label>
-                  <Input value={form.bankAccount} onChange={set("bankAccount")} placeholder="0123456789" className="bg-background/50" />
+                  <Input value={form.bankAccount} onChange={set("bankAccount")} placeholder="Account number" className="bg-background/50" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs font-mono text-muted-foreground">BRANCH CODE</Label>
@@ -283,7 +283,7 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
             {form.payMethod === "mpesa" && (
               <div className="col-span-2 space-y-1">
                 <Label className="text-xs font-mono text-muted-foreground">M-PESA PHONE *</Label>
-                <Input value={form.mpesaPhone} onChange={set("mpesaPhone")} placeholder="0712345678" className="bg-background/50" autoFocus />
+                <Input value={form.mpesaPhone} onChange={set("mpesaPhone")} placeholder="07XXXXXXXX" className="bg-background/50" autoFocus />
               </div>
             )}
             {form.payMethod === "cash" && (

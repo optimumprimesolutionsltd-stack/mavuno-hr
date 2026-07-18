@@ -111,7 +111,7 @@ export async function calculateRun(
     eq(leaveRequests.type, "unpaid"),
     eq(leaveRequests.status, "approved"),
     inArray(leaveRequests.employeeId, empIds),
-    sql`${leaveRequests.startDate} <= ${input.period + "-31"}`,
+    sql`${leaveRequests.startDate} <= ${input.period + "-" + String(daysInMonth(input.period)).padStart(2, "0")}`,
     sql`${leaveRequests.endDate}   >= ${input.period + "-01"}`,
   ));
   const unpaidBy = new Map<number, number>();
