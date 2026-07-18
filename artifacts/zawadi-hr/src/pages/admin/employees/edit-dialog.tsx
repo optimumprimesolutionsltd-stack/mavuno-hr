@@ -53,6 +53,7 @@ interface Props {
   employee: Employee | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  defaultTab?: "personal" | "employment" | "payment" | "compliance";
 }
 
 function centsToStr(cents: number | null | undefined): string {
@@ -60,7 +61,7 @@ function centsToStr(cents: number | null | undefined): string {
   return (Number(cents) / 100).toFixed(2);
 }
 
-export function EditEmployeeDialog({ employee, open, onOpenChange }: Props) {
+export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = "personal" }: Props) {
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -168,7 +169,8 @@ export function EditEmployeeDialog({ employee, open, onOpenChange }: Props) {
       onOpenChange(false);
     },
     onError: (e: any) => {
-      const msg = e?.response?.data?.error ?? e?.message ?? "Update failed";
+      // ApiError stores the parsed response body at e.data (not e.response.data)
+      const msg = (e?.data as any)?.error ?? e?.message ?? "Update failed";
       toast({ variant: "destructive", title: "Update failed", description: msg });
     },
   });
@@ -225,7 +227,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange }: Props) {
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="personal" className="flex-1 overflow-hidden flex flex-col">
+        <Tabs defaultValue={defaultTab} className="flex-1 overflow-hidden flex flex-col">
           <TabsList className="grid grid-cols-4 bg-card border border-border/50">
             <TabsTrigger value="personal" className="font-mono text-xs gap-1.5">
               <User className="h-3.5 w-3.5" />PERSONAL

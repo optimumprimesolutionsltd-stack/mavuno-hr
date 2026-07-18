@@ -8,7 +8,7 @@ import { writeAudit } from "../lib/audit.js";
 import { calculateRun, recalculateRun, applyLoanRepayments } from "../lib/payroll-run.js";
 import { computePayslip } from "../lib/payroll.js";
 import { resolveConfig } from "../lib/statutory-resolve.js";
-import { canApproveRun } from "../lib/rbac.js";
+import { canApproveRun, can } from "../lib/rbac.js";
 import { HttpError } from "../lib/http-error.js";
 import { createHash } from "crypto";
 
@@ -70,13 +70,26 @@ router.get("/:id", requireAuth("payroll:read"), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.patch("/:id", requireAuth("payroll:submit"), async (req, res, next) => {
+router.patch("/:id", requireAuth(), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
     const id = Number(req.params.id);
     const parsed = runActionSchema.safeParse(req.body);
     if (!parsed.success) { res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return; }
     const { action, note } = parsed.data;
+
+    // Action-specific permission check — each action maps to its own permission
+    const actionPerm: Record<string, string> = {
+      submit: "payroll:submit",
+      reject: "payroll:submit",    // rejecting goes back to draft, same authority as submit
+      approve: "payroll:approve",  // approver role can approve without payroll:submit
+      pay: "payroll:disburse",
+      reverse: "payroll:disburse",
+    };
+    const requiredPerm = actionPerm[action];
+    if (!can(p.role, requiredPerm as any)) {
+      return res.status(403).json({ error: `Your role (${p.role}) is not permitted to perform action '${action}'` });
+    }
 
     const [run] = await db.select().from(payrollRuns)
       .where(and(eq(payrollRuns.id, id), eq(payrollRuns.orgId, p.orgId)));

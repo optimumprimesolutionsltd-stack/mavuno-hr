@@ -17,7 +17,13 @@ export function EmployeeDetail() {
   const id = parseInt(params?.id || "0", 10);
   const [, setLocation] = useLocation();
   const [editOpen, setEditOpen] = useState(false);
+  const [editTab, setEditTab] = useState<"personal" | "employment" | "payment" | "compliance">("personal");
   const [terminateOpen, setTerminateOpen] = useState(false);
+
+  function openEdit(tab: "personal" | "employment" | "payment" | "compliance" = "personal") {
+    setEditTab(tab);
+    setEditOpen(true);
+  }
 
   const { data, isLoading, error } = useGetEmployee(id, {
     query: { enabled: !!id },
@@ -78,7 +84,7 @@ export function EmployeeDetail() {
                 variant="outline"
                 size="sm"
                 className="font-mono gap-1.5"
-                onClick={() => setEditOpen(true)}
+                onClick={() => openEdit("personal")}
               >
                 <Pencil className="h-3.5 w-3.5" />
                 EDIT
@@ -246,8 +252,14 @@ export function EmployeeDetail() {
         {/* ── Pay Structure tab ── */}
         <TabsContent value="payroll" className="mt-0">
           <Card className="border-border/50 shadow-sm bg-card/30">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="font-mono">COMPENSATION STRUCTURE</CardTitle>
+              {!isTerminated && (
+                <Button size="sm" variant="outline" className="font-mono gap-1.5" onClick={() => openEdit("employment")}>
+                  <Pencil className="h-3.5 w-3.5" />
+                  EDIT SALARY
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               <div className="max-w-2xl">
@@ -344,6 +356,7 @@ export function EmployeeDetail() {
         employee={employee as any}
         open={editOpen}
         onOpenChange={setEditOpen}
+        defaultTab={editTab}
       />
       <TerminateDialog
         employeeId={employee.id}
