@@ -31,7 +31,8 @@ description: Key design decisions and constraints for the Zawadi HR & Payroll sy
 - `zod` must be in `@workspace/api-server` dependencies (not just workspace catalog) since it's used in route handlers.
 
 ## Demo credentials (zawadi-demo org)
-- Email: admin@zawadi.co.ke  
-- Password: FsMP6jAh64WF (shown once at seed time — change this in production)
+- Email: optimumprimesolutionsltd@gmail.com
+- Password: OPTIMUMP2026
+- Update script: `artifacts/api-server/scripts/update-admin.ts` (uses `passwordHash` column, not `password`)
 
 **Why:** SESSION_SECRET for dev seeding was a static string; for production use a real random secret ≥32 chars.

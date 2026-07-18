@@ -24,8 +24,8 @@ export function AdminLogin() {
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "admin@zawadi.co.ke",
-      password: "FsMP6jAh64WF",
+      email: "optimumprimesolutionsltd@gmail.com",
+      password: "OPTIMUMP2026",
     },
   });
 

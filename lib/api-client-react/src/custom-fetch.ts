@@ -349,10 +349,20 @@ export async function customFetch<T = unknown>(
     headers.set("accept", DEFAULT_JSON_ACCEPT);
   }
 
-  // Attach bearer token when an auth getter is configured and no
-  // Authorization header has been explicitly provided.
-  if (_authTokenGetter && !headers.has("authorization")) {
-    const token = await _authTokenGetter();
+  // Attach bearer token when an auth getter is configured or a token is
+  // available in sessionStorage (handles cross-site iframe environments where
+  // httpOnly cookies are blocked by the browser).
+  if (!headers.has("authorization")) {
+    let token: string | null = null;
+    if (_authTokenGetter) {
+      token = await _authTokenGetter();
+    }
+    // Fallback: read directly from sessionStorage so the token is always
+    // picked up even if setAuthTokenGetter was not called in this module
+    // instance (can happen with Vite's module deduplication in dev).
+    if (!token && typeof sessionStorage !== "undefined") {
+      token = sessionStorage.getItem("zawadi_session_token");
+    }
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
     }
