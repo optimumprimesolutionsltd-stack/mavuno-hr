@@ -1,1 +1,2 @@
 - [Zawadi HR architecture](zawadi-hr-arch.md) — full-stack Kenya payroll SaaS; key design constraints and seed workflow
+- [Wouter 3 routing patterns](wouter-routing.md) — regexparam 3 breaks `/admin*` prefix matching; use two routes: `/admin` + `/admin/*`

@@ -36,15 +36,24 @@ export function Router() {
   return (
     <Switch>
       <Route path="/" component={RootRedirect} />
-      
-      {/* Admin Routes */}
+
+      {/* ── Admin auth (outside guard) ── */}
       <Route path="/admin/login" component={AdminLogin} />
-      
-      <Route path="/admin{/:rest*}">
+
+      {/* ── Admin dashboard (exact /admin) ── */}
+      <Route path="/admin">
+        <AdminGuard>
+          <AdminLayout>
+            <AdminDashboard />
+          </AdminLayout>
+        </AdminGuard>
+      </Route>
+
+      {/* ── Admin sub-pages (/admin/anything) ── */}
+      <Route path="/admin/*">
         <AdminGuard>
           <AdminLayout>
             <Switch>
-              <Route path="/admin" component={AdminDashboard} />
               <Route path="/admin/employees" component={EmployeeList} />
               <Route path="/admin/employees/:id" component={EmployeeDetail} />
               <Route path="/admin/payroll" component={PayrollList} />
@@ -60,14 +69,23 @@ export function Router() {
         </AdminGuard>
       </Route>
 
-      {/* Portal Routes */}
+      {/* ── Portal auth (outside guard) ── */}
       <Route path="/portal/login" component={PortalLogin} />
-      
-      <Route path="/portal{/:rest*}">
+
+      {/* ── Portal dashboard (exact /portal) ── */}
+      <Route path="/portal">
+        <PortalGuard>
+          <PortalLayout>
+            <PortalProfile />
+          </PortalLayout>
+        </PortalGuard>
+      </Route>
+
+      {/* ── Portal sub-pages (/portal/anything) ── */}
+      <Route path="/portal/*">
         <PortalGuard>
           <PortalLayout>
             <Switch>
-              <Route path="/portal" component={PortalProfile} />
               <Route path="/portal/leave" component={PortalLeave} />
               <Route path="/portal/loans" component={PortalLoans} />
               <Route path="/portal/p9" component={PortalP9} />
@@ -76,7 +94,8 @@ export function Router() {
           </PortalLayout>
         </PortalGuard>
       </Route>
-      
+
+      {/* ── 404 ── */}
       <Route>
         <div className="flex items-center justify-center h-screen bg-background">
           <div className="text-center">
