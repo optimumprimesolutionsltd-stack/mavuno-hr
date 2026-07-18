@@ -93,8 +93,10 @@ export function computeSocialSecurity(gross: Cents, cfg: StatutoryConfig) {
   const tier1 = mulBps(tier1Base, employeeBps);
   const tier2 = mulBps(tier2Base, employeeBps);
   const employee = (tier1 + tier2) as Cents;
-  const employer = (mulBps(tier1Base, employerBps) + mulBps(tier2Base, employerBps)) as Cents;
-  return { tier1, tier2, employee, employer };
+  const tier1Employer = mulBps(tier1Base, employerBps);
+  const tier2Employer = mulBps(tier2Base, employerBps);
+  const employer = (tier1Employer + tier2Employer) as Cents;
+  return { tier1, tier2, employee, tier1Employer, tier2Employer, employer };
 }
 
 export function computePayslip(e: PayInput, cfg: StatutoryConfig): PayResult {
@@ -207,6 +209,7 @@ export function computePayslip(e: PayInput, cfg: StatutoryConfig): PayResult {
     gross, cashGross,
     nssfEmployee: ss.employee, nssfEmployer: ss.employer,
     nssfTier1: ss.tier1, nssfTier2: ss.tier2,
+    nssfTier1Employer: ss.tier1Employer, nssfTier2Employer: ss.tier2Employer,
     shif: health,
     housingLevyEmployee: levyEmployee, housingLevyEmployer: levyEmployer,
     pension, pensionEmployer: e.pensionEmployer, mortgageInterest: mortgage,

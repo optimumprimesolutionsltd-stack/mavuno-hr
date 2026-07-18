@@ -191,7 +191,7 @@ export async function calculateRun(
       adjustmentDeductions: r.adjustmentDeductions, totalDeductions: r.totalDeductions,
       netPay: r.netPay, employerCost: r.employerCost, daysInPeriod,
       daysPayable: pin.daysPayable,
-      breakdown: { bands: r.bands, nssfTier1: r.nssfTier1, nssfTier2: r.nssfTier2, warnings: r.warnings },
+      breakdown: { bands: r.bands, nssfTier1: r.nssfTier1, nssfTier2: r.nssfTier2, nssfTier1Employer: r.nssfTier1Employer, nssfTier2Employer: r.nssfTier2Employer, warnings: r.warnings },
     };
   });
 
@@ -348,7 +348,7 @@ export async function recalculateRun(
       adjustmentDeductions: r.adjustmentDeductions, totalDeductions: r.totalDeductions,
       netPay: r.netPay, employerCost: r.employerCost, daysInPeriod,
       daysPayable: pin.daysPayable,
-      breakdown: { bands: r.bands, nssfTier1: r.nssfTier1, nssfTier2: r.nssfTier2, warnings: r.warnings },
+      breakdown: { bands: r.bands, nssfTier1: r.nssfTier1, nssfTier2: r.nssfTier2, nssfTier1Employer: r.nssfTier1Employer, nssfTier2Employer: r.nssfTier2Employer, warnings: r.warnings },
     };
   });
 

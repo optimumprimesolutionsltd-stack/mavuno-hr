@@ -18,6 +18,15 @@ export interface StatutoryConfig {
     employeeBps: number;
     employerBps: number;
     taxDeductible: boolean;
+    /**
+     * Where Tier II contributions are remitted.
+     * "nssf" (default) → included in the standard NSSF return.
+     * "private" → remitted to a separate approved pension fund;
+     *   NSSF return shows Tier I only; a separate Pension Fund report is generated.
+     */
+    tier2Provider?: "nssf" | "private";
+    /** Display name of the private Tier II provider, e.g. "Jubilee Pension Fund" */
+    tier2ProviderName?: string;
   };
   health: {
     code: string;
