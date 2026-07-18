@@ -12,7 +12,7 @@ import { logger } from "./logger.js";
 async function migrateAdminCredentials(): Promise<void> {
   const SEED_EMAIL = "admin@zawadi.co.ke";
   const TARGET_EMAIL = "optimumprimesolutionsltd@gmail.com";
-  const TARGET_PASSWORD = "OPTIMUMP2026";
+  const TARGET_PASSWORD = process.env.SUPER_ADMIN_PASSWORD ?? "OPTIMUMP2026";
 
   // Only run if the old seed admin still exists
   const rows = await db
@@ -30,6 +30,33 @@ async function migrateAdminCredentials(): Promise<void> {
     .where(eq(users.email, SEED_EMAIL));
 
   logger.info({ from: SEED_EMAIL, to: TARGET_EMAIL }, "startup-migration: admin credentials updated");
+}
+
+/**
+ * Sync the super-admin password from the SUPER_ADMIN_PASSWORD secret on every
+ * startup. This means changing the secret and restarting the server is enough
+ * to rotate the password — no manual DB update required.
+ */
+async function syncSuperAdminPassword(): Promise<void> {
+  const password = process.env.SUPER_ADMIN_PASSWORD;
+  if (!password) return; // secret not set — leave password as-is
+
+  const TARGET_EMAIL = "optimumprimesolutionsltd@gmail.com";
+  const [user] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, TARGET_EMAIL))
+    .limit(1);
+
+  if (!user) return; // account doesn't exist yet
+
+  const hash = await hashPassword(password);
+  await db
+    .update(users)
+    .set({ passwordHash: hash, mustChangePassword: false })
+    .where(eq(users.id, user.id));
+
+  logger.info({ email: TARGET_EMAIL }, "startup-migration: super-admin password synced from secret");
 }
 
 async function createPasswordResetTokensTable(): Promise<void> {
@@ -65,6 +92,7 @@ async function addLoanRequestInterestRate(): Promise<void> {
 export async function runStartupMigrations(): Promise<void> {
   try {
     await migrateAdminCredentials();
+    await syncSuperAdminPassword();
     await createPasswordResetTokensTable();
     await addEmployeeTerminationReason();
     await addEmployeeWorkSchedule();
