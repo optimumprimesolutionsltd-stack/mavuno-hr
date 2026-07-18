@@ -98,6 +98,12 @@ export function AdminLogin() {
                 </Button>
               </form>
             </Form>
+
+            <div className="mt-4 text-center">
+              <Link href="/admin/forgot-password" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                Forgot your password?
+              </Link>
+            </div>
           </CardContent>
         </Card>
 

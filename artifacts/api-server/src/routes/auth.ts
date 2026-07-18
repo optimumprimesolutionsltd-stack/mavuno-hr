@@ -1,13 +1,15 @@
 import { Router } from "express";
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, lt } from "drizzle-orm";
+import crypto from "crypto";
 import { db } from "@workspace/db";
-import { users, organizations } from "@workspace/db/schema";
+import { users, organizations, passwordResetTokens } from "@workspace/db/schema";
 import { verifyPassword, hashPassword, validatePasswordStrength } from "../lib/password.js";
 import { createSession, destroySession, revokeAllUserSessions } from "../lib/session.js";
 import { requireAuth, getIp, type AuthRequest } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { HttpError } from "../lib/http-error.js";
+import { sendPasswordResetEmail } from "../lib/mailer.js";
 
 const router = Router();
 
@@ -173,6 +175,85 @@ router.post("/register", async (req, res, next) => {
       countryCode: countryCode.toUpperCase(),
       currencyCode: currencyCode.toUpperCase(),
     });
+  } catch (err) { next(err); }
+});
+
+// ── Forgot password ───────────────────────────────────────────────────────
+const forgotSchema = z.object({
+  email: z.string().email().max(255),
+});
+
+router.post("/forgot-password", async (req, res, next) => {
+  try {
+    const parsed = forgotSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(422).json({ error: "Invalid email" }); return; }
+    const { email } = parsed.data;
+
+    // Always respond 200 — never reveal whether email exists
+    const [user] = await db.select({ id: users.id, name: users.name, email: users.email, orgId: users.orgId })
+      .from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+
+    if (user && !user) { /* unreachable — keeps flow below */ }
+
+    if (user) {
+      // Invalidate any existing unused tokens for this user
+      await db.delete(passwordResetTokens)
+        .where(and(eq(passwordResetTokens.userId, user.id), lt(passwordResetTokens.expiresAt, new Date(Date.now() + 3601_000))));
+
+      const rawToken = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      await db.insert(passwordResetTokens).values({ userId: user.id, token: rawToken, expiresAt });
+
+      // Build reset URL from request origin or host
+      const origin = req.headers.origin
+        ?? `${req.protocol}://${req.headers.host}`;
+      const resetUrl = `${origin}/admin/reset-password?token=${rawToken}`;
+
+      await sendPasswordResetEmail(user.email, user.name, resetUrl).catch((err) => {
+        // Log but don't expose to client
+        req.log?.error?.({ err }, "forgot-password: email send failed");
+      });
+    }
+
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ── Reset password ────────────────────────────────────────────────────────
+const resetSchema = z.object({
+  token: z.string().min(1).max(128),
+  password: z.string().min(12).max(200),
+});
+
+router.post("/reset-password", async (req, res, next) => {
+  try {
+    const parsed = resetSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(422).json({ error: "Validation failed" }); return; }
+    const { token, password } = parsed.data;
+
+    const [row] = await db.select().from(passwordResetTokens)
+      .where(eq(passwordResetTokens.token, token)).limit(1);
+
+    if (!row) { res.status(400).json({ error: "Invalid or expired reset link." }); return; }
+    if (row.usedAt) { res.status(400).json({ error: "This reset link has already been used." }); return; }
+    if (row.expiresAt < new Date()) { res.status(400).json({ error: "This reset link has expired. Please request a new one." }); return; }
+
+    const pwErr = validatePasswordStrength(password);
+    if (pwErr) { res.status(422).json({ error: pwErr }); return; }
+
+    const hash = await hashPassword(password);
+
+    await db.transaction(async (tx) => {
+      await tx.update(users).set({ passwordHash: hash, mustChangePassword: false, failedLoginCount: 0, lockedUntil: null })
+        .where(eq(users.id, row.userId));
+      await tx.update(passwordResetTokens).set({ usedAt: new Date() })
+        .where(eq(passwordResetTokens.id, row.id));
+    });
+
+    await revokeAllUserSessions(row.userId);
+
+    res.json({ ok: true });
   } catch (err) { next(err); }
 });
 

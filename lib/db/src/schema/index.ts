@@ -351,3 +351,15 @@ export const idempotencyKeys = pgTable("idempotency_keys", {
   responseBody: jsonb("response_body"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.orgId, t.key] })]);
+
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("prt_token_uq").on(t.token),
+  index("prt_user_idx").on(t.userId),
+]);

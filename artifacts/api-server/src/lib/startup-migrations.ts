@@ -2,7 +2,7 @@
  * Idempotent startup migrations — run once at process start.
  * Each migration checks its own precondition so it is safe to run repeatedly.
  */
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { users } from "@workspace/db/schema";
 import { hashPassword } from "./password.js";
@@ -32,9 +32,25 @@ async function migrateAdminCredentials(): Promise<void> {
   logger.info({ from: SEED_EMAIL, to: TARGET_EMAIL }, "startup-migration: admin credentials updated");
 }
 
+async function createPasswordResetTokensTable(): Promise<void> {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id         SERIAL PRIMARY KEY,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token      TEXT NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      used_at    TIMESTAMP,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS prt_token_uq ON password_reset_tokens(token);
+    CREATE INDEX IF NOT EXISTS prt_user_idx ON password_reset_tokens(user_id);
+  `);
+}
+
 export async function runStartupMigrations(): Promise<void> {
   try {
     await migrateAdminCredentials();
+    await createPasswordResetTokensTable();
   } catch (err) {
     logger.error({ err }, "startup-migration: failed (non-fatal)");
   }

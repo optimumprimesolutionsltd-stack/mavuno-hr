@@ -1,5 +1,7 @@
 import { Switch, Route, Redirect } from "wouter";
 import { AdminLogin } from "@/pages/admin/login";
+import { ForgotPassword } from "@/pages/admin/forgot-password";
+import { ResetPassword } from "@/pages/admin/reset-password";
 import { Register } from "@/pages/register";
 import { AdminDashboard } from "@/pages/admin/dashboard";
 import { EmployeeList } from "@/pages/admin/employees/list";
@@ -41,6 +43,8 @@ export function Router() {
       {/* ── Public auth pages ── */}
       <Route path="/register" component={Register} />
       <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/admin/forgot-password" component={ForgotPassword} />
+      <Route path="/admin/reset-password" component={ResetPassword} />
 
       {/* ── Admin dashboard (exact /admin) ── */}
       <Route path="/admin">
