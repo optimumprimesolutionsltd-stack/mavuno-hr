@@ -40,7 +40,7 @@ export function Router() {
       {/* Admin Routes */}
       <Route path="/admin/login" component={AdminLogin} />
       
-      <Route path="/admin*">
+      <Route path="/admin{/:rest*}">
         <AdminGuard>
           <AdminLayout>
             <Switch>
@@ -63,7 +63,7 @@ export function Router() {
       {/* Portal Routes */}
       <Route path="/portal/login" component={PortalLogin} />
       
-      <Route path="/portal*">
+      <Route path="/portal{/:rest*}">
         <PortalGuard>
           <PortalLayout>
             <Switch>
