@@ -186,7 +186,12 @@ router.patch("/:runId/payslips/:slipId", requireAuth("payroll:calculate"), async
       if (!slipRow) throw new HttpError(404, "Payslip not found");
 
       const { slip, emp } = slipRow;
-      const { id: configId, config } = await resolveConfig(tx as any, p.orgId, run.org?.countryCode ?? "KE", run.period);
+      // Use the snapshot stored at run-creation time so historical edits don't
+      // break if the statutory config table changes. Fall back to live resolve
+      // only when the snapshot is missing (shouldn't happen in practice).
+      const config: import("../lib/statutory-types.js").StatutoryConfig =
+        (run.statutorySnapshot as any) ??
+        (await resolveConfig(tx as any, p.orgId, "KE", run.period)).config;
 
       // Load active loans for this employee
       const empLoans = await tx.select().from(loans)
