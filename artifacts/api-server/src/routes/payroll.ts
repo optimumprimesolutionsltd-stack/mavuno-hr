@@ -5,7 +5,7 @@ import { db } from "@workspace/db";
 import { payrollRuns, payslips, employees, payoutBatches, statutoryFilings } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
-import { calculateRun, applyLoanRepayments } from "../lib/payroll-run.js";
+import { calculateRun, recalculateRun, applyLoanRepayments } from "../lib/payroll-run.js";
 import { canApproveRun } from "../lib/rbac.js";
 import { HttpError } from "../lib/http-error.js";
 import { createHash } from "crypto";
@@ -128,6 +128,18 @@ router.patch("/:id", requireAuth("payroll:submit"), async (req, res, next) => {
     });
 
     res.json(updated);
+  } catch (err) { next(err); }
+});
+
+router.post("/:id/recalculate", requireAuth("payroll:calculate"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+    const started = Date.now();
+    const { run, warnings } = await db.transaction(async (tx) =>
+      recalculateRun(tx as any, p, id, getIp(req))
+    );
+    res.json({ run, warnings, durationMs: Date.now() - started });
   } catch (err) { next(err); }
 });
 

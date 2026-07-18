@@ -1,7 +1,7 @@
 import { useRoute, Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useGetPayrollRun, useActionPayrollRun,
+  useGetPayrollRun, useActionPayrollRun, customFetch,
   getGetPayrollRunQueryKey, getListPayrollRunsQueryKey
 } from "@workspace/api-client-react";
 import { formatMoney, formatDateTime } from "@/lib/utils";
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, CheckCircle, Send, PlayCircle, RotateCcw, FileText } from "lucide-react";
+import { ArrowLeft, CheckCircle, Send, PlayCircle, RotateCcw, FileText, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export function PayrollDetail() {
@@ -30,6 +30,24 @@ export function PayrollDetail() {
       onError: (err: any) => {
         toast({ variant: "destructive", title: "Action Failed", description: err?.message || "Failed to update payroll run." });
       },
+    },
+  });
+
+  const recalcMutation = useMutation({
+    mutationFn: () =>
+      customFetch(`/api/payroll/${id}/recalculate`, { method: "POST" }),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: getGetPayrollRunQueryKey(id) });
+      queryClient.invalidateQueries({ queryKey: getListPayrollRunsQueryKey() });
+      const w = data?.warnings?.length ?? 0;
+      toast({
+        title: "Recalculated",
+        description: `Payroll recalculated with current employee data.${w ? ` ${w} warning(s).` : ""}`,
+      });
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.error ?? err?.message ?? "Recalculation failed";
+      toast({ variant: "destructive", title: "Recalculate Failed", description: msg });
     },
   });
 
@@ -63,6 +81,19 @@ export function PayrollDetail() {
             STATUS: {run?.status?.replace("_", " ").toUpperCase()}
           </Badge>
 
+          {(run?.status === "draft" || run?.status === "pending_approval") && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => recalcMutation.mutate()}
+              disabled={recalcMutation.isPending || actionMutation.isPending}
+              className="font-mono gap-1.5"
+              title="Recalculate using current employee salaries and data"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${recalcMutation.isPending ? "animate-spin" : ""}`} />
+              RECALCULATE
+            </Button>
+          )}
           {run?.status === "draft" && (
             <Button size="sm" onClick={() => handleAction("submit")} disabled={actionMutation.isPending} className="font-mono">
               <Send className="h-4 w-4 mr-2" /> SUBMIT
