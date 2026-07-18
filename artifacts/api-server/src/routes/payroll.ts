@@ -2,10 +2,12 @@ import { Router } from "express";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { payrollRuns, payslips, employees, payoutBatches, statutoryFilings } from "@workspace/db/schema";
+import { payrollRuns, payslips, employees, loans, payoutBatches, statutoryFilings } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { calculateRun, recalculateRun, applyLoanRepayments } from "../lib/payroll-run.js";
+import { computePayslip } from "../lib/payroll.js";
+import { resolveConfig } from "../lib/statutory-resolve.js";
 import { canApproveRun } from "../lib/rbac.js";
 import { HttpError } from "../lib/http-error.js";
 import { createHash } from "crypto";
@@ -140,6 +142,163 @@ router.post("/:id/recalculate", requireAuth("payroll:calculate"), async (req, re
       recalculateRun(tx as any, p, id, getIp(req))
     );
     res.json({ run, warnings, durationMs: Date.now() - started });
+  } catch (err) { next(err); }
+});
+
+// ── PATCH /:runId/payslips/:slipId — edit one payslip then refresh run totals ──
+const editSlipSchema = z.object({
+  overtimeHours: z.number().min(0).max(744).optional(),
+  holidayHours: z.number().min(0).max(744).optional(),
+  adjustmentEarningsTaxable: z.number().min(0).optional(),  // cents
+  adjustmentEarningsNonTaxable: z.number().min(0).optional(),
+  adjustmentDeductions: z.number().min(0).optional(),
+  basicSalaryOverride: z.number().min(0).nullable().optional(), // null = use employee's base
+  daysPayableOverride: z.number().min(0).max(31).nullable().optional(),
+  note: z.string().max(300).optional(),
+});
+
+router.patch("/:runId/payslips/:slipId", requireAuth("payroll:calculate"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const runId = Number(req.params.runId);
+    const slipId = Number(req.params.slipId);
+
+    const parsed = editSlipSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return;
+    }
+    const overrides = parsed.data;
+
+    const { updatedSlip, updatedRun } = await db.transaction(async (tx) => {
+      // Verify run
+      const [run] = await tx.select().from(payrollRuns)
+        .where(and(eq(payrollRuns.id, runId), eq(payrollRuns.orgId, p.orgId)));
+      if (!run) throw new HttpError(404, "Payroll run not found");
+      if (!["draft", "pending_approval"].includes(run.status)) {
+        throw new HttpError(409, `Cannot edit a payroll run in status '${run.status}'`);
+      }
+
+      // Load payslip + employee
+      const [slipRow] = await tx.select({ slip: payslips, emp: employees })
+        .from(payslips)
+        .innerJoin(employees, eq(payslips.employeeId, employees.id))
+        .where(and(eq(payslips.id, slipId), eq(payslips.runId, runId), eq(payslips.orgId, p.orgId)));
+      if (!slipRow) throw new HttpError(404, "Payslip not found");
+
+      const { slip, emp } = slipRow;
+      const { id: configId, config } = await resolveConfig(tx as any, p.orgId, run.org?.countryCode ?? "KE", run.period);
+
+      // Load active loans for this employee
+      const empLoans = await tx.select().from(loans)
+        .where(and(eq(loans.orgId, p.orgId), eq(loans.employeeId, emp.id), eq(loans.status, "active")));
+      const loanInstallment = empLoans.reduce((s, l) => s + Math.min(l.monthlyInstallment, l.balance), 0) as import("../lib/money.js").Cents;
+
+      const existingBreakdown: any = slip.breakdown ?? {};
+      const existingOverrides: any = existingBreakdown.overrides ?? {};
+
+      // Merge: request body wins over existing overrides; null clears to employee base
+      const merged = {
+        overtimeHours: overrides.overtimeHours ?? existingOverrides.overtimeHours ?? 0,
+        holidayHours: overrides.holidayHours ?? existingOverrides.holidayHours ?? 0,
+        adjustmentEarningsTaxable: (overrides.adjustmentEarningsTaxable ?? existingOverrides.adjustmentEarningsTaxable ?? 0) as import("../lib/money.js").Cents,
+        adjustmentEarningsNonTaxable: (overrides.adjustmentEarningsNonTaxable ?? existingOverrides.adjustmentEarningsNonTaxable ?? 0) as import("../lib/money.js").Cents,
+        adjustmentDeductions: (overrides.adjustmentDeductions ?? existingOverrides.adjustmentDeductions ?? 0) as import("../lib/money.js").Cents,
+        basicSalaryOverride: "basicSalaryOverride" in overrides ? overrides.basicSalaryOverride : existingOverrides.basicSalaryOverride,
+        daysPayableOverride: "daysPayableOverride" in overrides ? overrides.daysPayableOverride : existingOverrides.daysPayableOverride,
+        note: overrides.note ?? existingOverrides.note,
+      };
+
+      // Payable days
+      let daysInPeriod = slip.daysInPeriod;
+      let daysPayable = merged.daysPayableOverride != null
+        ? merged.daysPayableOverride
+        : (emp.employmentType === "casual" ? 0 : slip.daysPayable);
+
+      const pin: import("../lib/payroll.js").PayInput = {
+        basicSalary: (merged.basicSalaryOverride != null ? merged.basicSalaryOverride : emp.basicSalary) as import("../lib/money.js").Cents,
+        houseAllowance: emp.houseAllowance,
+        transportAllowance: emp.transportAllowance,
+        otherAllowance: emp.otherAllowance,
+        nonCashBenefit: emp.nonCashBenefit,
+        insurancePremium: emp.insurancePremium,
+        pensionEmployee: emp.pensionEmployee,
+        pensionEmployer: emp.pensionEmployer,
+        mortgageInterest: emp.mortgageInterest,
+        helbMonthly: emp.helbMonthly,
+        saccoMonthly: emp.saccoMonthly,
+        loanInstallment,
+        adjustmentEarningsTaxable: merged.adjustmentEarningsTaxable,
+        adjustmentEarningsNonTaxable: merged.adjustmentEarningsNonTaxable,
+        adjustmentDeductions: merged.adjustmentDeductions,
+        overtimeHours: merged.overtimeHours,
+        holidayHours: merged.holidayHours,
+        daysInPeriod,
+        daysPayable,
+        employmentType: emp.employmentType as any,
+        residentStatus: emp.residentStatus as any,
+        disabilityExemption: emp.disabilityExemption,
+      };
+
+      const r = computePayslip(pin, config);
+
+      const newBreakdown = {
+        bands: r.bands, nssfTier1: r.nssfTier1, nssfTier2: r.nssfTier2,
+        warnings: r.warnings, overrides: merged,
+      };
+
+      const [updatedSlip] = await tx.update(payslips).set({
+        basic: r.basic, allowances: r.allowances, overtime: r.overtime,
+        adjustmentEarnings: r.adjustmentEarnings, nonCashBenefit: r.nonCashBenefit,
+        gross: r.gross, cashGross: r.cashGross,
+        nssfEmployee: r.nssfEmployee, nssfEmployer: r.nssfEmployer, shif: r.shif,
+        housingLevyEmployee: r.housingLevyEmployee, housingLevyEmployer: r.housingLevyEmployer,
+        pension: r.pension, pensionEmployer: r.pensionEmployer, mortgageInterest: r.mortgageInterest,
+        taxableIncome: r.taxableIncome, payeBeforeRelief: r.payeBeforeRelief,
+        personalRelief: r.personalRelief, insuranceRelief: r.insuranceRelief, paye: r.paye,
+        helb: r.helb, sacco: r.sacco, loanDeduction: r.loanDeduction,
+        adjustmentDeductions: r.adjustmentDeductions, totalDeductions: r.totalDeductions,
+        netPay: r.netPay, employerCost: r.employerCost,
+        daysInPeriod, daysPayable,
+        breakdown: newBreakdown,
+      }).where(eq(payslips.id, slipId)).returning();
+
+      // Refresh run totals from all payslips
+      const allSlips = await tx.select().from(payslips)
+        .where(and(eq(payslips.runId, runId), eq(payslips.orgId, p.orgId)));
+
+      const totals = allSlips.reduce((acc, s) => ({
+        gross: acc.gross + s.gross,
+        net: acc.net + s.netPay,
+        paye: acc.paye + s.paye,
+        nssfE: acc.nssfE + s.nssfEmployee,
+        nssfR: acc.nssfR + s.nssfEmployer,
+        shif: acc.shif + s.shif,
+        ahlE: acc.ahlE + s.housingLevyEmployee,
+        ahlR: acc.ahlR + s.housingLevyEmployer,
+        employerCost: acc.employerCost + s.employerCost,
+      }), { gross: 0, net: 0, paye: 0, nssfE: 0, nssfR: 0, shif: 0, ahlE: 0, ahlR: 0, employerCost: 0 });
+
+      const [updatedRun] = await tx.update(payrollRuns).set({
+        // Move back to draft if it was pending so the edit is reviewed before re-approval
+        status: run.status === "pending_approval" ? "draft" : run.status,
+        grossTotal: totals.gross, netTotal: totals.net, payeTotal: totals.paye,
+        nssfEmployeeTotal: totals.nssfE, nssfEmployerTotal: totals.nssfR,
+        shifTotal: totals.shif,
+        housingLevyEmployeeTotal: totals.ahlE, housingLevyEmployerTotal: totals.ahlR,
+        employerCostTotal: totals.employerCost,
+      }).where(eq(payrollRuns.id, runId)).returning();
+
+      await writeAudit(tx as any, {
+        orgId: p.orgId, action: "PAYSLIP_EDITED", entity: "payslips", entityId: slipId,
+        detail: merged.note ?? null,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        after: { gross: r.gross, netPay: r.netPay, overrides: merged },
+      });
+
+      return { updatedSlip, updatedRun };
+    });
+
+    res.json({ slip: updatedSlip, run: updatedRun });
   } catch (err) { next(err); }
 });
 
