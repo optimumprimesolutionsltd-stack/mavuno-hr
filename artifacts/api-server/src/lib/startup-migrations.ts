@@ -53,11 +53,19 @@ async function addEmployeeTerminationReason(): Promise<void> {
   `);
 }
 
+async function addEmployeeWorkSchedule(): Promise<void> {
+  await db.execute(sql`
+    ALTER TABLE employees ADD COLUMN IF NOT EXISTS work_days_per_week INTEGER NOT NULL DEFAULT 5;
+    ALTER TABLE employees ADD COLUMN IF NOT EXISTS works_on_holidays BOOLEAN NOT NULL DEFAULT FALSE;
+  `);
+}
+
 export async function runStartupMigrations(): Promise<void> {
   try {
     await migrateAdminCredentials();
     await createPasswordResetTokensTable();
     await addEmployeeTerminationReason();
+    await addEmployeeWorkSchedule();
   } catch (err) {
     logger.error({ err }, "startup-migration: failed (non-fatal)");
   }

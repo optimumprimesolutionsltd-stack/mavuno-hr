@@ -45,6 +45,8 @@ interface Employee {
   shifNo?: string | null;
   disabilityExemption?: boolean | null;
   departmentId?: number | null;
+  workDaysPerWeek?: number | null;
+  worksOnHolidays?: boolean | null;
 }
 
 interface Props {
@@ -70,6 +72,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange }: Props) {
     mortgageInterest: "0", helbMonthly: "0", saccoMonthly: "0",
     payMethod: "bank", bankName: "", bankAccount: "", bankBranchCode: "", mpesaPhone: "",
     kraPin: "", nssfNo: "", shifNo: "",
+    workDaysPerWeek: "5", worksOnHolidays: "no",
   });
 
   // Populate form when employee changes
@@ -105,6 +108,8 @@ export function EditEmployeeDialog({ employee, open, onOpenChange }: Props) {
       kraPin: employee.kraPin ?? "",
       nssfNo: employee.nssfNo ?? "",
       shifNo: employee.shifNo ?? "",
+      workDaysPerWeek: String(employee.workDaysPerWeek ?? 5),
+      worksOnHolidays: employee.worksOnHolidays ? "yes" : "no",
     });
   }, [employee]);
 
@@ -157,6 +162,8 @@ export function EditEmployeeDialog({ employee, open, onOpenChange }: Props) {
         kraPin: form.kraPin || undefined,
         nssfNo: form.nssfNo || undefined,
         shifNo: form.shifNo || undefined,
+        workDaysPerWeek: form.workDaysPerWeek as any,
+        worksOnHolidays: form.worksOnHolidays === "yes",
       },
     });
   }
@@ -240,6 +247,19 @@ export function EditEmployeeDialog({ employee, open, onOpenChange }: Props) {
                   { value: "contract", label: "Contract" },
                   { value: "casual", label: "Casual" },
                 ]} />
+              </div>
+              <div className="pt-2 border-t border-border/50">
+                <p className="text-xs font-mono text-muted-foreground mb-3">WORK SCHEDULE</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <S label="WORKING DAYS PER WEEK" k="workDaysPerWeek" options={[
+                    { value: "5", label: "5 days (Mon – Fri)" },
+                    { value: "6", label: "6 days (Mon – Sat)" },
+                  ]} />
+                  <S label="WORKS ON PUBLIC HOLIDAYS?" k="worksOnHolidays" options={[
+                    { value: "no", label: "No — holidays not counted" },
+                    { value: "yes", label: "Yes — holidays count as leave" },
+                  ]} />
+                </div>
               </div>
               <div className="pt-2 border-t border-border/50">
                 <p className="text-xs font-mono text-muted-foreground mb-3">COMPENSATION</p>

@@ -26,6 +26,8 @@ interface FormData {
   basicSalary: string;
   houseAllowance: string;
   transportAllowance: string;
+  workDaysPerWeek: string;
+  worksOnHolidays: boolean;
   // Step 3 — Payment
   payMethod: string;
   bankName: string;
@@ -42,6 +44,7 @@ const DEFAULTS: FormData = {
   firstName: "", lastName: "", email: "", phone: "", gender: "male", nationalId: "",
   position: "", hireDate: new Date().toISOString().slice(0, 10), employmentType: "permanent",
   residentStatus: "resident", basicSalary: "", houseAllowance: "0", transportAllowance: "0",
+  workDaysPerWeek: "5", worksOnHolidays: false,
   payMethod: "bank", bankName: "", bankAccount: "", bankBranchCode: "", mpesaPhone: "",
   kraPin: "", nssfNo: "", shifNo: "",
 };
@@ -125,6 +128,8 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
         basicSalary: form.basicSalary as any,
         houseAllowance: (form.houseAllowance || "0") as any,
         transportAllowance: (form.transportAllowance || "0") as any,
+        workDaysPerWeek: form.workDaysPerWeek as any,
+        worksOnHolidays: form.worksOnHolidays,
         disabilityExemption: false,
       } as any,
     }, {
@@ -246,6 +251,35 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
             <div className="space-y-1">
               <Label className="text-xs font-mono text-muted-foreground">TRANSPORT ALLOWANCE (KES)</Label>
               <Input type="number" value={form.transportAllowance} onChange={set("transportAllowance")} placeholder="0" className="bg-background/50" />
+            </div>
+            {/* Work schedule */}
+            <div className="col-span-2 pt-2 border-t border-border/40">
+              <p className="text-xs font-mono text-muted-foreground mb-3">WORK SCHEDULE</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-mono text-muted-foreground">WORKING DAYS PER WEEK</Label>
+                  <Select value={form.workDaysPerWeek} onValueChange={setVal("workDaysPerWeek")}>
+                    <SelectTrigger className="bg-background/50"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5 days (Mon – Fri)</SelectItem>
+                      <SelectItem value="6">6 days (Mon – Sat)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-mono text-muted-foreground">WORKS ON PUBLIC HOLIDAYS?</Label>
+                  <Select
+                    value={form.worksOnHolidays ? "yes" : "no"}
+                    onValueChange={(v) => setForm(f => ({ ...f, worksOnHolidays: v === "yes" }))}
+                  >
+                    <SelectTrigger className="bg-background/50"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no">No — holidays not counted as leave</SelectItem>
+                      <SelectItem value="yes">Yes — holidays count as leave days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
           </div>
         )}

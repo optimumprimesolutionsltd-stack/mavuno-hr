@@ -114,6 +114,8 @@ export const employees = pgTable("employees", {
   mortgageInterest: money("mortgage_interest").notNull().default(0),
   helbMonthly: money("helb_monthly").notNull().default(0),
   saccoMonthly: money("sacco_monthly").notNull().default(0),
+  workDaysPerWeek: integer("work_days_per_week").notNull().default(5),
+  worksOnHolidays: boolean("works_on_holidays").notNull().default(false),
   hireDate: date("hire_date").notNull(),
   terminationDate: date("termination_date"),
   status: text("status").notNull().default("active"),

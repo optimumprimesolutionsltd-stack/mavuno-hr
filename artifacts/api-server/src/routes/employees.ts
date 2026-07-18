@@ -46,6 +46,8 @@ const employeeBaseSchema = z.object({
   mortgageInterest: moneyString.default("0"),
   helbMonthly: moneyString.default("0"),
   saccoMonthly: moneyString.default("0"),
+  workDaysPerWeek: z.enum(["5", "6"]).default("5").transform(Number),
+  worksOnHolidays: z.boolean().default(false),
   hireDate: isoDate,
 });
 
@@ -59,6 +61,8 @@ function toRow(body: z.infer<typeof employeeBaseSchema>) {
     mpesaPhone: body.mpesaPhone ?? null, departmentId: body.departmentId ?? null,
     position: body.position, employmentType: body.employmentType,
     residentStatus: body.residentStatus, disabilityExemption: body.disabilityExemption,
+    workDaysPerWeek: body.workDaysPerWeek ?? 5,
+    worksOnHolidays: body.worksOnHolidays ?? false,
     basicSalary: toCents(body.basicSalary),
     houseAllowance: toCents(body.houseAllowance ?? "0"),
     transportAllowance: toCents(body.transportAllowance ?? "0"),
