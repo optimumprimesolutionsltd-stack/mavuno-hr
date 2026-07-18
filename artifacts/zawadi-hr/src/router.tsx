@@ -22,6 +22,8 @@ import { PortalP9 } from "@/pages/portal/p9";
 
 import { AdminLayout, AdminGuard } from "@/components/layout/admin-layout";
 import { PortalLayout, PortalGuard } from "@/components/layout/portal-layout";
+import { SuperAdminLayout, SuperAdminGuard } from "@/components/layout/super-layout";
+import { SuperAdminCompanies } from "@/pages/super";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 
@@ -73,6 +75,15 @@ export function Router() {
             </Switch>
           </AdminLayout>
         </AdminGuard>
+      </Route>
+
+      {/* ── Super-admin panel ── */}
+      <Route path="/super">
+        <SuperAdminGuard>
+          <SuperAdminLayout>
+            <SuperAdminCompanies />
+          </SuperAdminLayout>
+        </SuperAdminGuard>
       </Route>
 
       {/* ── Portal auth (outside guard) ── */}

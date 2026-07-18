@@ -12,6 +12,7 @@ import auditRouter from "./audit.js";
 import calculatorRouter from "./calculator.js";
 import portalRouter from "./portal.js";
 import usersRouter from "./users.js";
+import superRouter from "./super.js";
 import { HttpError } from "../lib/http-error.js";
 import type { Request, Response, NextFunction } from "express";
 
@@ -30,6 +31,7 @@ router.use("/audit", auditRouter);
 router.use("/calculator", calculatorRouter);
 router.use("/portal", portalRouter);
 router.use("/users", usersRouter);
+router.use("/super", superRouter);
 
 // Global error handler
 router.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {

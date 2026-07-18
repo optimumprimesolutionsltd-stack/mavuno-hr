@@ -264,12 +264,18 @@ router.post("/logout", requireAuth(), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+function getSuperAdminEmails(): string[] {
+  return (process.env.SUPER_ADMIN_EMAILS ?? "")
+    .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+}
+
 router.get("/me", requireAuth(), (req, res) => {
   const p = (req as AuthRequest).principal;
   res.json({
     id: p.userId, email: p.email, name: p.name, role: p.role,
     employeeId: p.employeeId, mustChangePassword: p.mustChangePassword,
     orgSlug: p.orgSlug, countryCode: p.countryCode, currencyCode: p.currencyCode,
+    isSuperAdmin: getSuperAdminEmails().includes(p.email.toLowerCase()),
   });
 });
 

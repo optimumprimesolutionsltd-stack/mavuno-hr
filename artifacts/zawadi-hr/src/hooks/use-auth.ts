@@ -11,6 +11,7 @@ export function useAuth() {
   const isAuthenticated = !!user;
   const isAdmin = user?.role === 'admin' || user?.role === 'hr';
   const isEmployee = !!user?.employeeId;
+  const isSuperAdmin = !!(user as any)?.isSuperAdmin;
 
   return {
     user,
@@ -25,5 +26,6 @@ export function useAuth() {
     isAuthenticated,
     isAdmin,
     isEmployee,
+    isSuperAdmin,
   };
 }
