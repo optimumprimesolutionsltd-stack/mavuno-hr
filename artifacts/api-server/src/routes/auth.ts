@@ -103,6 +103,79 @@ router.post("/login", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Company self-registration ──────────────────────────────────────────────
+const registerSchema = z.object({
+  companyName:  z.string().min(2).max(120),
+  slug:         z.string().min(2).max(64).regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers, and hyphens only"),
+  countryCode:  z.string().length(2).default("KE"),
+  currencyCode: z.string().min(3).max(4).default("KES"),
+  adminName:    z.string().min(2).max(120),
+  adminEmail:   z.string().email().max(255),
+  password:     z.string().min(12).max(200),
+});
+
+router.post("/register", async (req, res, next) => {
+  try {
+    const parsed = registerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() });
+      return;
+    }
+    const { companyName, slug, countryCode, currencyCode, adminName, adminEmail, password } = parsed.data;
+
+    // Slug uniqueness
+    const [existing] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.slug, slug));
+    if (existing) { res.status(409).json({ error: "That company URL is already taken. Please choose another slug." }); return; }
+
+    // Password strength
+    const pwErr = validatePasswordStrength(password);
+    if (pwErr) { res.status(422).json({ error: pwErr }); return; }
+
+    const passwordHash = await hashPassword(password);
+
+    // Create org + admin user atomically
+    const { orgId, userId } = await db.transaction(async (tx) => {
+      const [org] = await tx.insert(organizations).values({
+        name: companyName,
+        slug,
+        countryCode: countryCode.toUpperCase(),
+        currencyCode: currencyCode.toUpperCase(),
+        plan: "trial",
+        seatLimit: 25,
+        status: "active",
+      }).returning({ id: organizations.id });
+
+      const [user] = await tx.insert(users).values({
+        orgId: org.id,
+        email: adminEmail.toLowerCase(),
+        name: adminName,
+        role: "admin",
+        passwordHash,
+        mustChangePassword: false,
+        failedLoginCount: 0,
+      }).returning({ id: users.id });
+
+      return { orgId: org.id, userId: user.id };
+    });
+
+    const ip = getIp(req);
+    const sessionToken = await createSession(res, userId, orgId, ip, req.headers["user-agent"] ?? null);
+
+    await writeAudit(db as any, {
+      orgId, action: "REGISTER", entity: "organizations", entityId: orgId,
+      actorUserId: userId, actorEmail: adminEmail.toLowerCase(), actorIp: ip,
+    });
+
+    res.status(201).json({
+      ok: true,
+      sessionToken,
+      orgSlug: slug,
+      countryCode: countryCode.toUpperCase(),
+      currencyCode: currencyCode.toUpperCase(),
+    });
+  } catch (err) { next(err); }
+});
+
 router.post("/logout", requireAuth(), async (req, res, next) => {
   try {
     await destroySession(req, res);
