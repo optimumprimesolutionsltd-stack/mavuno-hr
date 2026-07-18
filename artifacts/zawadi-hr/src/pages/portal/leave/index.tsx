@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListPortalLeave, useCreatePortalLeave, getListPortalLeaveQueryKey } from "@workspace/api-client-react";
+import { useListPortalLeave, useCreatePortalLeave, useGetPortalProfile, getListPortalLeaveQueryKey } from "@workspace/api-client-react";
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,9 +13,24 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
+const ALL_LEAVE_TYPES = [
+  { value: "annual",        label: "ANNUAL LEAVE" },
+  { value: "sick",          label: "SICK LEAVE" },
+  { value: "maternity",     label: "MATERNITY LEAVE",  gender: "female" },
+  { value: "paternity",     label: "PATERNITY LEAVE",  gender: "male" },
+  { value: "compassionate", label: "COMPASSIONATE LEAVE" },
+  { value: "unpaid",        label: "UNPAID LEAVE" },
+];
+
 export function PortalLeave() {
   const { data: leaves, isLoading } = useListPortalLeave();
+  const { data: profile } = useGetPortalProfile();
   const createLeave = useCreatePortalLeave();
+  const gender = (profile as any)?.employee?.gender ?? null;
+
+  const leaveTypes = ALL_LEAVE_TYPES.filter(
+    (t) => !t.gender || t.gender === gender
+  );
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -71,12 +86,9 @@ export function PortalLeave() {
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="annual">ANNUAL LEAVE</SelectItem>
-                    <SelectItem value="sick">SICK LEAVE</SelectItem>
-                    <SelectItem value="maternity">MATERNITY LEAVE</SelectItem>
-                    <SelectItem value="paternity">PATERNITY LEAVE</SelectItem>
-                    <SelectItem value="compassionate">COMPASSIONATE LEAVE</SelectItem>
-                    <SelectItem value="unpaid">UNPAID LEAVE</SelectItem>
+                    {leaveTypes.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
