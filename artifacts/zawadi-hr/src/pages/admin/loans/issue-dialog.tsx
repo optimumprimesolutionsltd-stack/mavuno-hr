@@ -56,7 +56,7 @@ export function IssueLoanDialog({ open, onOpenChange }: Props) {
       data: {
         employeeId: Number(form.employeeId),
         type: form.type as any,
-        principal: Number(form.amount) as any, // API uses moneyString but generated type says number
+        amount: form.amount, // API expects moneyString e.g. "50000"
         months: Number(form.months),
         interestRateBps: Number(form.interestRateBps) || 0,
         startDate: form.startDate,
