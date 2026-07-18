@@ -54,7 +54,7 @@ export function PortalProfile() {
             <div className="grid grid-cols-2 gap-y-4 text-sm">
               <div><span className="text-muted-foreground block text-xs">Employee No</span><span className="font-mono">{employee.empNo}</span></div>
               <div><span className="text-muted-foreground block text-xs">Position</span>{employee.position}</div>
-              <div><span className="text-muted-foreground block text-xs">Type</span><span className="capitalize">{employee.employmentType.replace('_', ' ')}</span></div>
+              <div><span className="text-muted-foreground block text-xs">Type</span><span className="capitalize">{employee.employmentType?.replace('_', ' ') ?? '-'}</span></div>
               <div><span className="text-muted-foreground block text-xs">Hire Date</span>{formatDate(employee.hireDate)}</div>
               <div className="col-span-2">
                 <div className="flex justify-between items-center p-3 bg-primary/5 rounded-lg border border-primary/20">

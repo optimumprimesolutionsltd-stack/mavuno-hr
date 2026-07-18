@@ -23,15 +23,39 @@ router.get("/me", requireAuth("self:read"), async (req, res, next) => {
       .where(and(eq(employees.id, empId), eq(employees.orgId, p.orgId)));
     if (!emp) { res.status(404).json({ error: "Employee profile not found" }); return; }
 
-    // Recent payslips
-    const slips = await db.select({ slip: payslips, run: payrollRuns })
+    // Recent payslips — flatten to what the component expects
+    const slipRows = await db.select({ slip: payslips, run: payrollRuns })
       .from(payslips)
       .innerJoin(payrollRuns, eq(payslips.runId, payrollRuns.id))
       .where(and(eq(payslips.employeeId, empId), eq(payslips.orgId, p.orgId)))
       .orderBy(desc(payrollRuns.period))
       .limit(12);
 
-    res.json({ employee: emp, payslips: slips });
+    const flatSlips = slipRows.map(r => ({
+      period: r.run.period,
+      grossPay: r.slip.gross,
+      paye: r.slip.paye,
+      nssfEmployee: r.slip.nssfEmployee,
+      shif: r.slip.shif,
+      housingLevyEmployee: r.slip.housingLevyEmployee,
+      netPay: r.slip.netPay,
+    }));
+
+    // Leave balance: annual entitlement (21 days) minus approved annual leave taken this year
+    const thisYear = new Date().getFullYear().toString();
+    const takenLeaves = await db.select().from(leaveRequests)
+      .where(and(
+        eq(leaveRequests.employeeId, empId),
+        eq(leaveRequests.orgId, p.orgId),
+        eq(leaveRequests.status, "approved"),
+        eq(leaveRequests.type, "annual"),
+      ));
+    const takenDays = takenLeaves
+      .filter(l => l.startDate.startsWith(thisYear))
+      .reduce((acc, l) => acc + Math.round((l.days ?? 0) / 10), 0);
+    const leaveBalance = Math.max(0, 21 - takenDays);
+
+    res.json({ employee: emp, payslips: flatSlips, leaveBalance });
   } catch (err) { next(err); }
 });
 
@@ -96,7 +120,7 @@ router.get("/loans", requireAuth("self:read"), async (req, res, next) => {
       const repayments = await db.select().from(loanRepayments)
         .where(eq(loanRepayments.loanId, loan.id))
         .orderBy(desc(loanRepayments.createdAt)).limit(24);
-      return { ...loan, repayments };
+      return { loan, repayments };
     }));
 
     res.json(withHistory);
@@ -133,10 +157,36 @@ router.get("/p9", requireAuth("self:read"), async (req, res, next) => {
     const [emp] = await db.select().from(employees)
       .where(and(eq(employees.id, empId), eq(employees.orgId, p.orgId)));
 
-    res.json({
-      year, employee: emp, totals,
-      monthlyBreakdown: yearSlips.map((r) => ({ period: r.run.period, ...r.slip })),
+    // Build KRA P9 monthly rows with standard field names
+    const months = yearSlips.map((r) => {
+      const s = r.slip;
+      const relief = s.personalRelief + s.insuranceRelief;
+      const taxOnPay = s.paye + relief; // gross PAYE before relief
+      return {
+        month: r.run.period, // "2025-01" — component formats this
+        basicSalary: s.gross,
+        benefits: 0,
+        grossPay: s.gross,
+        pension: s.nssfEmployee,
+        chargeablePay: s.taxableIncome,
+        taxOnPay,
+        relief,
+        paye: s.paye,
+      };
     });
+
+    const p9Totals = months.reduce((acc, m) => ({
+      basicSalary: acc.basicSalary + m.basicSalary,
+      benefits: 0,
+      grossPay: acc.grossPay + m.grossPay,
+      pension: acc.pension + m.pension,
+      chargeablePay: acc.chargeablePay + m.chargeablePay,
+      taxOnPay: acc.taxOnPay + m.taxOnPay,
+      relief: acc.relief + m.relief,
+      paye: acc.paye + m.paye,
+    }), { basicSalary: 0, benefits: 0, grossPay: 0, pension: 0, chargeablePay: 0, taxOnPay: 0, relief: 0, paye: 0 });
+
+    res.json({ year, employee: emp, months, totals: p9Totals });
   } catch (err) { next(err); }
 });
 

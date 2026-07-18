@@ -108,7 +108,7 @@ export function TimesheetAdmin() {
                         variant="outline" 
                         className="h-8 text-xs font-mono text-primary border-primary hover:bg-primary hover:text-primary-foreground"
                         onClick={() => handleApprove(row.timesheet.id)}
-                        disabled={approveTimesheet.isPending}
+                        disabled={approveMutation.isPending}
                       >
                         <Check className="h-4 w-4 mr-1" /> APPROVE
                       </Button>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListPortalLeave, useCreatePortalLeave } from "@workspace/api-client-react";
+import { useListPortalLeave, useCreatePortalLeave, getListPortalLeaveQueryKey } from "@workspace/api-client-react";
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -31,7 +31,7 @@ export function PortalLeave() {
       {
         onSuccess: () => {
           toast({ title: "Request Submitted", description: "Your leave request has been submitted for approval." });
-          queryClient.invalidateQueries({ queryKey: ["/api/portal/leaves"] });
+          queryClient.invalidateQueries({ queryKey: getListPortalLeaveQueryKey() });
           setOpen(false);
           setStartDate("");
           setEndDate("");
