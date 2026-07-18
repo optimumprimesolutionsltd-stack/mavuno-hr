@@ -3,6 +3,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLogin } from "@workspace/api-client-react";
+import { storeToken } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +35,7 @@ export function PortalLogin() {
       {
         onSuccess: (data) => {
           if (data.role === "employee" || data.role === "admin" || data.role === "hr") {
+            if ((data as any).sessionToken) storeToken((data as any).sessionToken);
             toast({ title: "Welcome", description: `Logged in as ${data.name}` });
             setLocation("/portal");
           } else {

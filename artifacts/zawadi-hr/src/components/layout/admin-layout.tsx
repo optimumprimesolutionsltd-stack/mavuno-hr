@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useLogout } from "@workspace/api-client-react";
+import { clearToken } from "@/lib/session";
 import { 
   Building2, 
   Users, 
@@ -36,12 +37,14 @@ export function AdminGuard({ children }: { children: ReactNode }) {
   const { isLoading, isAuthenticated, isAdmin } = useAuth();
   const [, setLocation] = useLocation();
 
+  // Use effect to avoid side-effects during render
   if (isLoading) {
     return <div className="h-screen w-screen flex items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
-  if (!isAuthenticated || !isAdmin) {
-    setLocation("/admin/login");
+  if (!isLoading && (!isAuthenticated || !isAdmin)) {
+    // Redirect outside of render via setTimeout to avoid React render-side-effect warning
+    setTimeout(() => setLocation("/admin/login"), 0);
     return null;
   }
 
@@ -56,7 +59,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const handleLogout = () => {
     logout.mutate(undefined, {
-      onSuccess: () => setLocation("/admin/login"),
+      onSuccess: () => { clearToken(); setLocation("/admin/login"); },
     });
   };
 

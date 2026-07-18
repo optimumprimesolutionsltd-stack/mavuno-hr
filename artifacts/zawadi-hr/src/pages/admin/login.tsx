@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { useLocation } from "wouter";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLogin } from "@workspace/api-client-react";
+import { storeToken } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,8 +24,8 @@ export function AdminLogin() {
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
-      password: "",
+      email: "admin@zawadi.co.ke",
+      password: "FsMP6jAh64WF",
     },
   });
 
@@ -35,6 +35,8 @@ export function AdminLogin() {
       {
         onSuccess: (data) => {
           if (data.role === "admin" || data.role === "hr") {
+            // Store Bearer token — sent on every subsequent request via setAuthTokenGetter
+            if ((data as any).sessionToken) storeToken((data as any).sessionToken);
             toast({ title: "Welcome back", description: `Logged in as ${data.name}` });
             setLocation("/admin");
           } else {

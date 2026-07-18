@@ -84,7 +84,7 @@ router.post("/login", async (req, res, next) => {
     }).where(eq(users.id, user.id));
 
     const ip = getIp(req);
-    await createSession(res, user.id, org.id, ip, req.headers["user-agent"] ?? null);
+    const sessionToken = await createSession(res, user.id, org.id, ip, req.headers["user-agent"] ?? null);
 
     await db.transaction(async (tx) => {
       await writeAudit(tx as any, {
@@ -97,6 +97,8 @@ router.post("/login", async (req, res, next) => {
       id: user.id, email: user.email, name: user.name, role: user.role,
       employeeId: user.employeeId, mustChangePassword: user.mustChangePassword,
       orgSlug: org.slug, countryCode: org.countryCode, currencyCode: org.currencyCode,
+      // Also return raw token so clients in cross-site iframe contexts can use Bearer auth
+      sessionToken,
     });
   } catch (err) { next(err); }
 });

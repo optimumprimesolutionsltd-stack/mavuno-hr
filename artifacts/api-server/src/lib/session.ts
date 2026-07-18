@@ -38,7 +38,7 @@ export async function createSession(
   orgId: number,
   ip: string | null,
   userAgent: string | null,
-): Promise<void> {
+): Promise<string> {
   const raw = randomBytes(32).toString("base64url");
   await db.insert(sessions).values({
     id: tokenHash(raw),
@@ -48,13 +48,17 @@ export async function createSession(
     ip,
     expiresAt: new Date(Date.now() + MAX_AGE_S * 1000),
   });
+  // Set cookie for same-site environments
   res.cookie(COOKIE, raw, {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: MAX_AGE_S * 1000,
   });
+  // Return raw token so callers can also send it as a Bearer header
+  // (needed when the app runs inside a cross-site iframe where cookies are blocked)
+  return raw;
 }
 
 export async function destroySession(req: Request, res: Response): Promise<void> {
@@ -74,7 +78,15 @@ export async function revokeAllUserSessions(userId: number): Promise<void> {
 }
 
 export async function getPrincipal(req: Request): Promise<Principal | null> {
-  const raw = req.cookies?.[COOKIE];
+  // Accept Bearer token from Authorization header (for cross-site iframe environments)
+  // OR fall back to httpOnly session cookie
+  let raw: string | undefined = req.cookies?.[COOKIE];
+  if (!raw) {
+    const auth = req.headers["authorization"];
+    if (auth?.startsWith("Bearer ")) {
+      raw = auth.slice(7).trim();
+    }
+  }
   if (!raw) return null;
 
   const rows = await db

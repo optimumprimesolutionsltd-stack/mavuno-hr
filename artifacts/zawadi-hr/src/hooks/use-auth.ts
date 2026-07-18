@@ -4,6 +4,7 @@ export function useAuth() {
   const { data: user, isLoading, error, isError } = useGetMe({
     query: {
       retry: false,
+      staleTime: 30_000,
     }
   });
 
