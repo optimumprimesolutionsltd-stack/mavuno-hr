@@ -224,9 +224,32 @@ router.post("/loan-requests", requireAuth("self:request"), async (req, res, next
     }
 
     const { type, amount, months, reason } = parsed.data;
+    const amountCents = toCentsPortal(amount);
+
+    // Kenya Employment Act: salary/emergency advances capped at one month's gross salary
+    if (type === "advance" || type === "emergency") {
+      const [emp] = await db.select({
+        basicSalary: employees.basicSalary,
+        houseAllowance: employees.houseAllowance,
+        transportAllowance: employees.transportAllowance,
+        otherAllowance: employees.otherAllowance,
+      }).from(employees).where(and(eq(employees.id, empId), eq(employees.orgId, p.orgId)));
+
+      if (emp) {
+        const grossMonthlyCents = emp.basicSalary + emp.houseAllowance + emp.transportAllowance + emp.otherAllowance;
+        if (amountCents > grossMonthlyCents) {
+          const capKes = (grossMonthlyCents / 100).toLocaleString("en-KE", { minimumFractionDigits: 2 });
+          res.status(422).json({
+            error: `Advance amount exceeds the legal cap. The maximum salary advance is one month's gross salary (KES ${capKes}).`,
+          });
+          return;
+        }
+      }
+    }
+
     const [request] = await db.insert(loanRequests).values({
       orgId: p.orgId, employeeId: empId, type,
-      amount: toCentsPortal(amount), months, reason: reason ?? null, status: "pending",
+      amount: amountCents, months, reason: reason ?? null, status: "pending",
     }).returning();
 
     res.status(201).json(request);
