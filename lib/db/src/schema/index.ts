@@ -292,6 +292,7 @@ export const loanRequests = pgTable("loan_requests", {
   amount: money("amount").notNull(),
   months: integer("months").notNull().default(12),
   reason: text("reason"),
+  interestRateBps: integer("interest_rate_bps").notNull().default(0),
   status: text("status").notNull().default("pending"),
   reviewNote: text("review_note"),
   loanId: integer("loan_id"),

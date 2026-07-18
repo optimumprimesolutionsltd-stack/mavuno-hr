@@ -2,11 +2,13 @@ import { Router } from "express";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { loans, loanRequests, employees, loanRepayments, payrollRuns } from "@workspace/db/schema";
+import { loans, loanRequests, employees, organizations } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { toCents } from "../lib/money.js";
 import { HttpError } from "../lib/http-error.js";
+import { computeLoanFringeBenefitTax } from "../lib/payroll.js";
+import { resolveConfig } from "../lib/statutory-resolve.js";
 
 const router = Router();
 
@@ -22,21 +24,40 @@ const loanSchema = z.object({
   startDate: isoDate,
 });
 
-const loanRequestSchema = z.object({
+// HR creates a loan request on behalf of any employee
+const adminLoanRequestSchema = z.object({
+  employeeId: z.number().int().positive(),
   type: z.enum(["company","sacco","advance","emergency"]),
   amount: moneyString,
   months: z.number().int().min(1).max(60),
+  interestRateBps: z.number().int().min(0).max(10_000).default(0),
+  reason: z.string().max(500).optional(),
+});
+
+// HR edits a pending loan request
+const editRequestSchema = z.object({
+  type: z.enum(["company","sacco","advance","emergency"]).optional(),
+  amount: moneyString.optional(),
+  months: z.number().int().min(1).max(60).optional(),
+  interestRateBps: z.number().int().min(0).max(10_000).optional(),
   reason: z.string().max(500).optional(),
 });
 
 const loanDecisionSchema = z.object({
   action: z.enum(["approve","reject"]),
-  interestRateBps: z.number().int().min(0).max(10_000).default(0),
+  interestRateBps: z.number().int().min(0).max(10_000).optional(),
   months: z.number().int().min(1).max(60).optional(),
   startDate: isoDate.optional(),
   reviewNote: z.string().max(500).optional(),
 });
 
+function calcInstallment(principal: number, bps: number, months: number): number {
+  const monthlyRate = bps / 12 / 10_000;
+  if (monthlyRate === 0) return Math.ceil(principal / months);
+  return Math.round(principal * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1));
+}
+
+// GET /api/loans — list all active loans with FBT computation for company loans
 router.get("/", requireAuth("loan:review"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
@@ -45,11 +66,31 @@ router.get("/", requireAuth("loan:review"), async (req, res, next) => {
       .innerJoin(employees, eq(loans.employeeId, employees.id))
       .where(eq(loans.orgId, p.orgId))
       .orderBy(desc(loans.createdAt));
-    // Add fringeBenefit placeholder (fringe tax computed at payroll time, not stored per loan)
-    res.json(rows.map(r => ({ ...r, fringeBenefit: null })));
+
+    // Resolve statutory config for FBT deemed rate
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, p.orgId));
+    const currentPeriod = new Date().toISOString().slice(0, 7);
+    let cfg: Awaited<ReturnType<typeof resolveConfig>>["config"] | null = null;
+    try {
+      const resolved = await resolveConfig(db as any, p.orgId, org?.countryCode ?? "KE", currentPeriod);
+      cfg = resolved.config;
+    } catch { /* no config — FBT not computable */ }
+
+    const result = rows.map(r => {
+      // FBT applies to company loans only (employer-issued, below deemed rate)
+      let fringeBenefit: { monthlyBenefit: number; monthlyTax: number } | null = null;
+      if (r.loan.type === "company" && cfg) {
+        const fbt = computeLoanFringeBenefitTax(r.loan.balance as any, r.loan.interestRateBps, cfg);
+        if (fbt.monthlyTax > 0) fringeBenefit = fbt;
+      }
+      return { ...r, fringeBenefit };
+    });
+
+    res.json(result);
   } catch (err) { next(err); }
 });
 
+// POST /api/loans — HR issues a loan directly to an employee
 router.post("/", requireAuth("loan:review"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
@@ -61,18 +102,13 @@ router.post("/", requireAuth("loan:review"), async (req, res, next) => {
     if (!emp) { res.status(404).json({ error: "Employee not found" }); return; }
 
     const principal = toCents(parsed.data.amount);
-    const months = parsed.data.months;
-    const bps = parsed.data.interestRateBps;
-    // Simple monthly installment: P/n + (P * monthlyRate)
-    const monthlyRate = bps / 12 / 10_000;
-    const installment = monthlyRate > 0
-      ? Math.round(principal * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1))
-      : Math.ceil(principal / months);
+    const { months, interestRateBps: bps, startDate } = parsed.data;
+    const installment = calcInstallment(principal, bps, months);
 
     const [loan] = await db.insert(loans).values({
       orgId: p.orgId, employeeId: parsed.data.employeeId, type: parsed.data.type,
       principal, balance: principal, monthlyInstallment: installment,
-      interestRateBps: bps, status: "active", startDate: parsed.data.startDate,
+      interestRateBps: bps, status: "active", startDate,
     }).returning();
 
     await db.transaction(async (tx) => {
@@ -87,7 +123,7 @@ router.post("/", requireAuth("loan:review"), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// Loan requests
+// GET /api/loans/requests — list all loan requests (all statuses)
 router.get("/requests", requireAuth("loan:review"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
@@ -100,23 +136,81 @@ router.get("/requests", requireAuth("loan:review"), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post("/requests", requireAuth("self:request"), async (req, res, next) => {
+// POST /api/loans/requests/for-employee — HR creates a loan request on behalf of any employee
+router.post("/requests/for-employee", requireAuth("loan:review"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
-    if (!p.employeeId) { res.status(403).json({ error: "No employee profile linked to this account" }); return; }
-    const parsed = loanRequestSchema.safeParse(req.body);
+    const parsed = adminLoanRequestSchema.safeParse(req.body);
     if (!parsed.success) { res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return; }
 
-    const [req2] = await db.insert(loanRequests).values({
-      orgId: p.orgId, employeeId: p.employeeId, type: parsed.data.type,
-      amount: toCents(parsed.data.amount), months: parsed.data.months,
-      reason: parsed.data.reason ?? null, status: "pending",
+    const [emp] = await db.select().from(employees)
+      .where(and(eq(employees.id, parsed.data.employeeId), eq(employees.orgId, p.orgId)));
+    if (!emp) { res.status(404).json({ error: "Employee not found" }); return; }
+
+    const [request] = await db.insert(loanRequests).values({
+      orgId: p.orgId,
+      employeeId: parsed.data.employeeId,
+      type: parsed.data.type,
+      amount: toCents(parsed.data.amount),
+      months: parsed.data.months,
+      interestRateBps: parsed.data.type === "sacco" ? (parsed.data.interestRateBps ?? 0) : 0,
+      reason: parsed.data.reason ?? null,
+      status: "pending",
     }).returning();
 
-    res.status(201).json(req2);
+    await db.transaction(async (tx) => {
+      await writeAudit(tx as any, {
+        orgId: p.orgId, action: "LOAN_REQUEST_CREATED_BY_HR", entity: "loan_requests", entityId: request.id,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        after: { employeeId: request.employeeId, amount: request.amount, type: request.type },
+      });
+    });
+
+    res.status(201).json(request);
   } catch (err) { next(err); }
 });
 
+// PATCH /api/loans/requests/:id/edit — HR edits a pending loan request
+router.patch("/requests/:id/edit", requireAuth("loan:review"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+    const parsed = editRequestSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return; }
+
+    const [loanReq] = await db.select().from(loanRequests)
+      .where(and(eq(loanRequests.id, id), eq(loanRequests.orgId, p.orgId)));
+    if (!loanReq) { res.status(404).json({ error: "Loan request not found" }); return; }
+    if (loanReq.status !== "pending") throw new HttpError(409, "Only pending requests can be edited");
+
+    const updates: Partial<typeof loanReq> = {};
+    if (parsed.data.type !== undefined) updates.type = parsed.data.type;
+    if (parsed.data.amount !== undefined) (updates as any).amount = toCents(parsed.data.amount);
+    if (parsed.data.months !== undefined) updates.months = parsed.data.months;
+    if (parsed.data.reason !== undefined) updates.reason = parsed.data.reason;
+
+    // Interest rate: only editable on SACCO loans, only if still pending
+    const effectiveType = parsed.data.type ?? loanReq.type;
+    if (effectiveType === "sacco" && parsed.data.interestRateBps !== undefined) {
+      (updates as any).interestRateBps = parsed.data.interestRateBps;
+    }
+
+    const [updated] = await db.update(loanRequests).set(updates).where(eq(loanRequests.id, id)).returning();
+
+    await db.transaction(async (tx) => {
+      await writeAudit(tx as any, {
+        orgId: p.orgId, action: "LOAN_REQUEST_EDITED", entity: "loan_requests", entityId: id,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        before: { type: loanReq.type, amount: loanReq.amount, months: loanReq.months },
+        after: updates,
+      });
+    });
+
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// PATCH /api/loans/requests/:id — approve or reject a loan request
 router.patch("/requests/:id", requireAuth("loan:review"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
@@ -129,18 +223,19 @@ router.patch("/requests/:id", requireAuth("loan:review"), async (req, res, next)
     if (!loanReq) { res.status(404).json({ error: "Loan request not found" }); return; }
     if (loanReq.status !== "pending") throw new HttpError(409, "Loan request is not pending");
 
-    const { action, interestRateBps, months, startDate, reviewNote } = parsed.data;
+    const { action, months, startDate, reviewNote } = parsed.data;
 
     if (action === "approve") {
       const principal = loanReq.amount;
       const m = months ?? loanReq.months;
-      const bps = interestRateBps;
-      const monthlyRate = bps / 12 / 10_000;
-      const installment = monthlyRate > 0
-        ? Math.round(principal * (monthlyRate * Math.pow(1 + monthlyRate, m)) / (Math.pow(1 + monthlyRate, m) - 1))
-        : Math.ceil(principal / m);
-
+      // SACCO: always use the interest rate the employee specified on the request (locked)
+      // Company/advance/emergency: use the rate HR supplies at approval time
+      const bps = loanReq.type === "sacco"
+        ? loanReq.interestRateBps
+        : (parsed.data.interestRateBps ?? 0);
+      const installment = calcInstallment(principal, bps, m);
       const today = startDate ?? new Date().toISOString().slice(0, 10);
+
       const [loan] = await db.insert(loans).values({
         orgId: p.orgId, employeeId: loanReq.employeeId, type: loanReq.type,
         principal, balance: principal, monthlyInstallment: installment,

@@ -250,6 +250,7 @@ const portalLoanRequestSchema = z.object({
   type: z.enum(["company", "sacco", "advance", "emergency"]),
   amount: z.string().regex(/^\d{1,12}(\.\d{1,2})?$/, "Invalid amount"),
   months: z.number().int().min(1).max(60),
+  interestRateBps: z.number().int().min(0).max(10_000).default(0),
   reason: z.string().max(500).optional(),
 });
 
@@ -278,7 +279,7 @@ router.post("/loan-requests", requireAuth("self:request"), async (req, res, next
       res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return;
     }
 
-    const { type, amount, months, reason } = parsed.data;
+    const { type, amount, months, reason, interestRateBps } = parsed.data;
     const amountCents = toCentsPortal(amount);
 
     // Kenya Employment Act: salary/emergency advances capped at one month's gross salary
@@ -304,7 +305,9 @@ router.post("/loan-requests", requireAuth("self:request"), async (req, res, next
 
     const [request] = await db.insert(loanRequests).values({
       orgId: p.orgId, employeeId: empId, type,
-      amount: amountCents, months, reason: reason ?? null, status: "pending",
+      amount: amountCents, months,
+      interestRateBps: type === "sacco" ? (interestRateBps ?? 0) : 0,
+      reason: reason ?? null, status: "pending",
     }).returning();
 
     res.status(201).json(request);

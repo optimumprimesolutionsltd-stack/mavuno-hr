@@ -22,6 +22,7 @@ const DEFAULTS = {
   type: "company",
   amount: "",
   months: "12",
+  interestRateBps: "",
   reason: "",
 };
 
@@ -61,6 +62,8 @@ export function LoanRequestDialog({ open, onOpenChange, onSuccess }: Props) {
     return (P / n).toFixed(2); // employee doesn't know rate; show 0% estimate
   };
 
+  const isSacco = form.type === "sacco";
+
   const mutation = useMutation({
     mutationFn: () =>
       customFetch("/api/portal/loan-requests", {
@@ -70,6 +73,7 @@ export function LoanRequestDialog({ open, onOpenChange, onSuccess }: Props) {
           type: form.type,
           amount: form.amount,
           months: parseInt(form.months),
+          interestRateBps: isSacco ? (parseInt(form.interestRateBps) || 0) : 0,
           reason: form.reason.trim() || undefined,
         }),
       }),
@@ -136,6 +140,25 @@ export function LoanRequestDialog({ open, onOpenChange, onSuccess }: Props) {
               </SelectContent>
             </Select>
           </div>
+
+          {/* SACCO interest rate — employee specifies it; locked once approved */}
+          {isSacco && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-mono text-muted-foreground">
+                SACCO INTEREST RATE (BPS) <span className="text-[10px] font-normal text-amber-500 ml-1">— cannot be changed once approved</span>
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                max={10000}
+                value={form.interestRateBps}
+                onChange={(e) => set("interestRateBps", e.target.value)}
+                placeholder="e.g. 1200 = 12% p.a."
+                className="bg-background/50"
+              />
+              <p className="text-xs text-muted-foreground font-mono">100 bps = 1% per annum (e.g. 1200 = 12% p.a.)</p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">

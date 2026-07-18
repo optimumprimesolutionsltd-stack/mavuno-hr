@@ -54,10 +54,12 @@ async function addEmployeeTerminationReason(): Promise<void> {
 }
 
 async function addEmployeeWorkSchedule(): Promise<void> {
-  await db.execute(sql`
-    ALTER TABLE employees ADD COLUMN IF NOT EXISTS work_days_per_week INTEGER NOT NULL DEFAULT 5;
-    ALTER TABLE employees ADD COLUMN IF NOT EXISTS works_on_holidays BOOLEAN NOT NULL DEFAULT FALSE;
-  `);
+  await db.execute(sql`ALTER TABLE employees ADD COLUMN IF NOT EXISTS work_days_per_week INTEGER NOT NULL DEFAULT 5`);
+  await db.execute(sql`ALTER TABLE employees ADD COLUMN IF NOT EXISTS works_on_holidays BOOLEAN NOT NULL DEFAULT FALSE`);
+}
+
+async function addLoanRequestInterestRate(): Promise<void> {
+  await db.execute(sql`ALTER TABLE loan_requests ADD COLUMN IF NOT EXISTS interest_rate_bps INTEGER NOT NULL DEFAULT 0`);
 }
 
 export async function runStartupMigrations(): Promise<void> {
@@ -66,6 +68,7 @@ export async function runStartupMigrations(): Promise<void> {
     await createPasswordResetTokensTable();
     await addEmployeeTerminationReason();
     await addEmployeeWorkSchedule();
+    await addLoanRequestInterestRate();
   } catch (err) {
     logger.error({ err }, "startup-migration: failed (non-fatal)");
   }

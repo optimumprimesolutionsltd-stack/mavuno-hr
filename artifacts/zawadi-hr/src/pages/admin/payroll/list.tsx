@@ -71,13 +71,35 @@ export function PayrollList() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>Period (YYYY-MM)</Label>
-                <Input 
-                  type="month" 
-                  value={period} 
-                  onChange={(e) => setPeriod(e.target.value)} 
-                  className="font-mono"
-                />
+                <Label className="font-mono text-xs text-muted-foreground">PAYROLL PERIOD</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Select
+                    value={period.slice(0, 4)}
+                    onValueChange={(y) => setPeriod(`${y}-${period.slice(5, 7)}`)}
+                  >
+                    <SelectTrigger className="font-mono"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 5 }, (_, i) => {
+                        const y = String(new Date().getFullYear() - 1 + i);
+                        return <SelectItem key={y} value={y}>{y}</SelectItem>;
+                      })}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={period.slice(5, 7)}
+                    onValueChange={(m) => setPeriod(`${period.slice(0, 4)}-${m}`)}
+                  >
+                    <SelectTrigger className="font-mono"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {["01","02","03","04","05","06","07","08","09","10","11","12"].map((m) => (
+                        <SelectItem key={m} value={m}>
+                          {new Date(`2000-${m}-01`).toLocaleString("en-KE", { month: "long" })}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-xs text-muted-foreground font-mono">Selected: {period}</p>
               </div>
               <div className="space-y-2">
                 <Label>Run Type</Label>
