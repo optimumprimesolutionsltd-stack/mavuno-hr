@@ -332,6 +332,60 @@ router.post("/loan-requests", requireAuth("self:request"), async (req, res, next
   } catch (err) { next(err); }
 });
 
+// ── PDF payslip download (employee self-service) ────────────────────────────
+router.get("/payslip/:slipId/pdf", requireAuth("self:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const slipId = Number(req.params.slipId);
+
+    const rows = await db
+      .select({ slip: payslips, emp: employees, org: organizations, run: payrollRuns })
+      .from(payslips)
+      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .innerJoin(organizations, eq(payslips.orgId, organizations.id))
+      .innerJoin(payrollRuns, eq(payslips.runId, payrollRuns.id))
+      .where(and(eq(payslips.id, slipId), eq(payslips.orgId, p.orgId)));
+
+    if (!rows.length) throw new HttpError(404, "Payslip not found");
+    const { slip, emp, org, run } = rows[0];
+
+    // Employees can only download their own payslip
+    if (emp.id !== p.employeeId) throw new HttpError(403, "Access denied");
+
+    const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number };
+    const { generatePayslipPdf } = await import("../lib/pdf-payslip.js");
+
+    const pdfBuffer = await generatePayslipPdf({
+      orgName: org.name, orgKraPin: org.kraPin ?? undefined, orgNssfNo: org.nssfEmployerNo ?? undefined,
+      period: run.period, runName: run.name,
+      empNo: emp.empNo, empName: `${emp.firstName} ${emp.lastName}`,
+      position: emp.position ?? "", employmentType: emp.employmentType ?? "permanent",
+      nationalId: emp.nationalId ?? undefined, kraPin: emp.kraPin ?? undefined,
+      nssfNo: emp.nssfNo ?? undefined, shifNo: emp.shifNo ?? undefined,
+      bankName: emp.bankName ?? undefined, bankAccount: emp.bankAccount ?? undefined,
+      mpesaPhone: emp.mpesaPhone ?? undefined,
+      daysPayable: slip.daysPayable ?? 0, daysInPeriod: slip.daysInPeriod ?? 30,
+      basic: slip.basic, allowances: slip.allowances, overtime: slip.overtime,
+      adjustmentEarnings: slip.adjustmentEarnings, nonCashBenefit: slip.nonCashBenefit,
+      gross: slip.gross, cashGross: slip.cashGross,
+      paye: slip.paye, nssfEmployee: slip.nssfEmployee,
+      nssfTier1: bd.nssfTier1 ?? 0, nssfTier2: bd.nssfTier2 ?? 0,
+      shif: slip.shif, housingLevyEmployee: slip.housingLevyEmployee,
+      pension: slip.pension, helb: slip.helb, sacco: slip.sacco,
+      loanDeduction: slip.loanDeduction, adjustmentDeductions: slip.adjustmentDeductions,
+      totalDeductions: slip.totalDeductions, netPay: slip.netPay,
+      nssfEmployer: slip.nssfEmployer, housingLevyEmployer: slip.housingLevyEmployer,
+      pensionEmployer: slip.pensionEmployer,
+    });
+
+    const filename = `Payslip_${run.period}_${emp.empNo}.pdf`.replace(/[^a-zA-Z0-9_.-]/g, "_");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (err) { next(err); }
+});
+
 router.get("/timesheets", requireAuth("self:read"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;

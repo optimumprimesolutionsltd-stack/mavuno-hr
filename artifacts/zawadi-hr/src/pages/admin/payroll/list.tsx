@@ -40,13 +40,14 @@ export function PayrollList() {
     );
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusClass = (status: string): string => {
     switch (status) {
-      case 'draft': return 'secondary';
-      case 'pending_approval': return 'default';
-      case 'approved': return 'default';
-      case 'paid': return 'default'; // Maybe a special class for paid
-      default: return 'outline';
+      case "draft":            return "border-muted-foreground/40 text-muted-foreground bg-muted/20";
+      case "pending_approval": return "border-amber-500/60 text-amber-400 bg-amber-500/10";
+      case "approved":         return "border-blue-500/60 text-blue-400 bg-blue-500/10";
+      case "paid":             return "border-emerald-500/60 text-emerald-400 bg-emerald-500/10";
+      case "reversed":         return "border-red-500/60 text-red-400 bg-red-500/10";
+      default:                 return "border-muted-foreground/40 text-muted-foreground";
     }
   };
 
@@ -173,8 +174,8 @@ export function PayrollList() {
                     {formatMoney(run.netTotal)}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Badge variant={getStatusColor(run.status) as any} className={`font-mono text-[10px] py-0 ${run.status === 'paid' ? 'bg-primary text-primary-foreground' : ''}`}>
-                      {run.status.replace('_', ' ').toUpperCase()}
+                    <Badge variant="outline" className={`font-mono text-[10px] py-0.5 ${getStatusClass(run.status)}`}>
+                      {run.status.replace(/_/g, " ").toUpperCase()}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right text-xs text-muted-foreground font-mono">

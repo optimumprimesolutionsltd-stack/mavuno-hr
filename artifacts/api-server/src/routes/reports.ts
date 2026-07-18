@@ -191,6 +191,38 @@ router.get("/", requireAuth("report:read"), async (req, res, next) => {
         ];
         break;
 
+      // ── M-Pesa Bulk Disbursement ──────────────────────────────────────────────
+      case "mpesa": {
+        const mpesaRows = rows.filter((r) => r.e.payMethod === "mpesa" || r.e.mpesaPhone);
+        const bankRows  = rows.filter((r) => r.e.payMethod !== "mpesa" && !r.e.mpesaPhone);
+        title = `M-Pesa Bulk Disbursement — ${run.name}`;
+        columns = ["CommandID", "Amount (KES)", "PhoneNumber", "AccountReference", "Remarks"];
+        moneyCols = [1];
+        data = mpesaRows.map((r) => [
+          "SalaryPayment",
+          r.p.netPay,
+          (r.e.mpesaPhone || "").replace(/^\+254/, "254").replace(/^0/, "254"),
+          `${r.e.empNo}-${r.e.firstName}`,
+          `${run.period} Salary`,
+        ]);
+        if (bankRows.length > 0 && mpesaRows.length === 0) {
+          // All employees use bank — surface them with a note
+          data = [["NOTE", 0, "", "No M-Pesa employees in this run", `${bankRows.length} employee(s) use bank transfer`]];
+        }
+        break;
+      }
+
+      // ── Cheque / Cash list ────────────────────────────────────────────────────
+      case "cash":
+        title = `Cash/Cheque Payment List — ${run.name}`;
+        columns = ["Emp No", "Employee", "ID / Passport", "Net Pay", "Signature"];
+        moneyCols = [3];
+        data = rows
+          .filter((r) => r.e.payMethod === "cash" || r.e.payMethod === "cheque")
+          .map((r) => [r.e.empNo, name(r), r.e.nationalId || "-", r.p.netPay, ""]);
+        if (data.length === 0) data = rows.map((r) => [r.e.empNo, name(r), r.e.nationalId || "-", r.p.netPay, ""]);
+        break;
+
       default:
         throw new HttpError(400, `Unknown report type: ${type}`);
     }

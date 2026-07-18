@@ -10,18 +10,37 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, CheckCircle, Send, PlayCircle, RotateCcw, FileText, RefreshCw, Pencil } from "lucide-react";
+import {
+  ArrowLeft, CheckCircle, Send, PlayCircle, RotateCcw, FileText,
+  RefreshCw, Pencil, Mail, Download, TrendingDown, TrendingUp
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PayslipEditDialog } from "./payslip-edit-dialog";
+
+// Status badge colour map
+function StatusBadge({ status }: { status: string }) {
+  const cfg: Record<string, string> = {
+    draft:            "border-muted-foreground/40 text-muted-foreground bg-muted/20",
+    pending_approval: "border-amber-500/60 text-amber-500 bg-amber-500/10",
+    approved:         "border-blue-500/60 text-blue-400 bg-blue-500/10",
+    paid:             "border-emerald-500/60 text-emerald-400 bg-emerald-500/10",
+    reversed:         "border-red-500/60 text-red-400 bg-red-500/10",
+  };
+  const cls = cfg[status] ?? "border-muted-foreground/40 text-muted-foreground";
+  return (
+    <Badge variant="outline" className={`font-mono text-xs px-3 py-1 ${cls}`}>
+      {status.replace(/_/g, " ").toUpperCase()}
+    </Badge>
+  );
+}
 
 export function PayrollDetail() {
   const [, params] = useRoute("/admin/payroll/:id");
   const id = parseInt(params?.id || "0", 10);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  // Edit payslip state
   const [editTarget, setEditTarget] = useState<{ slip: any; emp: any } | null>(null);
+  const [emailSending, setEmailSending] = useState(false);
 
   const { data, isLoading } = useGetPayrollRun(id);
 
@@ -39,15 +58,14 @@ export function PayrollDetail() {
   });
 
   const recalcMutation = useMutation({
-    mutationFn: () =>
-      customFetch(`/api/payroll/${id}/recalculate`, { method: "POST" }),
+    mutationFn: () => customFetch(`/api/payroll/${id}/recalculate`, { method: "POST" }),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: getGetPayrollRunQueryKey(id) });
       queryClient.invalidateQueries({ queryKey: getListPayrollRunsQueryKey() });
       const w = data?.warnings?.length ?? 0;
       toast({
         title: "Recalculated",
-        description: `Payroll recalculated with current employee data.${w ? ` ${w} warning(s).` : ""}`,
+        description: `Payroll recalculated.${w ? ` ${w} warning(s).` : ""}`,
       });
     },
     onError: (err: any) => {
@@ -55,6 +73,39 @@ export function PayrollDetail() {
       toast({ variant: "destructive", title: "Recalculate Failed", description: msg });
     },
   });
+
+  const handleEmailPayslips = async () => {
+    setEmailSending(true);
+    try {
+      const result = await customFetch(`/api/payroll/${id}/email-payslips`, { method: "POST" }) as any;
+      toast({
+        title: `📧 Payslips Emailed`,
+        description: `Sent ${result.sent}/${result.total} payslip${result.total !== 1 ? "s" : ""} successfully.${result.errors?.length ? ` ${result.errors.length} failed.` : ""}`,
+      });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Email Failed", description: err?.message || "Could not send payslips." });
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
+  const handleDownloadPayslip = (slipId: number, empName: string, period: string) => {
+    const token = sessionStorage.getItem("zawadi_session_token");
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    fetch(`/api/payroll/${id}/payslips/${slipId}/pdf`, { headers })
+      .then((r) => r.blob())
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${empName.replace(/ /g, "_")}_${period}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      })
+      .catch(() => toast({ variant: "destructive", title: "Download failed" }));
+  };
 
   if (isLoading || !data) {
     return (
@@ -75,7 +126,6 @@ export function PayrollDetail() {
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto pb-10">
 
-      {/* Edit payslip dialog */}
       <PayslipEditDialog
         runId={id}
         slip={editTarget?.slip ?? null}
@@ -93,84 +143,67 @@ export function PayrollDetail() {
           <h1 className="text-2xl font-bold tracking-tight font-mono uppercase">{run?.name}</h1>
           <p className="text-muted-foreground text-sm font-mono">{run?.period} • {run?.runType?.replace("_", " ")}</p>
         </div>
+
         <div className="ml-auto flex items-center gap-2 flex-wrap">
-          <Badge
-            variant="outline"
-            className={`font-mono text-xs px-3 py-1 border-primary/50 ${run?.status === "paid" ? "bg-primary/20 text-primary" : ""}`}
-          >
-            STATUS: {run?.status?.replace("_", " ").toUpperCase()}
-          </Badge>
+          <StatusBadge status={run?.status ?? "draft"} />
 
           {canEdit && (
             <Button
-              size="sm"
-              variant="outline"
+              size="sm" variant="outline"
               onClick={() => recalcMutation.mutate()}
               disabled={recalcMutation.isPending || actionMutation.isPending}
               className="font-mono gap-1.5"
-              title="Recalculate all payslips using current employee salaries"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${recalcMutation.isPending ? "animate-spin" : ""}`} />
               RECALCULATE
             </Button>
           )}
           {run?.status === "draft" && (
-            <Button
-              size="sm"
-              onClick={() => handleAction("submit")}
-              disabled={actionMutation.isPending}
-              className="font-mono"
-            >
+            <Button size="sm" onClick={() => handleAction("submit")} disabled={actionMutation.isPending} className="font-mono">
               <Send className="h-4 w-4 mr-2" /> SUBMIT
             </Button>
           )}
           {run?.status === "pending_approval" && (
             <>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => handleAction("reject")}
-                disabled={actionMutation.isPending}
-                className="font-mono"
-              >
+              <Button size="sm" variant="destructive" onClick={() => handleAction("reject")} disabled={actionMutation.isPending} className="font-mono">
                 REJECT
               </Button>
-              <Button
-                size="sm"
-                onClick={() => handleAction("approve")}
-                disabled={actionMutation.isPending}
-                className="font-mono bg-primary text-primary-foreground hover:bg-primary/90"
-              >
+              <Button size="sm" onClick={() => handleAction("approve")} disabled={actionMutation.isPending} className="font-mono bg-blue-600 hover:bg-blue-700 text-white">
                 <CheckCircle className="h-4 w-4 mr-2" /> APPROVE
               </Button>
             </>
           )}
           {run?.status === "approved" && (
-            <Button
-              size="sm"
-              onClick={() => handleAction("pay")}
-              disabled={actionMutation.isPending}
-              className="font-mono bg-primary text-primary-foreground hover:bg-primary/90"
-            >
+            <Button size="sm" onClick={() => handleAction("pay")} disabled={actionMutation.isPending} className="font-mono bg-primary text-primary-foreground hover:bg-primary/90">
               <PlayCircle className="h-4 w-4 mr-2" /> EXECUTE PAYOUT
             </Button>
           )}
           {run?.status === "paid" && (
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => handleAction("reverse")}
-              disabled={actionMutation.isPending}
-              className="font-mono"
-            >
-              <RotateCcw className="h-4 w-4 mr-2" /> REVERSE RUN
-            </Button>
+            <>
+              <Button
+                size="sm" variant="outline"
+                onClick={handleEmailPayslips}
+                disabled={emailSending}
+                className="font-mono gap-1.5 border-primary/50 text-primary hover:bg-primary/10"
+              >
+                <Mail className={`h-3.5 w-3.5 ${emailSending ? "animate-pulse" : ""}`} />
+                {emailSending ? "SENDING..." : "EMAIL PAYSLIPS"}
+              </Button>
+              <Button
+                size="sm" variant="destructive"
+                onClick={() => handleAction("reverse")}
+                disabled={actionMutation.isPending}
+                className="font-mono"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" /> REVERSE RUN
+              </Button>
+            </>
           )}
         </div>
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="border-border/50 bg-card/30">
           <CardHeader className="py-4">
             <CardDescription className="font-mono text-xs">GROSS TOTAL</CardDescription>
@@ -180,33 +213,48 @@ export function PayrollDetail() {
         <Card className="border-border/50 bg-card/30">
           <CardHeader className="py-4">
             <CardDescription className="font-mono text-xs">NET PAYOUT</CardDescription>
-            <CardTitle className="text-xl font-mono text-chart-2">{formatMoney(run?.netTotal ?? 0)}</CardTitle>
+            <CardTitle className="text-xl font-mono text-emerald-400">{formatMoney(run?.netTotal ?? 0)}</CardTitle>
           </CardHeader>
         </Card>
         <Card className="border-border/50 bg-card/30">
           <CardHeader className="py-4">
-            <CardDescription className="font-mono text-xs">PAYE TOTAL</CardDescription>
+            <CardDescription className="font-mono text-xs">PAYE TO KRA</CardDescription>
             <CardTitle className="text-xl font-mono">{formatMoney(run?.payeTotal ?? 0)}</CardTitle>
           </CardHeader>
         </Card>
         <Card className="border-border/50 bg-card/30">
           <CardHeader className="py-4">
-            <CardDescription className="font-mono text-xs">EMPLOYEE COUNT</CardDescription>
+            <CardDescription className="font-mono text-xs">EMPLOYEES</CardDescription>
             <CardTitle className="text-xl font-mono">{run?.employeeCount ?? 0}</CardTitle>
           </CardHeader>
         </Card>
       </div>
 
+      {/* Paid banner */}
       {run?.status === "paid" && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="py-4 flex items-center justify-between">
-            <div className="flex items-center text-sm font-medium text-primary">
+        <Card className="border-emerald-500/30 bg-emerald-500/5">
+          <CardContent className="py-4 flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center text-sm font-medium text-emerald-400">
               <CheckCircle className="h-5 w-5 mr-3" />
-              FUNDS DISBURSED ON {formatDateTime(run?.paidAt || "")}
+              FUNDS DISBURSED — {formatDateTime(run?.paidAt || "")}
             </div>
-            <Button variant="outline" size="sm" className="font-mono text-xs">
-              <FileText className="h-4 w-4 mr-2" /> GENERATE BANK SCHEDULE
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="font-mono text-xs"
+                onClick={handleEmailPayslips}
+                disabled={emailSending}
+              >
+                <Mail className="h-3.5 w-3.5 mr-1.5" />
+                {emailSending ? "SENDING..." : "EMAIL ALL PAYSLIPS"}
+              </Button>
+              <Button variant="outline" size="sm" className="font-mono text-xs" asChild>
+                <a href={`/admin/reports?type=bank&runId=${id}`}>
+                  <FileText className="h-3.5 w-3.5 mr-1.5" /> BANK SCHEDULE
+                </a>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -232,7 +280,7 @@ export function PayrollDetail() {
                 <TableHead className="font-mono text-xs text-right">NSSF</TableHead>
                 <TableHead className="font-mono text-xs text-right">SHIF</TableHead>
                 <TableHead className="font-mono text-xs text-right text-primary">NET PAY</TableHead>
-                {canEdit && <TableHead className="w-10" />}
+                <TableHead className="w-16" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -245,17 +293,14 @@ export function PayrollDetail() {
                       const v = slip.breakdown.overrides[k];
                       return v !== null && v !== 0 && v !== "" && v !== undefined;
                     });
+                  const empName = `${emp.firstName ?? ""} ${emp.lastName ?? ""}`.trim();
                   return (
                     <TableRow key={slip.id || i} className="group hover:bg-muted/20">
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {emp.empNo || "-"}
-                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{emp.empNo || "-"}</TableCell>
                       <TableCell className="font-medium text-sm">
-                        <span>{emp.firstName} {emp.lastName}</span>
+                        <span>{empName}</span>
                         {hasOverrides && (
-                          <span className="ml-2 text-[10px] font-mono text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
-                            EDITED
-                          </span>
+                          <span className="ml-2 text-[10px] font-mono text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">EDITED</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm">{formatMoney(slip.gross ?? 0)}</TableCell>
@@ -263,25 +308,34 @@ export function PayrollDetail() {
                       <TableCell className="text-right font-mono text-sm text-muted-foreground">{formatMoney(slip.nssfEmployee ?? 0)}</TableCell>
                       <TableCell className="text-right font-mono text-sm text-muted-foreground">{formatMoney(slip.shif ?? 0)}</TableCell>
                       <TableCell className="text-right font-mono text-sm text-primary font-bold">{formatMoney(slip.netPay ?? 0)}</TableCell>
-                      {canEdit && (
-                        <TableCell className="p-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => setEditTarget({ slip, emp })}
-                            title="Edit this payslip"
-                          >
-                            <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-                          </Button>
-                        </TableCell>
-                      )}
+                      <TableCell className="p-1">
+                        <div className="flex gap-0.5">
+                          {canEdit && (
+                            <Button
+                              variant="ghost" size="icon" className="h-7 w-7"
+                              onClick={() => setEditTarget({ slip, emp })}
+                              title="Edit payslip"
+                            >
+                              <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                            </Button>
+                          )}
+                          {slip.id && (
+                            <Button
+                              variant="ghost" size="icon" className="h-7 w-7"
+                              onClick={() => handleDownloadPayslip(slip.id, empName, run?.period)}
+                              title="Download PDF payslip"
+                            >
+                              <Download className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   );
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={canEdit ? 8 : 7} className="text-center py-12 text-muted-foreground font-mono text-sm">
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground font-mono text-sm">
                     NO PAYSLIPS GENERATED YET
                   </TableCell>
                 </TableRow>

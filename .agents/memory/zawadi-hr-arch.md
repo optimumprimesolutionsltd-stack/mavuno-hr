@@ -1,41 +1,49 @@
 ---
-name: Zawadi HR Architecture
-description: Key design decisions and constraints for the Zawadi HR & Payroll system
+name: Zawadi HR architecture
+description: Full-stack Kenya payroll SaaS — design constraints, auth pattern, money encoding, and feature inventory
 ---
 
-## Architecture overview
-- React+Vite frontend (`artifacts/zawadi-hr`) + Express API (`artifacts/api-server`) in pnpm monorepo
-- DB: Drizzle ORM + Postgres via `@workspace/db`
-- API contracts: OpenAPI spec in `lib/api-spec/openapi.yaml`, codegen via Orval into `lib/api-client-react`
+## Auth
+- Bearer token in `sessionStorage` (`zawadi_session_token`) — cookies blocked by Replit cross-site iframe.
+- All future auth work must use this pattern (not cookies).
 
-## Non-negotiable design rules
-- **Money is integer cents everywhere** (bigint in DB, number in JS). `toCents()`/`fromCents()` in `artifacts/api-server/src/lib/money.ts` are the only conversion points.
-- **Session auth is DB-backed** (table: `sessions`), not JWT. Firing an employee must kill sessions immediately. Stored as SHA-256(raw_token + SESSION_SECRET).
-- **Payroll engine is pure**: `computePayslip()` in `src/lib/payroll.ts` has no DB/clock/global access. Takes (PayInput, StatutoryConfig) → PayResult.
-- **Maker-checker enforced**: the user who created/submitted a payroll run cannot approve it (`canApproveRun()` in `src/lib/rbac.ts`). Admin is NOT exempt.
-- **Audit log is hash-chained** (SHA-256, prevHash chain). `writeAudit()` must run in the same DB transaction as the change it records.
-- **Statutory config is snapshotted** at run creation (`statutorySnapshot` column) so historical payslips remain reproducible.
+## Money encoding
+- Stored as integer cents: KES 70,000 = 7,000,000 in DB.
+- `formatMoney(cents)` in frontend.
+- `toCents()` / `fromCents()` in API — `fromCents()` returns a **string** ("70000.00"), not a number.
+- Reports API returns raw cents integers; frontend calls `formatMoney(cell)` directly (no ×100).
 
-## Build / run
-- API server: `pnpm --filter @workspace/api-server run dev` (builds with esbuild then runs dist)
-- Frontend: `pnpm --filter @workspace/zawadi-hr run dev`
-- DB push: `pnpm --filter @workspace/db run push`
-- Seed: `SESSION_SECRET=<32+chars> artifacts/api-server/node_modules/.bin/tsx artifacts/api-server/scripts/seed.ts --org "Name" --admin email@org.ke`
-- Codegen: `pnpm --filter @workspace/api-spec run codegen`
+## Leave days
+- Stored as tenths: 21 days = 210. Display: `Math.round(val / 10)`.
 
-## React Query data mutation gotcha
-- TanStack Query freezes cached data objects. Never mutate them in place (e.g. `data.runs.reverse()`). Always spread first: `[...data.runs].reverse()`. Mutation throws a TypeError that silently unmounts the component tree → blank black screen.
+## NSSF Tier 2 provider
+- `tier2Provider?: "nssf" | "private"` and `tier2ProviderName?: string` added to `StatutoryConfig.socialSecurity` (JSONB — no migration needed).
+- When `"private"`: NSSF return shows Tier I only; Pension Fund report handles Tier II.
 
-## Key gotchas
-- `@node-rs/argon2` must be in esbuild `external[]` in `artifacts/api-server/build.mjs` — it's a native addon.
-- `lib/api-client-react/package.json` needs `"./custom-fetch": "./src/custom-fetch.ts"` export for subpath imports.
-- Tailwind v4: `@apply dark` is not valid — use `dark` CSS class on `<html>` element directly, not via `@apply`.
-- API server uses `cookie-parser` middleware for session cookies (httpOnly, sameSite:strict).
-- `zod` must be in `@workspace/api-server` dependencies (not just workspace catalog) since it's used in route handlers.
+## Key design constraints
+- All money API responses are raw integer cents (never fromCents strings).
+- `breakdown` JSONB on payslips stores: `bands`, `nssfTier1`, `nssfTier2`, `nssfTier1Employer`, `nssfTier2Employer`, `warnings`.
+- `computeSocialSecurity` returns `tier1`, `tier2`, `employee`, `employer`, `tier1Employer`, `tier2Employer`.
 
-## Demo credentials (zawadi-demo org)
-- Email: optimumprimesolutionsltd@gmail.com
-- Password: OPTIMUMP2026
-- Update script: `artifacts/api-server/scripts/update-admin.ts` (uses `passwordHash` column, not `password`)
+## Feature inventory (as of 2026-07-18)
+**Admin:** Dashboard (MoM variance, net payout, recent hires, anniversaries, dual-bar chart), Employees (CRUD, terminate, bulk), Leave (approve), Loans, Payroll (list with color badges, detail with email+PDF), Timesheets, Reports (11 types), Users/RBAC, Audit logs, Settings.
+**Employee portal:** Profile (payslip history with PDF download), Leave, Loans, P9.
+**API routes:** /auth, /employees, /payroll (+ PDF + email-payslips), /leaves, /loans, /reports, /timesheets, /audit, /portal (+ payslip PDF), /users, /super, /dashboard, /calculator.
 
-**Why:** SESSION_SECRET for dev seeding was a static string; for production use a real random secret ≥32 chars.
+## PDF payslips
+- Generated server-side with pdfkit (`artifacts/api-server/src/lib/pdf-payslip.ts`).
+- Admin: `GET /api/payroll/:id/payslips/:slipId/pdf` and `POST /api/payroll/:id/email-payslips`.
+- Portal: `GET /api/portal/payslip/:slipId/pdf` (employee downloads own slip).
+- Email sent via nodemailer+Gmail with PDF attachment (`sendPayslipEmail` in `mailer.ts`).
+
+## Reports (11 types)
+muster, paye, nssf, shif, housing, pension, bank, mpesa, cash, gl, p9.
+All money cells = raw cent integers; frontend calls `formatMoney(cell)`.
+
+## DB seed state (as of session)
+- Employees: Jane (75K), John (1M — should be 70K, fix via edit dialog), Alice (75K), Brian (95K).
+- Payroll runs: July=paid, August=pending_approval, September=draft.
+- Super-admin: `optimumprimesolutionsltd@gmail.com`.
+
+## Outstanding TODOs
+- John's salary: change from KES 1,000,000 → KES 70,000 via EDIT SALARY button on his employee detail page, then RECALCULATE the September draft run.

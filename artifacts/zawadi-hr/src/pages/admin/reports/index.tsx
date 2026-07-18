@@ -9,15 +9,17 @@ import { Download, FileText, Loader2, Info } from "lucide-react";
 import { formatMoney } from "@/lib/utils";
 
 const BASE_REPORT_TYPES = [
-  { id: "paye",    label: "P10 — PAYE Return" },
-  { id: "nssf",    label: "NSSF Return" },
-  { id: "shif",    label: "SHIF Return" },
-  { id: "housing", label: "Affordable Housing Levy" },
-  { id: "bank",    label: "Bank Schedule / Payouts" },
-  { id: "muster",  label: "Muster Roll (Full Payroll)" },
-  { id: "gl",      label: "General Ledger Journal" },
-  { id: "pension", label: "Pension Fund Return (Tier II)" },
-  { id: "p9",      label: "P9 Annual Tax Certificate" },
+  { id: "muster",  label: "📋  Muster Roll (Full Payroll)" },
+  { id: "paye",    label: "🏛️  P10 — PAYE Return (KRA)" },
+  { id: "nssf",    label: "🏛️  NSSF Contribution Return" },
+  { id: "shif",    label: "🏛️  SHIF Contribution Return" },
+  { id: "housing", label: "🏛️  Affordable Housing Levy" },
+  { id: "pension", label: "🏦  Pension Fund Return (Tier II)" },
+  { id: "bank",    label: "🏦  Bank Payment Schedule" },
+  { id: "mpesa",   label: "📱  M-Pesa Bulk Disbursement" },
+  { id: "cash",    label: "💵  Cash / Cheque List" },
+  { id: "gl",      label: "📊  General Ledger Journal" },
+  { id: "p9",      label: "📄  P9 Annual Tax Certificate" },
 ];
 
 export function Reports() {
