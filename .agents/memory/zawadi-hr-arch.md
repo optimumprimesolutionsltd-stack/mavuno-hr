@@ -23,6 +23,9 @@ description: Key design decisions and constraints for the Zawadi HR & Payroll sy
 - Seed: `SESSION_SECRET=<32+chars> artifacts/api-server/node_modules/.bin/tsx artifacts/api-server/scripts/seed.ts --org "Name" --admin email@org.ke`
 - Codegen: `pnpm --filter @workspace/api-spec run codegen`
 
+## React Query data mutation gotcha
+- TanStack Query freezes cached data objects. Never mutate them in place (e.g. `data.runs.reverse()`). Always spread first: `[...data.runs].reverse()`. Mutation throws a TypeError that silently unmounts the component tree → blank black screen.
+
 ## Key gotchas
 - `@node-rs/argon2` must be in esbuild `external[]` in `artifacts/api-server/build.mjs` — it's a native addon.
 - `lib/api-client-react/package.json` needs `"./custom-fetch": "./src/custom-fetch.ts"` export for subpath imports.

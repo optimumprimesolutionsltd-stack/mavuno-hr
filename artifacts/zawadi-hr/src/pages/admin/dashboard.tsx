@@ -108,7 +108,7 @@ export function AdminDashboard() {
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.runs.reverse()} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
+                <BarChart data={[...data.runs].reverse()} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
                   <XAxis dataKey="period" fontSize={12} tickLine={false} axisLine={false} tickMargin={10} />
                   <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v/100/1000).toFixed(0)}k`} width={50} />
                   <Tooltip 
