@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
 interface Props {
@@ -99,18 +100,21 @@ export function TerminateDialog({ employeeId, employeeName, empNo, open, onOpenC
           </div>
 
           {/* Confirmation checkbox */}
-          <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-destructive/30 bg-destructive/5">
-            <input
-              type="checkbox"
+          <div
+            className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-destructive/30 bg-destructive/5"
+            onClick={() => setConfirmed((v) => !v)}
+          >
+            <Checkbox
+              id="terminate-confirm"
               checked={confirmed}
-              onChange={(e) => setConfirmed(e.target.checked)}
-              className="mt-0.5 accent-destructive"
+              onCheckedChange={(v) => setConfirmed(!!v)}
+              className="mt-0.5 border-destructive data-[state=checked]:bg-destructive data-[state=checked]:border-destructive"
             />
-            <span className="text-sm text-muted-foreground leading-snug">
+            <label htmlFor="terminate-confirm" className="text-sm text-muted-foreground leading-snug cursor-pointer">
               I confirm I want to terminate <span className="font-medium text-foreground">{employeeName}</span>.
               This action can only be reversed by contacting support.
-            </span>
-          </label>
+            </label>
+          </div>
         </div>
 
         <DialogFooter>
