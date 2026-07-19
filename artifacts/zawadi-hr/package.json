@@ -72,10 +72,10 @@
     "vaul": "^1.1.2",
     "vite": "catalog:",
     "wouter": "^3.3.5",
-    "xlsx": "^0.18.5",
     "zod": "catalog:"
   },
   "dependencies": {
+    "exceljs": "^4.4.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8"
   }

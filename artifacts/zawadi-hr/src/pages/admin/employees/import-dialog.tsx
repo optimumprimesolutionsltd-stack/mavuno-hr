@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback } from "react";
-import * as XLSX from "xlsx";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { customFetch } from "@workspace/api-client-react";
@@ -41,17 +40,27 @@ const COLUMNS = [
   { key: "transportAllowance", label: "Transport Allowance (KES)", required: false, example: "5000" },
 ];
 
-function downloadTemplate() {
-  const headers = COLUMNS.map(c => c.label);
-  const example = COLUMNS.map(c => c.example);
-  const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+async function downloadTemplate() {
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Employees");
 
-  // Style header row width
-  ws["!cols"] = COLUMNS.map(() => ({ wch: 28 }));
+  ws.addRow(COLUMNS.map(c => c.label));
+  ws.addRow(COLUMNS.map(c => c.example));
+  ws.columns = COLUMNS.map(() => ({ width: 28 }));
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Employees");
-  XLSX.writeFile(wb, "zawadi_employee_import_template.xlsx");
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "zawadi_employee_import_template.xlsx";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -141,6 +150,42 @@ function toApiRow(row: Record<string, string>) {
   };
 }
 
+/** Parse a single CSV line, handling quoted fields. */
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let cur = "";
+  let inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
+      else { inQuote = !inQuote; }
+    } else if (ch === "," && !inQuote) {
+      result.push(cur);
+      cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+/** Convert an ExcelJS cell value to a plain string. */
+function cellToString(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "object") {
+    // Formula cell: {formula, result}
+    if ("result" in (value as object)) return String((value as { result: unknown }).result ?? "");
+    // Rich text: {richText: [{text}]}
+    if ("richText" in (value as object))
+      return (value as { richText: { text: string }[] }).richText.map(r => r.text).join("");
+    // Date
+    if (value instanceof Date) return value.toISOString().slice(0, 10);
+  }
+  return String(value);
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 interface Props {
@@ -172,38 +217,72 @@ export function ImportDialog({ open, onOpenChange }: Props) {
 
   const close = () => { onOpenChange(false); reset(); };
 
-  const parseFile = useCallback((file: File) => {
-    if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
-      toast({ variant: "destructive", title: "Unsupported format", description: "Please upload an .xlsx, .xls or .csv file" });
+  const parseFile = useCallback(async (file: File) => {
+    if (!file.name.match(/\.(xlsx|csv)$/i)) {
+      toast({ variant: "destructive", title: "Unsupported format", description: "Please upload an .xlsx or .csv file" });
       return;
     }
     setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result;
-        const wb = XLSX.read(data, { type: "array" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const raw = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
 
-        if (raw.length === 0) {
-          toast({ variant: "destructive", title: "Empty sheet", description: "The file contains no data rows" });
+    try {
+      let raw: Record<string, string>[] = [];
+
+      if (file.name.toLowerCase().endsWith(".csv")) {
+        // ── CSV ──────────────────────────────────────────────────────────
+        const text = await file.text();
+        const lines = text.split(/\r?\n/).filter(l => l.trim());
+        if (lines.length < 2) {
+          toast({ variant: "destructive", title: "Empty file", description: "The CSV file contains no data rows" });
           return;
         }
+        const headers = parseCSVLine(lines[0]);
+        raw = lines.slice(1).map(line => {
+          const vals = parseCSVLine(line);
+          const record: Record<string, string> = {};
+          headers.forEach((h, i) => { record[h] = (vals[i] ?? "").trim(); });
+          return record;
+        }).filter(r => Object.values(r).some(v => v));
+      } else {
+        // ── XLSX / XLS ────────────────────────────────────────────────────
+        const buffer = await file.arrayBuffer();
+        const ExcelJS = (await import("exceljs")).default;
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(buffer);
+        const ws = wb.worksheets[0];
 
-        const parsed: ParsedRow[] = raw.map((r, i) => {
-          const mapped = mapRow(r);
-          const errors = validateRow(mapped);
-          return { index: i + 1, raw: mapped, errors, valid: errors.length === 0 };
+        // Read headers from row 1
+        const headers: string[] = [];
+        ws.getRow(1).eachCell({ includeEmpty: true }, (cell, colNum) => {
+          headers[colNum - 1] = cellToString(cell.value);
         });
 
-        setRows(parsed);
-        setStage("preview");
-      } catch {
-        toast({ variant: "destructive", title: "Parse error", description: "Could not read the file. Make sure it is a valid Excel or CSV file." });
+        // Read data rows
+        ws.eachRow((row, rowNum) => {
+          if (rowNum === 1) return;
+          const record: Record<string, string> = {};
+          headers.forEach((h, i) => {
+            record[h] = cellToString(row.getCell(i + 1).value);
+          });
+          if (Object.values(record).some(v => v)) raw.push(record);
+        });
       }
-    };
-    reader.readAsArrayBuffer(file);
+
+      if (raw.length === 0) {
+        toast({ variant: "destructive", title: "Empty sheet", description: "The file contains no data rows" });
+        return;
+      }
+
+      const parsed: ParsedRow[] = raw.map((r, i) => {
+        const mapped = mapRow(r);
+        const errors = validateRow(mapped);
+        return { index: i + 1, raw: mapped, errors, valid: errors.length === 0 };
+      });
+
+      setRows(parsed);
+      setStage("preview");
+    } catch {
+      toast({ variant: "destructive", title: "Parse error", description: "Could not read the file. Make sure it is a valid Excel or CSV file." });
+    }
   }, [toast]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -251,7 +330,7 @@ export function ImportDialog({ open, onOpenChange }: Props) {
             IMPORT EMPLOYEES
           </DialogTitle>
           <DialogDescription>
-            Upload an Excel or CSV file to bulk-import employees into the payroll roster.
+            Upload an .xlsx or .csv file to bulk-import employees into the payroll roster.
           </DialogDescription>
         </DialogHeader>
 
@@ -279,12 +358,12 @@ export function ImportDialog({ open, onOpenChange }: Props) {
               onDrop={handleDrop}
               onClick={() => fileRef.current?.click()}
             >
-              <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFile} />
+              <input ref={fileRef} type="file" accept=".xlsx,.csv" className="hidden" onChange={handleFile} />
               <Upload className={`h-10 w-10 mx-auto mb-3 transition-colors ${dragging ? "text-primary" : "text-muted-foreground"}`} />
               <p className="font-mono text-sm font-medium">
                 {dragging ? "DROP TO UPLOAD" : "STEP 2 — UPLOAD YOUR FILE"}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">Drag & drop or click to browse · .xlsx, .xls, .csv</p>
+              <p className="text-xs text-muted-foreground mt-1">Drag & drop or click to browse · .xlsx, .csv</p>
             </div>
           </div>
         )}
