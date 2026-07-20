@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Settings,
   CreditCard,
+  FileBadge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -35,6 +36,7 @@ const NAV_ITEMS = [
   { href: "/admin/timesheets", label: "Timesheets", icon: Clock },
   { href: "/admin/loans", label: "Loans", icon: Coins },
   { href: "/admin/reports", label: "Reports", icon: FileText },
+  { href: "/admin/filings", label: "Statutory Filings", icon: FileBadge },
   { href: "/admin/users", label: "Access & Logins", icon: KeyRound },
   { href: "/admin/audit", label: "Audit Log", icon: ShieldCheck },
   { href: "/admin/billing", label: "Billing", icon: CreditCard },

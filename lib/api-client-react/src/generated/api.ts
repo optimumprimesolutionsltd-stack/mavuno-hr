@@ -21,6 +21,7 @@ import type {
 
 import type {
   AuditLog,
+  FilingsGrid,
   ChangePasswordInput,
   DashboardData,
   Employee,
@@ -72,6 +73,52 @@ import type {
 
 import { customFetch } from '../custom-fetch';
 import type { ErrorType , BodyType } from '../custom-fetch';
+
+// ── Statutory filings ──────────────────────────────────────────────────────
+
+export const getGetFilingsUrl = () => `/api/filings`;
+
+export const getFilings = async (options?: RequestInit): Promise<FilingsGrid> => {
+  return customFetch<FilingsGrid>(getGetFilingsUrl(), { ...options, method: 'GET' });
+};
+
+export const getGetFilingsQueryKey = () => [`/api/filings`] as const;
+
+export const getGetFilingsQueryOptions = <TData = Awaited<ReturnType<typeof getFilings>>, TError = ErrorType<unknown>>(
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getFilings>>, TError, TData>; request?: SecondParameter<typeof customFetch> }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetFilingsQueryKey();
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getFilings>>> = ({ signal }) =>
+    getFilings({ signal, ...requestOptions });
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof getFilings>>, TError, TData> & { queryKey: QueryKey };
+};
+
+export type GetFilingsQueryResult = NonNullable<Awaited<ReturnType<typeof getFilings>>>;
+export type GetFilingsQueryError = ErrorType<unknown>;
+
+export function useGetFilings<TData = Awaited<ReturnType<typeof getFilings>>, TError = ErrorType<unknown>>(
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getFilings>>, TError, TData>; request?: SecondParameter<typeof customFetch> }
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetFilingsQueryOptions(options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getConfirmFilingUrl = (id: number) => `/api/filings/${id}/confirm`;
+
+export const confirmFiling = async (id: number, options?: RequestInit): Promise<unknown> => {
+  return customFetch<unknown>(getConfirmFilingUrl(id), { ...options, method: 'PATCH' });
+};
+
+export const useConfirmFiling = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof confirmFiling>>, TError, number, TContext>; request?: SecondParameter<typeof customFetch> }
+): UseMutationResult<Awaited<ReturnType<typeof confirmFiling>>, TError, number, TContext> => {
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmFiling>>, number> = (id) =>
+    confirmFiling(id, requestOptions);
+  return useMutation({ mutationFn, ...mutationOptions });
+};
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 

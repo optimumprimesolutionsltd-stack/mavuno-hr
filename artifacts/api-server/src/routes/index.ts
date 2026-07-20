@@ -15,6 +15,7 @@ import usersRouter from "./users.js";
 import superRouter from "./super.js";
 import settingsRouter from "./settings.js";
 import billingRouter from "./billing.js";
+import filingsRouter from "./filings.js";
 import { HttpError } from "../lib/http-error.js";
 import type { Request, Response, NextFunction } from "express";
 
@@ -36,6 +37,7 @@ router.use("/users", usersRouter);
 router.use("/super", superRouter);
 router.use("/settings", settingsRouter);
 router.use("/billing", billingRouter);
+router.use("/filings", filingsRouter);
 
 // Global error handler
 router.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {

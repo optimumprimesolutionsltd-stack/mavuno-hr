@@ -1,10 +1,12 @@
-import { useGetDashboard } from "@workspace/api-client-react";
+import { useGetDashboard, useGetFilings } from "@workspace/api-client-react";
 import { formatMoney } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
 import {
   Users, Wallet, Calendar, Coins, TrendingUp, TrendingDown, AlertTriangle,
-  UserPlus, Star, ArrowUpRight, ArrowDownRight, Minus,
+  UserPlus, Star, ArrowUpRight, ArrowDownRight, Minus, FileBadge,
 } from "lucide-react";
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
@@ -47,8 +49,14 @@ function daysUntil(dateStr: string): number {
   return Math.round((d.getTime() - today.getTime()) / 86400000);
 }
 
+function formatPeriodLabel(period: string) {
+  const [y, m] = period.split("-");
+  return new Date(Number(y), Number(m) - 1).toLocaleDateString("en-KE", { month: "long", year: "numeric" });
+}
+
 export function AdminDashboard() {
   const { data, isLoading } = useGetDashboard();
+  const { data: filingsData } = useGetFilings();
 
   if (isLoading || !data) {
     return (
@@ -80,6 +88,12 @@ export function AdminDashboard() {
   const latestRunStatus: string | null = (data as any).latestRunStatus ?? null;
   const latestRunName: string | null   = (data as any).latestRunName ?? null;
 
+  const outstanding: string[] = (filingsData as any)?.outstanding ?? [];
+  const currentPeriod: string = (filingsData as any)?.currentPeriod ?? "";
+  const outstandingRunId: number | undefined = (filingsData as any)?.periods?.find(
+    (r: any) => r.period === currentPeriod
+  )?.runId;
+
   const pieData = deptCosts.map((d, i) => ({
     name: d.name, value: d.gross, color: `hsl(var(--chart-${(i % 5) + 1}))`,
   }));
@@ -101,6 +115,27 @@ export function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Outstanding filings banner */}
+      {outstanding.length > 0 && currentPeriod && (
+        <div className="border border-amber-500/40 bg-amber-500/10 rounded-lg p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-amber-400 text-sm">
+              Outstanding statutory filings for {formatPeriodLabel(currentPeriod)}
+            </p>
+            <p className="text-xs text-amber-300/80 mt-0.5">
+              {outstanding.join(", ")} {outstanding.length === 1 ? "return has" : "returns have"} not been downloaded yet.
+            </p>
+          </div>
+          <Link href="/admin/filings">
+            <Button size="sm" variant="outline" className="border-amber-500/50 text-amber-400 hover:bg-amber-500/10 text-xs h-7 shrink-0">
+              <FileBadge className="h-3.5 w-3.5 mr-1.5" />
+              View Filings
+            </Button>
+          </Link>
+        </div>
+      )}
 
       {/* KPI Cards — row 1 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

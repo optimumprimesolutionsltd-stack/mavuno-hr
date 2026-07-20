@@ -732,3 +732,35 @@ export type GetPortalP9Params = {
 year?: number;
 };
 
+export interface FilingsGridFiling {
+  id: number;
+  orgId: number;
+  /** @nullable */
+  runId?: number | null;
+  kind: string;
+  period: string;
+  itemCount: number;
+  totalAmount: number;
+  status: string;
+  /** @nullable */
+  filedAt?: string | null;
+  createdAt: string;
+}
+
+export interface FilingsGridPeriod {
+  period: string;
+  runId: number;
+  runName: string;
+  runStatus: string;
+  employeeCount: number;
+  /** @nullable */
+  paidAt?: string | null;
+  filings: Record<string, FilingsGridFiling | null>;
+}
+
+export interface FilingsGrid {
+  periods: FilingsGridPeriod[];
+  outstanding: string[];
+  currentPeriod: string;
+}
+
