@@ -20,7 +20,7 @@ import { PayslipEditDialog } from "./payslip-edit-dialog";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
-import { downloadP10Csv } from "@/lib/itax-csv";
+import { downloadP10Csv, downloadNssfCsv, downloadShifCsv } from "@/lib/itax-csv";
 
 // Status badge colour map
 function StatusBadge({ status }: { status: string }) {
@@ -49,6 +49,8 @@ export function PayrollDetail() {
   const [itaxOpen, setItaxOpen] = useState(false);
   const [itaxData, setItaxData] = useState<any>(null);
   const [itaxLoading, setItaxLoading] = useState(false);
+  const [nssfLoading, setNssfLoading] = useState(false);
+  const [shifLoading, setShifLoading] = useState(false);
 
   const { data, isLoading } = useGetPayrollRun(id);
 
@@ -130,6 +132,46 @@ export function PayrollDetail() {
     }
   };
 
+  const handleNssfExport = async () => {
+    setNssfLoading(true);
+    try {
+      const result = await customFetch(`/api/payroll/${id}/itax/nssf`) as any;
+      queryClient.invalidateQueries({ queryKey: getGetPayrollRunQueryKey(id) });
+      if (result.warnings?.length) {
+        toast({
+          variant: "destructive",
+          title: `NSSF — ${result.warnings.length} warning(s)`,
+          description: result.warnings.slice(0, 3).join("; "),
+        });
+      }
+      downloadNssfCsv(result);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "NSSF Export Failed", description: err?.data?.error ?? err?.message });
+    } finally {
+      setNssfLoading(false);
+    }
+  };
+
+  const handleShifExport = async () => {
+    setShifLoading(true);
+    try {
+      const result = await customFetch(`/api/payroll/${id}/itax/shif`) as any;
+      queryClient.invalidateQueries({ queryKey: getGetPayrollRunQueryKey(id) });
+      if (result.warnings?.length) {
+        toast({
+          variant: "destructive",
+          title: `SHIF — ${result.warnings.length} warning(s)`,
+          description: result.warnings.slice(0, 3).join("; "),
+        });
+      }
+      downloadShifCsv(result);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "SHIF Export Failed", description: err?.data?.error ?? err?.message });
+    } finally {
+      setShifLoading(false);
+    }
+  };
+
   if (isLoading || !data) {
     return (
       <div className="animate-pulse space-y-4 max-w-[1200px] mx-auto">
@@ -142,6 +184,8 @@ export function PayrollDetail() {
   const { run, payslips, filings } = data as any;
   const canEdit = run?.status === "draft" || run?.status === "pending_approval";
   const p10Filing = (filings as any[])?.find((f: any) => f.kind === "P10");
+  const nssfFiling = (filings as any[])?.find((f: any) => f.kind === "NSSF");
+  const shifFiling = (filings as any[])?.find((f: any) => f.kind === "SHIF");
 
   const handleAction = (action: string) => {
     actionMutation.mutate({ id, data: { action: action as any } });
@@ -211,9 +255,33 @@ export function PayrollDetail() {
                 className="font-mono gap-1.5 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10"
               >
                 <FileSpreadsheet className={`h-3.5 w-3.5 ${itaxLoading ? "animate-pulse" : ""}`} />
-                {itaxLoading ? "LOADING..." : "iTAX EXPORT"}
+                {itaxLoading ? "LOADING..." : "iTAX P10"}
                 {p10Filing && !itaxLoading && (
                   <span className="ml-1 text-[10px] bg-emerald-500/20 text-emerald-300 px-1 rounded font-mono">FILED</span>
+                )}
+              </Button>
+              <Button
+                size="sm" variant="outline"
+                onClick={handleNssfExport}
+                disabled={nssfLoading}
+                className="font-mono gap-1.5 border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
+              >
+                <Download className={`h-3.5 w-3.5 ${nssfLoading ? "animate-pulse" : ""}`} />
+                {nssfLoading ? "LOADING..." : "NSSF CSV"}
+                {nssfFiling && !nssfLoading && (
+                  <span className="ml-1 text-[10px] bg-orange-500/20 text-orange-300 px-1 rounded font-mono">FILED</span>
+                )}
+              </Button>
+              <Button
+                size="sm" variant="outline"
+                onClick={handleShifExport}
+                disabled={shifLoading}
+                className="font-mono gap-1.5 border-sky-500/50 text-sky-400 hover:bg-sky-500/10"
+              >
+                <Download className={`h-3.5 w-3.5 ${shifLoading ? "animate-pulse" : ""}`} />
+                {shifLoading ? "LOADING..." : "SHIF CSV"}
+                {shifFiling && !shifLoading && (
+                  <span className="ml-1 text-[10px] bg-sky-500/20 text-sky-300 px-1 rounded font-mono">FILED</span>
                 )}
               </Button>
               <Button

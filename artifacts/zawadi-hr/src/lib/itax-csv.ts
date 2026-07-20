@@ -113,6 +113,79 @@ export function downloadP10Csv(data: {
   downloadCsv(`P10_${data.period}_${orgPin}.csv`, csv);
 }
 
+// ── NSSF eCitizen bulk-upload format ────────────────────────────────────────
+
+export const NSSF_HEADERS = [
+  "NSSF No",
+  "Employee Name",
+  "Employer No",
+  "Tier I Employee",
+  "Tier I Employer",
+  "Tier II Employee",
+  "Tier II Employer",
+  "Total",
+] as const;
+
+/** Build and immediately download an NSSF eCitizen CSV from the API response */
+export function downloadNssfCsv(data: {
+  rows: Array<{
+    nssfNo: string;
+    name: string;
+    employerNo: string;
+    tier1Employee: number;
+    tier1Employer: number;
+    tier2Employee: number;
+    tier2Employer: number;
+    total: number;
+  }>;
+  period: string;
+  orgNssfEmployerNo: string;
+}): void {
+  const csvRows = data.rows.map((r) => [
+    r.nssfNo,
+    r.name,
+    r.employerNo,
+    r.tier1Employee,
+    r.tier1Employer,
+    r.tier2Employee,
+    r.tier2Employer,
+    r.total,
+  ] as (string | number)[]);
+
+  const csv = buildCsv(NSSF_HEADERS, csvRows);
+  const empNo = data.orgNssfEmployerNo.replace(/[^A-Z0-9]/gi, "") || "ORG";
+  downloadCsv(`NSSF_${data.period}_${empNo}.csv`, csv);
+}
+
+// ── SHIF SHA portal bulk-upload format ──────────────────────────────────────
+
+export const SHIF_HEADERS = [
+  "ID No",
+  "Employee Name",
+  "SHIF Amount",
+] as const;
+
+/** Build and immediately download a SHIF SHA portal CSV from the API response */
+export function downloadShifCsv(data: {
+  rows: Array<{
+    nationalId: string;
+    name: string;
+    shifAmount: number;
+  }>;
+  period: string;
+  orgName: string;
+}): void {
+  const csvRows = data.rows.map((r) => [
+    r.nationalId,
+    r.name,
+    r.shifAmount,
+  ] as (string | number)[]);
+
+  const csv = buildCsv(SHIF_HEADERS, csvRows);
+  const org = data.orgName.replace(/[^A-Z0-9]/gi, "").slice(0, 10) || "ORG";
+  downloadCsv(`SHIF_${data.period}_${org}.csv`, csv);
+}
+
 /** Build and immediately download a P9 CSV from the API response */
 export function downloadP9Csv(data: {
   rows: Array<{

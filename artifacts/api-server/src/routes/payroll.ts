@@ -595,6 +595,148 @@ router.get("/:id/itax/p10", requireAuth("payroll:read"), async (req, res, next) 
   } catch (err) { next(err); }
 });
 
+// ── GET /:id/itax/nssf — NSSF eCitizen bulk-upload CSV data + record filing ─
+router.get("/:id/itax/nssf", requireAuth("payroll:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+
+    const [run] = await db.select().from(payrollRuns)
+      .where(and(eq(payrollRuns.id, id), eq(payrollRuns.orgId, p.orgId)));
+    if (!run) throw new HttpError(404, "Payroll run not found");
+
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, p.orgId));
+
+    const rows = await db.select({ slip: payslips, emp: employees })
+      .from(payslips)
+      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
+
+    const warnings: string[] = [];
+    const nssfRows = rows.map(({ slip, emp }) => {
+      const name = `${emp.firstName} ${emp.lastName}`;
+      if (!emp.nssfNo) warnings.push(`${emp.empNo} — ${name}: missing NSSF number`);
+      const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number };
+      const tier1Employee = bd.nssfTier1 ?? 0;
+      const tier2Employee = bd.nssfTier2 ?? 0;
+      // Employer mirrors employee contributions for both tiers
+      const tier1Employer = tier1Employee;
+      const tier2Employer = tier2Employee;
+      const total = tier1Employee + tier1Employer + tier2Employee + tier2Employer;
+      return {
+        empNo: emp.empNo,
+        nssfNo: emp.nssfNo ?? "",
+        name,
+        employerNo: org?.nssfEmployerNo ?? "",
+        tier1Employee,
+        tier1Employer,
+        tier2Employee,
+        tier2Employer,
+        total,
+        missingNssfNo: !emp.nssfNo,
+      };
+    });
+
+    const totalNssf = rows.reduce((s, r) => s + r.slip.nssfEmployee + r.slip.nssfEmployer, 0);
+
+    // Upsert filing record
+    const [existing] = await db.select({ id: statutoryFilings.id }).from(statutoryFilings)
+      .where(and(
+        eq(statutoryFilings.orgId, p.orgId),
+        eq(statutoryFilings.runId, id),
+        eq(statutoryFilings.kind, "NSSF"),
+      )).limit(1);
+
+    const now = new Date();
+    if (existing) {
+      await db.update(statutoryFilings)
+        .set({ status: "downloaded", filedAt: now, itemCount: rows.length, totalAmount: totalNssf })
+        .where(eq(statutoryFilings.id, existing.id));
+    } else {
+      await db.insert(statutoryFilings).values({
+        orgId: p.orgId, runId: id, kind: "NSSF", period: run.period,
+        itemCount: rows.length, totalAmount: totalNssf, status: "downloaded", filedAt: now,
+      });
+    }
+
+    res.json({
+      rows: nssfRows,
+      warnings,
+      orgNssfEmployerNo: org?.nssfEmployerNo ?? "",
+      orgName: org?.name ?? "",
+      period: run.period,
+      runName: run.name,
+      totalNssf,
+      nssfFiledAt: now.toISOString(),
+    });
+  } catch (err) { next(err); }
+});
+
+// ── GET /:id/itax/shif — SHIF SHA portal bulk-upload CSV data + record filing ─
+router.get("/:id/itax/shif", requireAuth("payroll:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+
+    const [run] = await db.select().from(payrollRuns)
+      .where(and(eq(payrollRuns.id, id), eq(payrollRuns.orgId, p.orgId)));
+    if (!run) throw new HttpError(404, "Payroll run not found");
+
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, p.orgId));
+
+    const rows = await db.select({ slip: payslips, emp: employees })
+      .from(payslips)
+      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
+
+    const warnings: string[] = [];
+    const shifRows = rows.map(({ slip, emp }) => {
+      const name = `${emp.firstName} ${emp.lastName}`;
+      if (!emp.shifNo) warnings.push(`${emp.empNo} — ${name}: missing SHIF number`);
+      return {
+        empNo: emp.empNo,
+        shifNo: emp.shifNo ?? "",
+        nationalId: emp.nationalId ?? "",
+        name,
+        shifAmount: slip.shif,
+        missingShifNo: !emp.shifNo,
+      };
+    });
+
+    const totalShif = rows.reduce((s, r) => s + r.slip.shif, 0);
+
+    // Upsert filing record
+    const [existing] = await db.select({ id: statutoryFilings.id }).from(statutoryFilings)
+      .where(and(
+        eq(statutoryFilings.orgId, p.orgId),
+        eq(statutoryFilings.runId, id),
+        eq(statutoryFilings.kind, "SHIF"),
+      )).limit(1);
+
+    const now = new Date();
+    if (existing) {
+      await db.update(statutoryFilings)
+        .set({ status: "downloaded", filedAt: now, itemCount: rows.length, totalAmount: totalShif })
+        .where(eq(statutoryFilings.id, existing.id));
+    } else {
+      await db.insert(statutoryFilings).values({
+        orgId: p.orgId, runId: id, kind: "SHIF", period: run.period,
+        itemCount: rows.length, totalAmount: totalShif, status: "downloaded", filedAt: now,
+      });
+    }
+
+    res.json({
+      rows: shifRows,
+      warnings,
+      orgName: org?.name ?? "",
+      period: run.period,
+      runName: run.name,
+      totalShif,
+      shifFiledAt: now.toISOString(),
+    });
+  } catch (err) { next(err); }
+});
+
 router.get("/:id/filings", requireAuth("payroll:read"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
