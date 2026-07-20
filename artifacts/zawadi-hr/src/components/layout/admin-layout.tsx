@@ -17,6 +17,8 @@ import {
   KeyRound,
   Menu,
   X,
+  ShieldCheck,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -33,6 +35,8 @@ const NAV_ITEMS = [
   { href: "/admin/loans", label: "Loans", icon: Coins },
   { href: "/admin/reports", label: "Reports", icon: FileText },
   { href: "/admin/users", label: "Access & Logins", icon: KeyRound },
+  { href: "/admin/audit", label: "Audit Log", icon: ShieldCheck },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 export function AdminGuard({ children }: { children: ReactNode }) {
