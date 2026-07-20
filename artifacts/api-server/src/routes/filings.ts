@@ -9,7 +9,7 @@ import { getIp } from "../middlewares/require-auth.js";
 
 const router = Router();
 
-const FILING_KINDS = ["P10", "NSSF", "SHIF"] as const;
+const FILING_KINDS = ["P10", "NSSF", "SHIF", "AHL"] as const;
 type FilingKind = (typeof FILING_KINDS)[number];
 
 /**
@@ -119,7 +119,7 @@ router.patch("/:id/confirm", requireAuth("payroll:submit"), async (req, res, nex
 
     const [updated] = await db
       .update(statutoryFilings)
-      .set({ status: "filed", filedAt: new Date() })
+      .set({ status: "filed", filedAt: new Date(), confirmedByUserId: p.userId, confirmedByEmail: p.email })
       .where(eq(statutoryFilings.id, id))
       .returning();
 

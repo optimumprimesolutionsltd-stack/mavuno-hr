@@ -48,6 +48,9 @@ export function PayrollDetail() {
   const [emailSending, setEmailSending] = useState(false);
   const [bulkPdfLoading, setBulkPdfLoading] = useState(false);
   const [varianceOpen, setVarianceOpen] = useState(false);
+  const [payConfirmOpen, setPayConfirmOpen] = useState(false);
+  const [readinessOpen, setReadinessOpen] = useState(false);
+  const [readinessMissing, setReadinessMissing] = useState<{ name: string; employeeNo: string; missingFields: string[] }[]>([]);
   const [itaxOpen, setItaxOpen] = useState(false);
   const [itaxData, setItaxData] = useState<any>(null);
   const [itaxLoading, setItaxLoading] = useState(false);
@@ -228,6 +231,20 @@ export function PayrollDetail() {
     actionMutation.mutate({ id, data: { action: action as any } });
   };
 
+  const handleSubmit = async () => {
+    try {
+      const result = await customFetch(`/api/payroll/${id}/readiness`) as any;
+      if (!result.ok && result.missing?.length) {
+        setReadinessMissing(result.missing);
+        setReadinessOpen(true);
+      } else {
+        handleAction("submit");
+      }
+    } catch {
+      handleAction("submit");
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto pb-10">
 
@@ -264,7 +281,7 @@ export function PayrollDetail() {
             </Button>
           )}
           {run?.status === "draft" && (
-            <Button size="sm" onClick={() => handleAction("submit")} disabled={actionMutation.isPending} className="font-mono">
+            <Button size="sm" onClick={handleSubmit} disabled={actionMutation.isPending} className="font-mono">
               <Send className="h-4 w-4 mr-2" /> SUBMIT
             </Button>
           )}
@@ -279,7 +296,7 @@ export function PayrollDetail() {
             </>
           )}
           {run?.status === "approved" && (
-            <Button size="sm" onClick={() => handleAction("pay")} disabled={actionMutation.isPending} className="font-mono bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button size="sm" onClick={() => setPayConfirmOpen(true)} disabled={actionMutation.isPending} className="font-mono bg-primary text-primary-foreground hover:bg-primary/90">
               <PlayCircle className="h-4 w-4 mr-2" /> EXECUTE PAYOUT
             </Button>
           )}
@@ -727,6 +744,82 @@ export function PayrollDetail() {
           </Table>
         </div>
       </Card>
+
+      {/* Pay confirmation dialog */}
+      <Dialog open={payConfirmOpen} onOpenChange={setPayConfirmOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-mono flex items-center gap-2">
+              <PlayCircle className="h-4 w-4 text-primary" />
+              CONFIRM PAYOUT
+            </DialogTitle>
+            <DialogDescription>
+              This will mark the payroll run as paid and cannot be undone without a reversal. Are you sure you want to disburse{" "}
+              <span className="font-semibold text-foreground">{formatMoney(run?.netPayTotal ?? 0)}</span> to{" "}
+              <span className="font-semibold text-foreground">{run?.employeeCount ?? 0} employees</span>?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 pt-2">
+            <Button variant="outline" size="sm" className="font-mono" onClick={() => setPayConfirmOpen(false)}>
+              CANCEL
+            </Button>
+            <Button
+              size="sm"
+              className="font-mono bg-primary text-primary-foreground"
+              disabled={actionMutation.isPending}
+              onClick={() => { setPayConfirmOpen(false); handleAction("pay"); }}
+            >
+              {actionMutation.isPending ? "PROCESSING…" : "YES, DISBURSE"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Readiness warning dialog — missing NSSF/SHIF numbers */}
+      <Dialog open={readinessOpen} onOpenChange={setReadinessOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-mono flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              MISSING STATUTORY NUMBERS
+            </DialogTitle>
+            <DialogDescription>
+              The following employees are missing NSSF or SHIF registration numbers. Contributions for these employees may be rejected by the authority.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-48 overflow-y-auto rounded-lg border border-border/40">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border/40 bg-muted/40">
+                  <th className="text-left px-3 py-2 font-mono text-muted-foreground">EMPLOYEE</th>
+                  <th className="text-left px-3 py-2 font-mono text-muted-foreground">MISSING</th>
+                </tr>
+              </thead>
+              <tbody>
+                {readinessMissing.map((m) => (
+                  <tr key={m.employeeNo} className="border-b border-border/20 last:border-0">
+                    <td className="px-3 py-2 font-mono">{m.name} <span className="text-muted-foreground">({m.employeeNo})</span></td>
+                    <td className="px-3 py-2 text-amber-400 font-mono">{m.missingFields.join(", ")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <DialogFooter className="gap-2 pt-2">
+            <Button variant="outline" size="sm" className="font-mono" onClick={() => setReadinessOpen(false)}>
+              GO BACK
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="font-mono"
+              onClick={() => { setReadinessOpen(false); handleAction("submit"); }}
+            >
+              SUBMIT ANYWAY
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

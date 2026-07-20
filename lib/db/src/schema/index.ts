@@ -255,6 +255,8 @@ export const statutoryFilings = pgTable("statutory_filings", {
   storageKey: text("storage_key"),
   status: text("status").notNull().default("generated"),
   filedAt: timestamp("filed_at"),
+  confirmedByUserId: integer("confirmed_by_user_id"),
+  confirmedByEmail: text("confirmed_by_email"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [index("filing_org_period_idx").on(t.orgId, t.period)]);
 

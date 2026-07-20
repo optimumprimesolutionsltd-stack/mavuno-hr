@@ -132,6 +132,14 @@ async function createNotificationsTable(): Promise<void> {
   `);
 }
 
+async function addFilingConfirmedByColumns(): Promise<void> {
+  await db.execute(sql`
+    ALTER TABLE statutory_filings
+      ADD COLUMN IF NOT EXISTS confirmed_by_user_id INTEGER,
+      ADD COLUMN IF NOT EXISTS confirmed_by_email    TEXT;
+  `);
+}
+
 export async function runStartupMigrations(): Promise<void> {
   try {
     await migrateAdminCredentials();
@@ -143,6 +151,7 @@ export async function runStartupMigrations(): Promise<void> {
     await addOrgMonthlyCharge();
     await createBillingPaymentsTable();
     await createNotificationsTable();
+    await addFilingConfirmedByColumns();
   } catch (err) {
     logger.error({ err }, "startup-migration: failed (non-fatal)");
   }

@@ -22,19 +22,21 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 
-const KINDS = ["P10", "NSSF", "SHIF"] as const;
+const KINDS = ["P10", "NSSF", "SHIF", "AHL"] as const;
 type FilingKind = (typeof KINDS)[number];
 
 const KIND_LABELS: Record<FilingKind, { label: string; description: string }> = {
   P10:  { label: "P10",  description: "KRA iTax PAYE return" },
   NSSF: { label: "NSSF", description: "NSSF eCitizen remittance" },
   SHIF: { label: "SHIF", description: "SHA portal remittance" },
+  AHL:  { label: "AHL",  description: "Affordable Housing Levy" },
 };
 
 interface FilingRecord {
   id: number;
   status: string;
   filedAt: string | null;
+  confirmedByEmail: string | null;
   itemCount: number;
   totalAmount: number;
   period: string;
@@ -301,6 +303,12 @@ export function FilingsPage() {
                       })
                     : "—"}
                 </div>
+                {detail.filing.status === "filed" && detail.filing.confirmedByEmail && (
+                  <>
+                    <div className="text-muted-foreground">Confirmed by</div>
+                    <div className="font-mono text-xs">{detail.filing.confirmedByEmail}</div>
+                  </>
+                )}
                 <div className="text-muted-foreground">Employee count</div>
                 <div className="font-mono">{detail.filing.itemCount}</div>
                 <div className="text-muted-foreground">Total amount</div>

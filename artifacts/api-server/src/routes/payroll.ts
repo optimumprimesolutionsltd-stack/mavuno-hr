@@ -149,6 +149,39 @@ router.patch("/:id", requireAuth(), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── GET /:id/readiness — pre-flight check before submitting for approval ──────
+router.get("/:id/readiness", requireAuth("payroll:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+
+    const [run] = await db.select().from(payrollRuns)
+      .where(and(eq(payrollRuns.id, id), eq(payrollRuns.orgId, p.orgId)));
+    if (!run) throw new HttpError(404, "Payroll run not found");
+
+    // Join payslips → employees to find those missing statutory numbers
+    const rows = await db
+      .select({ emp: employees })
+      .from(payslips)
+      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .where(eq(payslips.runId, id));
+
+    const missing = rows
+      .filter(({ emp }) => !emp.nssfNo || !emp.shifNo)
+      .map(({ emp }) => ({
+        id: emp.id,
+        name: `${emp.firstName} ${emp.lastName}`,
+        employeeNo: emp.employeeNo,
+        missingFields: [
+          ...(!emp.nssfNo ? ["NSSF No"] : []),
+          ...(!emp.shifNo ? ["SHIF No"] : []),
+        ],
+      }));
+
+    res.json({ ok: missing.length === 0, missing });
+  } catch (err) { next(err); }
+});
+
 router.post("/:id/recalculate", requireAuth("payroll:calculate"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;

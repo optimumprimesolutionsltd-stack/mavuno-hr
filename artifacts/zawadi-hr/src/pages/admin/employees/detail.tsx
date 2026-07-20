@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   ArrowLeft, User, Briefcase, Landmark, FileText, Pencil, UserX, AlertCircle, KeyRound, Loader2,
-  CalendarDays, Check, X,
+  CalendarDays, Check, X, Copy,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EditEmployeeDialog } from "./edit-dialog";
@@ -516,7 +516,19 @@ export function EmployeeDetail() {
               </div>
               <div>
                 <p className="text-xs font-mono text-muted-foreground mb-1.5">TEMPORARY PASSWORD</p>
-                <Input readOnly value={portalResult.tempPassword} className="font-mono bg-muted/30 text-primary font-bold" />
+                <div className="flex gap-2">
+                  <Input readOnly value={portalResult.tempPassword} className="font-mono bg-muted/30 text-primary font-bold" />
+                  <Button
+                    variant="outline" size="icon" className="shrink-0"
+                    onClick={() => {
+                      navigator.clipboard.writeText(portalResult!.tempPassword!);
+                      toast({ title: "Copied", description: "Password copied to clipboard." });
+                    }}
+                    title="Copy to clipboard"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               <p className="text-xs text-muted-foreground">
                 The employee must change this password on first login.
