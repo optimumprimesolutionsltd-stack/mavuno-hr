@@ -69,6 +69,7 @@ router.get("/orgs", ...requireSuperAdmin(), async (_req, res, next) => {
         plan: o.plan,
         status: o.status,
         seatLimit: o.seatLimit,
+        monthlyCharge: o.monthlyCharge ?? 0,
         countryCode: o.countryCode,
         currencyCode: o.currencyCode,
         trialEndsAt: o.trialEndsAt,
@@ -87,7 +88,8 @@ router.get("/orgs", ...requireSuperAdmin(), async (_req, res, next) => {
 // ── PATCH /api/super/orgs/:id ─────────────────────────────────────────────────
 const patchOrgSchema = z.object({
   plan: z.enum(["trial", "starter", "growth", "enterprise"]).optional(),
-  seatLimit: z.number().int().min(1).max(10000).optional(),
+  seatLimit: z.number().int().min(1).max(10_000_000).optional(),
+  monthlyCharge: z.number().int().min(0).optional(), // stored as cents (KES)
   status: z.enum(["active", "suspended"]).optional(),
   trialEndsAt: z.string().datetime().nullable().optional(),
 });
@@ -107,6 +109,7 @@ router.patch("/orgs/:id", ...requireSuperAdmin(), async (req, res, next) => {
     const d = parsed.data;
     if (d.plan !== undefined) updates.plan = d.plan;
     if (d.seatLimit !== undefined) updates.seatLimit = d.seatLimit;
+    if (d.monthlyCharge !== undefined) updates.monthlyCharge = d.monthlyCharge;
     if (d.status !== undefined) updates.status = d.status;
     if (d.trialEndsAt !== undefined)
       updates.trialEndsAt = d.trialEndsAt ? new Date(d.trialEndsAt) : null;

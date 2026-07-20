@@ -89,6 +89,10 @@ async function addLoanRequestInterestRate(): Promise<void> {
   await db.execute(sql`ALTER TABLE loan_requests ADD COLUMN IF NOT EXISTS interest_rate_bps INTEGER NOT NULL DEFAULT 0`);
 }
 
+async function addOrgMonthlyCharge(): Promise<void> {
+  await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS monthly_charge BIGINT NOT NULL DEFAULT 0`);
+}
+
 export async function runStartupMigrations(): Promise<void> {
   try {
     await migrateAdminCredentials();
@@ -97,6 +101,7 @@ export async function runStartupMigrations(): Promise<void> {
     await addEmployeeTerminationReason();
     await addEmployeeWorkSchedule();
     await addLoanRequestInterestRate();
+    await addOrgMonthlyCharge();
   } catch (err) {
     logger.error({ err }, "startup-migration: failed (non-fatal)");
   }
