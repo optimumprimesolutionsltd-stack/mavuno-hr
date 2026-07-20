@@ -12,10 +12,15 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   ArrowLeft, CheckCircle, Send, PlayCircle, RotateCcw, FileText,
-  RefreshCw, Pencil, Mail, Download, TrendingDown, TrendingUp
+  RefreshCw, Pencil, Mail, Download, TrendingDown, TrendingUp,
+  FileSpreadsheet, AlertTriangle, ExternalLink,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PayslipEditDialog } from "./payslip-edit-dialog";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import { downloadP10Csv } from "@/lib/itax-csv";
 
 // Status badge colour map
 function StatusBadge({ status }: { status: string }) {
@@ -41,6 +46,9 @@ export function PayrollDetail() {
   const queryClient = useQueryClient();
   const [editTarget, setEditTarget] = useState<{ slip: any; emp: any } | null>(null);
   const [emailSending, setEmailSending] = useState(false);
+  const [itaxOpen, setItaxOpen] = useState(false);
+  const [itaxData, setItaxData] = useState<any>(null);
+  const [itaxLoading, setItaxLoading] = useState(false);
 
   const { data, isLoading } = useGetPayrollRun(id);
 
@@ -107,6 +115,21 @@ export function PayrollDetail() {
       .catch(() => toast({ variant: "destructive", title: "Download failed" }));
   };
 
+  const handleItaxExport = async () => {
+    setItaxLoading(true);
+    setItaxOpen(true);
+    try {
+      const result = await customFetch(`/api/payroll/${id}/itax/p10`) as any;
+      setItaxData(result);
+      queryClient.invalidateQueries({ queryKey: getGetPayrollRunQueryKey(id) });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "iTax Export Failed", description: err?.data?.error ?? err?.message });
+      setItaxOpen(false);
+    } finally {
+      setItaxLoading(false);
+    }
+  };
+
   if (isLoading || !data) {
     return (
       <div className="animate-pulse space-y-4 max-w-[1200px] mx-auto">
@@ -116,8 +139,9 @@ export function PayrollDetail() {
     );
   }
 
-  const { run, payslips } = data as any;
+  const { run, payslips, filings } = data as any;
   const canEdit = run?.status === "draft" || run?.status === "pending_approval";
+  const p10Filing = (filings as any[])?.find((f: any) => f.kind === "P10");
 
   const handleAction = (action: string) => {
     actionMutation.mutate({ id, data: { action: action as any } });
@@ -182,6 +206,18 @@ export function PayrollDetail() {
             <>
               <Button
                 size="sm" variant="outline"
+                onClick={handleItaxExport}
+                disabled={itaxLoading}
+                className="font-mono gap-1.5 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10"
+              >
+                <FileSpreadsheet className={`h-3.5 w-3.5 ${itaxLoading ? "animate-pulse" : ""}`} />
+                {itaxLoading ? "LOADING..." : "iTAX EXPORT"}
+                {p10Filing && !itaxLoading && (
+                  <span className="ml-1 text-[10px] bg-emerald-500/20 text-emerald-300 px-1 rounded font-mono">FILED</span>
+                )}
+              </Button>
+              <Button
+                size="sm" variant="outline"
                 onClick={handleEmailPayslips}
                 disabled={emailSending}
                 className="font-mono gap-1.5 border-primary/50 text-primary hover:bg-primary/10"
@@ -229,6 +265,103 @@ export function PayrollDetail() {
           </CardHeader>
         </Card>
       </div>
+
+      {/* iTax P10 Export Dialog */}
+      <Dialog open={itaxOpen} onOpenChange={setItaxOpen}>
+        <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col border-border/50 bg-card/95 backdrop-blur-sm">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="font-mono flex items-center gap-2">
+              <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
+              iTAX P10 RETURN — {itaxData?.period ?? run?.period}
+            </DialogTitle>
+            <DialogDescription className="font-mono text-xs">
+              KRA Monthly PAYE Return • {itaxData?.orgName} • {itaxData?.orgKraPin || "⚠️ No org KRA PIN set"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Warnings */}
+          {itaxData?.warnings?.length > 0 && (
+            <div className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3 space-y-1">
+              <div className="flex items-center gap-2 text-amber-400 font-mono text-xs font-bold">
+                <AlertTriangle className="h-4 w-4" />
+                {itaxData.warnings.length} EMPLOYEE{itaxData.warnings.length > 1 ? "S" : ""} WITH MISSING KRA PIN
+              </div>
+              <ul className="list-disc list-inside space-y-0.5">
+                {itaxData.warnings.map((w: string, i: number) => (
+                  <li key={i} className="text-xs text-amber-300/80 font-mono">{w}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Table */}
+          <div className="flex-1 overflow-auto border border-border/40 rounded-lg bg-background/50">
+            {itaxLoading ? (
+              <div className="h-40 flex items-center justify-center text-muted-foreground font-mono text-sm">
+                LOADING P10 DATA...
+              </div>
+            ) : itaxData ? (
+              <Table className="text-xs whitespace-nowrap">
+                <TableHeader className="bg-muted/80 sticky top-0">
+                  <TableRow>
+                    <TableHead className="font-mono text-[10px] px-2">PIN</TableHead>
+                    <TableHead className="font-mono text-[10px] px-2">NAME</TableHead>
+                    <TableHead className="font-mono text-[10px] px-2 text-right">GROSS</TableHead>
+                    <TableHead className="font-mono text-[10px] px-2 text-right">BENEFITS</TableHead>
+                    <TableHead className="font-mono text-[10px] px-2 text-right">MORTGAGE INT.</TableHead>
+                    <TableHead className="font-mono text-[10px] px-2 text-right">DEF. CONTRIB.</TableHead>
+                    <TableHead className="font-mono text-[10px] px-2 text-right">CHARGEABLE</TableHead>
+                    <TableHead className="font-mono text-[10px] px-2 text-right">TAX CHGD</TableHead>
+                    <TableHead className="font-mono text-[10px] px-2 text-right">PERS. RELIEF</TableHead>
+                    <TableHead className="font-mono text-[10px] px-2 text-right">INS. RELIEF</TableHead>
+                    <TableHead className="font-mono text-[10px] px-2 text-right text-emerald-400">NET PAYE</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {itaxData.rows.map((row: any, i: number) => (
+                    <TableRow key={i} className={`hover:bg-muted/20 ${row.missingPin ? "bg-amber-500/5" : ""}`}>
+                      <TableCell className={`font-mono px-2 py-1.5 ${row.missingPin ? "text-amber-400" : ""}`}>
+                        {row.kraPin || <span className="text-amber-400">MISSING</span>}
+                      </TableCell>
+                      <TableCell className="px-2 py-1.5 max-w-[140px] truncate">{row.name}</TableCell>
+                      <TableCell className="text-right font-mono px-2 py-1.5">{formatMoney(row.gross)}</TableCell>
+                      <TableCell className="text-right font-mono px-2 py-1.5 text-muted-foreground">{formatMoney(row.benefits)}</TableCell>
+                      <TableCell className="text-right font-mono px-2 py-1.5 text-muted-foreground">{formatMoney(row.mortgageInterest)}</TableCell>
+                      <TableCell className="text-right font-mono px-2 py-1.5 text-muted-foreground">{formatMoney(row.definedContribution)}</TableCell>
+                      <TableCell className="text-right font-mono px-2 py-1.5">{formatMoney(row.chargeablePay)}</TableCell>
+                      <TableCell className="text-right font-mono px-2 py-1.5">{formatMoney(row.taxChargeable)}</TableCell>
+                      <TableCell className="text-right font-mono px-2 py-1.5 text-muted-foreground">{formatMoney(row.personalRelief)}</TableCell>
+                      <TableCell className="text-right font-mono px-2 py-1.5 text-muted-foreground">{formatMoney(row.insuranceRelief)}</TableCell>
+                      <TableCell className="text-right font-mono px-2 py-1.5 font-bold text-emerald-400">{formatMoney(row.netPaye)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : null}
+          </div>
+
+          <DialogFooter className="shrink-0 flex-row items-center justify-between gap-3">
+            <div className="text-xs text-muted-foreground font-mono">
+              {itaxData?.rows?.length ?? 0} employees • Total PAYE: {formatMoney(itaxData?.totalPaye ?? 0)}
+              {itaxData && <span className="ml-3 text-emerald-400">✓ Download recorded as filed</span>}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="font-mono" onClick={() => setItaxOpen(false)}>
+                CLOSE
+              </Button>
+              <Button
+                size="sm"
+                className="font-mono gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={!itaxData}
+                onClick={() => itaxData && downloadP10Csv(itaxData)}
+              >
+                <Download className="h-3.5 w-3.5" />
+                DOWNLOAD P10 CSV
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Paid banner */}
       {run?.status === "paid" && (

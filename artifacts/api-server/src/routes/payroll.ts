@@ -66,7 +66,10 @@ router.get("/:id", requireAuth("payroll:read"), async (req, res, next) => {
       .innerJoin(employees, eq(payslips.employeeId, employees.id))
       .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
 
-    res.json({ run, payslips: slips });
+    const filings = await db.select().from(statutoryFilings)
+      .where(and(eq(statutoryFilings.runId, id), eq(statutoryFilings.orgId, p.orgId)));
+
+    res.json({ run, payslips: slips, filings });
   } catch (err) { next(err); }
 });
 
@@ -517,6 +520,81 @@ router.post("/:id/email-payslips", requireAuth("payroll:read"), async (req, res,
 });
 
 // Statutory filings
+// ── GET /:id/itax/p10 — KRA iTax P10 monthly return data + record filing ───
+router.get("/:id/itax/p10", requireAuth("payroll:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+
+    const [run] = await db.select().from(payrollRuns)
+      .where(and(eq(payrollRuns.id, id), eq(payrollRuns.orgId, p.orgId)));
+    if (!run) throw new HttpError(404, "Payroll run not found");
+
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, p.orgId));
+
+    const rows = await db.select({ slip: payslips, emp: employees })
+      .from(payslips)
+      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
+
+    const warnings: string[] = [];
+    const p10Rows = rows.map(({ slip, emp }) => {
+      const name = `${emp.firstName} ${emp.lastName}`;
+      if (!emp.kraPin) warnings.push(`${emp.empNo} — ${name}: missing KRA PIN (row will be rejected by iTax)`);
+      return {
+        empNo: emp.empNo,
+        kraPin: emp.kraPin ?? "",
+        name,
+        gross: slip.gross,
+        benefits: slip.nonCashBenefit,
+        quarters: 0,
+        totalGross: slip.gross,
+        mortgageInterest: slip.mortgageInterest,
+        definedContribution: slip.nssfEmployee + slip.pension,
+        chargeablePay: slip.taxableIncome,
+        taxChargeable: slip.payeBeforeRelief,
+        personalRelief: slip.personalRelief,
+        insuranceRelief: slip.insuranceRelief,
+        netPaye: slip.paye,
+        missingPin: !emp.kraPin,
+      };
+    });
+
+    const totalPaye = rows.reduce((s, r) => s + r.slip.paye, 0);
+
+    // Upsert filing record
+    const [existing] = await db.select({ id: statutoryFilings.id }).from(statutoryFilings)
+      .where(and(
+        eq(statutoryFilings.orgId, p.orgId),
+        eq(statutoryFilings.runId, id),
+        eq(statutoryFilings.kind, "P10"),
+      )).limit(1);
+
+    const now = new Date();
+    if (existing) {
+      await db.update(statutoryFilings)
+        .set({ status: "downloaded", filedAt: now, itemCount: rows.length, totalAmount: totalPaye })
+        .where(eq(statutoryFilings.id, existing.id));
+    } else {
+      await db.insert(statutoryFilings).values({
+        orgId: p.orgId, runId: id, kind: "P10", period: run.period,
+        itemCount: rows.length, totalAmount: totalPaye, status: "downloaded", filedAt: now,
+      });
+    }
+
+    res.json({
+      rows: p10Rows,
+      warnings,
+      orgKraPin: org?.kraPin ?? "",
+      orgName: org?.name ?? "",
+      period: run.period,
+      runName: run.name,
+      totalPaye,
+      p10FiledAt: now.toISOString(),
+    });
+  } catch (err) { next(err); }
+});
+
 router.get("/:id/filings", requireAuth("payroll:read"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;

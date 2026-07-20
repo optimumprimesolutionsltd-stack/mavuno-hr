@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { payrollRuns, payslips, employees } from "@workspace/db/schema";
+import { payrollRuns, payslips, employees, organizations, statutoryFilings } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
 import type { Cents } from "../lib/money.js";
@@ -234,6 +234,114 @@ router.get("/", requireAuth("report:read"), async (req, res, next) => {
     });
 
     res.json({ title, run, columns, rows: data, totals, tier2Provider, tier2ProviderName });
+  } catch (err) { next(err); }
+});
+
+// ── GET /itax/p9?year=YYYY — KRA iTax P9 annual tax certificate ─────────────
+router.get("/itax/p9", requireAuth("report:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const year = String(req.query.year ?? new Date().getFullYear());
+    if (!/^\d{4}$/.test(year)) throw new HttpError(422, "Invalid year parameter");
+
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, p.orgId));
+
+    // All paid runs in the given calendar year for this org
+    const allRuns = await db.select().from(payrollRuns)
+      .where(and(eq(payrollRuns.orgId, p.orgId), eq(payrollRuns.status, "paid")));
+    const yearRuns = allRuns.filter((r) => r.period.startsWith(year));
+
+    if (yearRuns.length === 0) {
+      return res.json({
+        rows: [], warnings: [],
+        orgKraPin: org?.kraPin ?? "", orgName: org?.name ?? "",
+        year, totalPaye: 0, monthsIncluded: 0,
+      });
+    }
+
+    const runIds = yearRuns.map((r) => r.id);
+    const allSlips = await db.select({ slip: payslips, emp: employees })
+      .from(payslips)
+      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .where(and(eq(payslips.orgId, p.orgId), inArray(payslips.runId, runIds)));
+
+    // Aggregate per employee
+    const byEmp = new Map<number, {
+      emp: typeof allSlips[0]["emp"];
+      gross: number; benefits: number; mortgageInterest: number;
+      definedContribution: number; chargeablePay: number;
+      taxChargeable: number; personalRelief: number;
+      insuranceRelief: number; netPaye: number;
+    }>();
+
+    for (const { slip, emp } of allSlips) {
+      const existing = byEmp.get(emp.id);
+      if (existing) {
+        existing.gross += slip.gross;
+        existing.benefits += slip.nonCashBenefit;
+        existing.mortgageInterest += slip.mortgageInterest;
+        existing.definedContribution += slip.nssfEmployee + slip.pension;
+        existing.chargeablePay += slip.taxableIncome;
+        existing.taxChargeable += slip.payeBeforeRelief;
+        existing.personalRelief += slip.personalRelief;
+        existing.insuranceRelief += slip.insuranceRelief;
+        existing.netPaye += slip.paye;
+      } else {
+        byEmp.set(emp.id, {
+          emp,
+          gross: slip.gross,
+          benefits: slip.nonCashBenefit,
+          mortgageInterest: slip.mortgageInterest,
+          definedContribution: slip.nssfEmployee + slip.pension,
+          chargeablePay: slip.taxableIncome,
+          taxChargeable: slip.payeBeforeRelief,
+          personalRelief: slip.personalRelief,
+          insuranceRelief: slip.insuranceRelief,
+          netPaye: slip.paye,
+        });
+      }
+    }
+
+    const warnings: string[] = [];
+    const rows = Array.from(byEmp.values()).map(({ emp, ...totals }) => {
+      const name = `${emp.firstName} ${emp.lastName}`;
+      if (!emp.kraPin) warnings.push(`${emp.empNo} — ${name}: missing KRA PIN (row will be rejected by iTax)`);
+      return {
+        empNo: emp.empNo,
+        kraPin: emp.kraPin ?? "",
+        name,
+        annualGross: totals.gross,
+        benefits: totals.benefits,
+        quarters: 0,
+        annualTotalGross: totals.gross,
+        annualMortgageInterest: totals.mortgageInterest,
+        annualDefinedContribution: totals.definedContribution,
+        annualChargeablePay: totals.chargeablePay,
+        annualTaxChargeable: totals.taxChargeable,
+        annualPersonalRelief: totals.personalRelief,
+        annualInsuranceRelief: totals.insuranceRelief,
+        annualNetPaye: totals.netPaye,
+        missingPin: !emp.kraPin,
+      };
+    });
+
+    const totalPaye = rows.reduce((s, r) => s + r.annualNetPaye, 0);
+
+    // Record filing for P9 (no specific runId — use null)
+    await db.insert(statutoryFilings).values({
+      orgId: p.orgId, runId: null, kind: "P9", period: year,
+      itemCount: rows.length, totalAmount: totalPaye,
+      status: "downloaded", filedAt: new Date(),
+    });
+
+    res.json({
+      rows, warnings,
+      orgKraPin: org?.kraPin ?? "",
+      orgName: org?.name ?? "",
+      year,
+      totalPaye,
+      monthsIncluded: yearRuns.length,
+    });
   } catch (err) { next(err); }
 });
 

@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileText, Loader2, Info } from "lucide-react";
+import { Download, FileText, Loader2, Info, AlertTriangle, FileSpreadsheet } from "lucide-react";
+import { downloadP9Csv, centsToKes } from "@/lib/itax-csv";
 import { formatMoney } from "@/lib/utils";
 
 const BASE_REPORT_TYPES = [
@@ -26,6 +27,9 @@ export function Reports() {
   const { data: runs } = useListPayrollRuns();
   const [reportType, setReportType] = useState<string>("muster");
   const [runId, setRunId] = useState<number | undefined>();
+  const [p9Year, setP9Year] = useState<string>(String(new Date().getFullYear()));
+  const [p9Loading, setP9Loading] = useState(false);
+  const [p9Warnings, setP9Warnings] = useState<string[]>([]);
 
   useEffect(() => {
     if (runs && runs.length > 0 && !runId) {
@@ -40,6 +44,31 @@ export function Reports() {
 
   const tier2Provider = (report as any)?.tier2Provider ?? "nssf";
   const tier2ProviderName = (report as any)?.tier2ProviderName ?? "Private Pension Fund";
+
+  const handleP9Download = async () => {
+    setP9Loading(true);
+    setP9Warnings([]);
+    try {
+      const token = sessionStorage.getItem("zawadi_session_token");
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const resp = await fetch(`/api/reports/itax/p9?year=${p9Year}`, { headers });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error((err as any).error ?? `HTTP ${resp.status}`);
+      }
+      const data = await resp.json();
+      if (data.warnings?.length) setP9Warnings(data.warnings);
+      if (data.rows?.length === 0) {
+        setP9Warnings([`No paid payroll runs found for ${p9Year}.`]);
+        return;
+      }
+      downloadP9Csv(data);
+    } catch (err: any) {
+      setP9Warnings([err?.message ?? "Failed to download P9 CSV."]);
+    } finally {
+      setP9Loading(false);
+    }
+  };
 
   const handleExport = () => {
     if (!report) return;
@@ -107,17 +136,53 @@ export function Reports() {
             </SelectContent>
           </Select>
 
-          <Button
-            variant="outline"
-            className="font-mono shrink-0"
-            onClick={handleExport}
-            disabled={!report || isLoading}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            EXPORT CSV
-          </Button>
+          {reportType !== "p9" && (
+            <Button
+              variant="outline"
+              className="font-mono shrink-0"
+              onClick={handleExport}
+              disabled={!report || isLoading}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              EXPORT CSV
+            </Button>
+          )}
+
+          {reportType === "p9" && (
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={2020}
+                max={2035}
+                value={p9Year}
+                onChange={(e) => { setP9Year(e.target.value); setP9Warnings([]); }}
+                className="w-24 h-9 px-2 rounded border border-border bg-card font-mono text-sm text-center"
+                title="Tax year for P9 annual return"
+              />
+              <Button
+                className="font-mono shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                onClick={handleP9Download}
+                disabled={p9Loading}
+              >
+                {p9Loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
+                {p9Loading ? "GENERATING..." : "DOWNLOAD iTAX P9 CSV"}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* P9 warnings / status */}
+      {reportType === "p9" && p9Warnings.length > 0 && (
+        <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-xs shrink-0">
+          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-amber-400" />
+          <div className="space-y-0.5">
+            {p9Warnings.map((w, i) => (
+              <div key={i} className="font-mono text-amber-300">{w}</div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tier 2 provider notice — shown when NSSF or Pension report is selected */}
       {!isLoading && report && (reportType === "nssf" || reportType === "pension") && (
