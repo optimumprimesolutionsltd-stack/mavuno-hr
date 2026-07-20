@@ -1,17 +1,13 @@
 import { useState, useEffect } from "react";
-import { useGetReport, useListPayrollRuns, customFetch } from "@workspace/api-client-react";
-import { useQuery } from "@tanstack/react-query";
+import { useGetReport, useListPayrollRuns } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileText, Loader2, Info, AlertTriangle, FileSpreadsheet, BarChart2 } from "lucide-react";
+import { Download, FileText, Loader2, Info, AlertTriangle, FileSpreadsheet } from "lucide-react";
 import { downloadP9Csv, centsToKes } from "@/lib/itax-csv";
 import { formatMoney } from "@/lib/utils";
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
-} from "recharts";
 
 const BASE_REPORT_TYPES = [
   { id: "muster",  label: "📋  Muster Roll (Full Payroll)" },
@@ -26,16 +22,6 @@ const BASE_REPORT_TYPES = [
   { id: "gl",      label: "📊  General Ledger Journal" },
   { id: "p9",      label: "📄  P9 Annual Tax Certificate" },
 ];
-
-interface DeptRow {
-  departmentId: number | null;
-  departmentName: string;
-  employeeCount: number;
-  grossTotal: number;
-  payeTotal: number;
-  nssfTotal: number;
-  netTotal: number;
-}
 
 export function Reports() {
   const { data: runs } = useListPayrollRuns();
@@ -55,12 +41,6 @@ export function Reports() {
     { type: reportType, runId: runId },
     { query: { enabled: !!runId && !!reportType } },
   );
-
-  const { data: deptData, isLoading: deptLoading } = useQuery<DeptRow[]>({
-    queryKey: ["deptCost", runId],
-    queryFn: () => customFetch<DeptRow[]>(`/api/reports/departments?runId=${runId}`),
-    enabled: !!runId,
-  });
 
   const tier2Provider = (report as any)?.tier2Provider ?? "nssf";
   const tier2ProviderName = (report as any)?.tier2ProviderName ?? "Private Pension Fund";
@@ -119,13 +99,6 @@ export function Reports() {
 
   const isMoneyCellIndex = (colIdx: number) =>
     typeof report?.rows?.[0]?.[colIdx] === "number";
-
-  const totalGross = deptData?.reduce((s, d) => s + d.grossTotal, 0) ?? 0;
-
-  const chartData = deptData?.map((d) => ({
-    name: d.departmentName,
-    gross: Math.round(d.grossTotal / 100),
-  })) ?? [];
 
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto flex flex-col h-[calc(100vh-100px)]">
@@ -323,147 +296,6 @@ export function Reports() {
         </div>
       </Card>
 
-      {/* Department Cost Breakdown — always visible when a run is selected */}
-      {runId && (
-        <Card className="border-border/50 bg-card/30 shrink-0">
-          <CardHeader className="py-4 border-b border-border/30 flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-sm font-mono text-primary flex items-center gap-2">
-                <BarChart2 className="h-4 w-4" />
-                COST BY DEPARTMENT
-              </CardTitle>
-              <CardDescription className="font-mono text-xs mt-1">
-                Gross payroll spend aggregated by department for this run
-              </CardDescription>
-            </div>
-            {deptData && (
-              <Badge variant="outline" className="font-mono text-[10px] shrink-0">
-                {deptData.length} {deptData.length === 1 ? "department" : "departments"}
-              </Badge>
-            )}
-          </CardHeader>
-
-          <CardContent className="pt-4">
-            {deptLoading ? (
-              <div className="flex items-center justify-center py-10">
-                <Loader2 className="h-6 w-6 text-primary animate-spin" />
-              </div>
-            ) : !deptData || deptData.length === 0 ? (
-              <div className="text-center py-10 text-muted-foreground font-mono text-sm">
-                NO DEPARTMENT DATA — add employees to departments to see breakdown
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Bar chart */}
-                <div className="h-52">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} margin={{ top: 4, right: 16, left: 16, bottom: 4 }}>
-                      <XAxis
-                        dataKey="name"
-                        tick={{ fontSize: 11, fill: "#9ca3af", fontFamily: "monospace" }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis
-                        tick={{ fontSize: 10, fill: "#6b7280", fontFamily: "monospace" }}
-                        axisLine={false}
-                        tickLine={false}
-                        tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
-                      />
-                      <Tooltip
-                        formatter={(value: number) => [`Ksh ${value.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`, "Gross"]}
-                        contentStyle={{
-                          backgroundColor: "hsl(var(--card))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "8px",
-                          fontSize: "12px",
-                          fontFamily: "monospace",
-                        }}
-                        labelStyle={{ color: "hsl(var(--foreground))" }}
-                      />
-                      <Bar dataKey="gross" radius={[4, 4, 0, 0]}>
-                        {chartData.map((_, i) => (
-                          <Cell key={i} fill="#22c55e" fillOpacity={0.85} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Department breakdown table */}
-                <div className="overflow-auto rounded-lg border border-border/40">
-                  <Table className="whitespace-nowrap text-xs">
-                    <TableHeader className="bg-muted/60">
-                      <TableRow>
-                        <TableHead className="font-mono text-[11px] py-2 px-3">DEPARTMENT</TableHead>
-                        <TableHead className="font-mono text-[11px] py-2 px-3 text-right">EMPLOYEES</TableHead>
-                        <TableHead className="font-mono text-[11px] py-2 px-3 text-right">GROSS</TableHead>
-                        <TableHead className="font-mono text-[11px] py-2 px-3 text-right">PAYE</TableHead>
-                        <TableHead className="font-mono text-[11px] py-2 px-3 text-right">NSSF</TableHead>
-                        <TableHead className="font-mono text-[11px] py-2 px-3 text-right">NET PAY</TableHead>
-                        <TableHead className="font-mono text-[11px] py-2 px-3 text-right">% OF TOTAL</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {deptData.map((dept, i) => {
-                        const pct = totalGross > 0 ? (dept.grossTotal / totalGross) * 100 : 0;
-                        return (
-                          <TableRow key={i} className="hover:bg-muted/30">
-                            <TableCell className="font-mono text-xs py-1.5 px-3 font-medium">
-                              {dept.departmentName}
-                            </TableCell>
-                            <TableCell className="font-mono text-xs py-1.5 px-3 text-right tabular-nums">
-                              {dept.employeeCount}
-                            </TableCell>
-                            <TableCell className="font-mono text-xs py-1.5 px-3 text-right tabular-nums text-emerald-400">
-                              {formatMoney(dept.grossTotal)}
-                            </TableCell>
-                            <TableCell className="font-mono text-xs py-1.5 px-3 text-right tabular-nums">
-                              {formatMoney(dept.payeTotal)}
-                            </TableCell>
-                            <TableCell className="font-mono text-xs py-1.5 px-3 text-right tabular-nums">
-                              {formatMoney(dept.nssfTotal)}
-                            </TableCell>
-                            <TableCell className="font-mono text-xs py-1.5 px-3 text-right tabular-nums text-primary font-bold">
-                              {formatMoney(dept.netTotal)}
-                            </TableCell>
-                            <TableCell className="font-mono text-xs py-1.5 px-3 text-right tabular-nums text-muted-foreground">
-                              {pct.toFixed(1)}%
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                    <TableBody>
-                      <TableRow className="bg-primary/5 border-t-2 border-border/60 font-bold">
-                        <TableCell className="font-mono text-xs py-2 px-3 font-bold">TOTAL</TableCell>
-                        <TableCell className="font-mono text-xs py-2 px-3 text-right tabular-nums font-bold">
-                          {deptData.reduce((s, d) => s + d.employeeCount, 0)}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs py-2 px-3 text-right tabular-nums text-emerald-400 font-bold">
-                          {formatMoney(totalGross)}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs py-2 px-3 text-right tabular-nums font-bold">
-                          {formatMoney(deptData.reduce((s, d) => s + d.payeTotal, 0))}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs py-2 px-3 text-right tabular-nums font-bold">
-                          {formatMoney(deptData.reduce((s, d) => s + d.nssfTotal, 0))}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs py-2 px-3 text-right tabular-nums text-primary font-bold">
-                          {formatMoney(deptData.reduce((s, d) => s + d.netTotal, 0))}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs py-2 px-3 text-right tabular-nums text-muted-foreground">
-                          100%
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
