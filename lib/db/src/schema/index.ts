@@ -386,3 +386,17 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   uniqueIndex("prt_token_uq").on(t.token),
   index("prt_user_idx").on(t.userId),
 ]);
+
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  orgId: integer("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  link: text("link"),
+  readAt: timestamp("read_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("notifications_user_idx").on(t.userId, t.readAt),
+]);

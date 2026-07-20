@@ -1,13 +1,83 @@
 import { Router } from "express";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { payrollRuns, payslips, employees, organizations, statutoryFilings } from "@workspace/db/schema";
+import { payrollRuns, payslips, employees, organizations, statutoryFilings, departments } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
 import type { Cents } from "../lib/money.js";
 import type { StatutoryConfig } from "../lib/statutory-types.js";
 
 const router = Router();
+
+// ── GET /departments?runId=X — Department cost breakdown ─────────────────────
+router.get("/departments", requireAuth("payroll:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const runId = Number(req.query.runId || 0);
+    if (!runId) throw new HttpError(400, "runId is required");
+
+    const [run] = await db.select().from(payrollRuns)
+      .where(and(eq(payrollRuns.id, runId), eq(payrollRuns.orgId, p.orgId)));
+    if (!run) throw new HttpError(404, "Run not found");
+
+    // Fetch all payslips with employee and department for this run
+    const rows = await db
+      .select({
+        departmentId: employees.departmentId,
+        gross: payslips.gross,
+        paye: payslips.paye,
+        nssfEmployee: payslips.nssfEmployee,
+        netPay: payslips.netPay,
+      })
+      .from(payslips)
+      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .where(and(eq(payslips.runId, runId), eq(payslips.orgId, p.orgId)));
+
+    // Load departments for name lookup
+    const deptList = await db.select().from(departments)
+      .where(eq(departments.orgId, p.orgId));
+    const deptMap = new Map(deptList.map((d) => [d.id, d]));
+
+    // Aggregate by departmentId
+    const aggMap = new Map<string, {
+      departmentId: number | null;
+      departmentName: string;
+      employeeCount: number;
+      grossTotal: number;
+      payeTotal: number;
+      nssfTotal: number;
+      netTotal: number;
+    }>();
+
+    for (const row of rows) {
+      const key = row.departmentId != null ? String(row.departmentId) : "__unassigned__";
+      const dept = row.departmentId != null ? deptMap.get(row.departmentId) : undefined;
+      const deptName = dept?.name ?? "Unassigned";
+
+      const existing = aggMap.get(key);
+      if (existing) {
+        existing.employeeCount += 1;
+        existing.grossTotal += row.gross ?? 0;
+        existing.payeTotal += row.paye ?? 0;
+        existing.nssfTotal += row.nssfEmployee ?? 0;
+        existing.netTotal += row.netPay ?? 0;
+      } else {
+        aggMap.set(key, {
+          departmentId: row.departmentId ?? null,
+          departmentName: deptName,
+          employeeCount: 1,
+          grossTotal: row.gross ?? 0,
+          payeTotal: row.paye ?? 0,
+          nssfTotal: row.nssfEmployee ?? 0,
+          netTotal: row.netPay ?? 0,
+        });
+      }
+    }
+
+    const result = Array.from(aggMap.values()).sort((a, b) => b.grossTotal - a.grossTotal);
+    res.json(result);
+  } catch (err) { next(err); }
+});
 
 /**
  * All money values in rows/totals are returned as raw integer cents.

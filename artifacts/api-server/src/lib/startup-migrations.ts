@@ -115,6 +115,23 @@ async function createBillingPaymentsTable(): Promise<void> {
   `);
 }
 
+async function createNotificationsTable(): Promise<void> {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id         SERIAL PRIMARY KEY,
+      org_id     INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type       TEXT NOT NULL,
+      title      TEXT NOT NULL,
+      body       TEXT NOT NULL,
+      link       TEXT,
+      read_at    TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS notifications_user_idx ON notifications(user_id, read_at);
+  `);
+}
+
 export async function runStartupMigrations(): Promise<void> {
   try {
     await migrateAdminCredentials();
@@ -125,6 +142,7 @@ export async function runStartupMigrations(): Promise<void> {
     await addLoanRequestInterestRate();
     await addOrgMonthlyCharge();
     await createBillingPaymentsTable();
+    await createNotificationsTable();
   } catch (err) {
     logger.error({ err }, "startup-migration: failed (non-fatal)");
   }

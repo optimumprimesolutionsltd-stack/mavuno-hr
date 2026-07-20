@@ -1,7 +1,7 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { useLogout } from "@workspace/api-client-react";
+import { useLogout, customFetch } from "@workspace/api-client-react";
 import { clearToken } from "@/lib/session";
 import {
   Building2,
@@ -21,6 +21,8 @@ import {
   Settings,
   CreditCard,
   FileBadge,
+  Bell,
+  BellRing,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -42,6 +44,183 @@ const NAV_ITEMS = [
   { href: "/admin/billing", label: "Billing", icon: CreditCard },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
+
+interface Notification {
+  id: number;
+  type: string;
+  title: string;
+  body: string;
+  link?: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function NotificationBell() {
+  const [open, setOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [, setLocation] = useLocation();
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const data = (await customFetch("/api/notifications")) as {
+        notifications: Notification[];
+        unreadCount: number;
+      };
+      setNotifications(data.notifications.slice(0, 10));
+      setUnreadCount(data.unreadCount);
+    } catch {
+      // silently fail — notifications are non-critical
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30_000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  // Close popover on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(e.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const markAllRead = async () => {
+    try {
+      await customFetch("/api/notifications/read-all", { method: "PATCH" });
+      setNotifications((prev) => prev.map((n) => ({ ...n, readAt: new Date().toISOString() })));
+      setUnreadCount(0);
+    } catch {
+      // ignore
+    }
+  };
+
+  const markRead = async (id: number) => {
+    try {
+      await customFetch(`/api/notifications/${id}/read`, { method: "PATCH" });
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, readAt: new Date().toISOString() } : n))
+      );
+      setUnreadCount((c) => Math.max(0, c - 1));
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleNotificationClick = (n: Notification) => {
+    if (!n.readAt) markRead(n.id);
+    if (n.link) {
+      setOpen(false);
+      setLocation(n.link);
+    }
+  };
+
+  const BellIcon = unreadCount > 0 ? BellRing : Bell;
+
+  return (
+    <div className="relative">
+      <button
+        ref={buttonRef}
+        onClick={() => setOpen((o) => !o)}
+        className="relative h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        aria-label="Notifications"
+      >
+        <BellIcon className="h-5 w-5" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[1rem] px-0.5 flex items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white leading-none">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div
+          ref={popoverRef}
+          className="absolute right-0 mt-2 w-80 bg-card border border-border rounded-lg shadow-xl z-50 overflow-hidden"
+          style={{ top: "100%" }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <span className="text-sm font-semibold text-foreground">Notifications</span>
+            {unreadCount > 0 && (
+              <button
+                onClick={markAllRead}
+                className="text-xs text-primary hover:text-primary/80 transition-colors"
+              >
+                Mark all read
+              </button>
+            )}
+          </div>
+
+          {/* List */}
+          <div className="max-h-96 overflow-y-auto divide-y divide-border">
+            {notifications.length === 0 ? (
+              <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                No notifications yet
+              </div>
+            ) : (
+              notifications.map((n) => (
+                <div
+                  key={n.id}
+                  onClick={() => handleNotificationClick(n)}
+                  className={`px-4 py-3 transition-colors ${
+                    n.link ? "cursor-pointer hover:bg-secondary/60" : "cursor-default"
+                  } ${!n.readAt ? "bg-primary/5" : ""}`}
+                >
+                  <div className="flex items-start gap-2">
+                    {/* Unread dot */}
+                    <span
+                      className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${
+                        !n.readAt ? "bg-primary" : "bg-transparent"
+                      }`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground leading-snug truncate">
+                        {n.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                        {n.body}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/70 mt-1">
+                        {timeAgo(n.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function AdminGuard({ children }: { children: ReactNode }) {
   const { isLoading, isAuthenticated, isAdmin } = useAuth();
@@ -183,7 +362,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <span className="font-bold tracking-tight font-mono text-base">
           ZAWADI<span className="text-primary">.HR</span>
         </span>
+        {/* Bell on mobile topbar */}
+        <div className="ml-auto">
+          <NotificationBell />
+        </div>
       </header>
+
+      {/* ── Desktop topbar for bell icon ── */}
+      <div className="hidden lg:flex fixed top-0 right-0 z-30 h-0 items-start justify-end pr-6 pt-4">
+        <NotificationBell />
+      </div>
 
       {/* ── Main content ── */}
       <main className="lg:ml-64 flex flex-col bg-background min-h-screen">

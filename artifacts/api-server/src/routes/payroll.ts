@@ -449,6 +449,163 @@ router.get("/:id/payslips/:slipId/pdf", requireAuth("payroll:read"), async (req,
   } catch (err) { next(err); }
 });
 
+// ── GET /:id/compare — month-on-month variance report ───────────────────────
+router.get("/:id/compare", requireAuth("payroll:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+
+    const [run] = await db.select().from(payrollRuns)
+      .where(and(eq(payrollRuns.id, id), eq(payrollRuns.orgId, p.orgId)));
+    if (!run) throw new HttpError(404, "Run not found");
+
+    // All runs for org ordered by period desc
+    const allRuns = await db.select().from(payrollRuns)
+      .where(eq(payrollRuns.orgId, p.orgId))
+      .orderBy(desc(payrollRuns.period), desc(payrollRuns.id));
+
+    // Find the immediately previous run (period < current period)
+    const previousRun = allRuns.find((r) => r.period < run.period && r.id !== run.id) ?? null;
+
+    if (!previousRun) {
+      return res.json({ current: run, previous: null, rows: [], totals: { currentGross: 0, previousGross: 0, currentNet: 0, previousNet: 0, currentPaye: 0, previousPaye: 0 } });
+    }
+
+    // Fetch payslips for both runs
+    const [currentSlips, previousSlips] = await Promise.all([
+      db.select({ slip: payslips, emp: employees })
+        .from(payslips)
+        .innerJoin(employees, eq(payslips.employeeId, employees.id))
+        .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId))),
+      db.select({ slip: payslips, emp: employees })
+        .from(payslips)
+        .innerJoin(employees, eq(payslips.employeeId, employees.id))
+        .where(and(eq(payslips.runId, previousRun.id), eq(payslips.orgId, p.orgId))),
+    ]);
+
+    const prevMap = new Map(previousSlips.map((r) => [r.emp.id, r]));
+    const currMap = new Map(currentSlips.map((r) => [r.emp.id, r]));
+
+    const rows: any[] = [];
+
+    // Current employees
+    for (const { slip, emp } of currentSlips) {
+      const prev = prevMap.get(emp.id);
+      rows.push({
+        empNo: emp.empNo,
+        empName: `${emp.firstName} ${emp.lastName}`,
+        currentGross: slip.gross,
+        previousGross: prev?.slip.gross ?? 0,
+        currentPaye: slip.paye,
+        previousPaye: prev?.slip.paye ?? 0,
+        currentNssf: slip.nssfEmployee,
+        previousNssf: prev?.slip.nssfEmployee ?? 0,
+        currentShif: slip.shif,
+        previousShif: prev?.slip.shif ?? 0,
+        currentNet: slip.netPay,
+        previousNet: prev?.slip.netPay ?? 0,
+        isNew: !prev,
+        isRemoved: false,
+      });
+    }
+
+    // Employees in previous but not in current
+    for (const { slip, emp } of previousSlips) {
+      if (!currMap.has(emp.id)) {
+        rows.push({
+          empNo: emp.empNo,
+          empName: `${emp.firstName} ${emp.lastName}`,
+          currentGross: 0,
+          previousGross: slip.gross,
+          currentPaye: 0,
+          previousPaye: slip.paye,
+          currentNssf: 0,
+          previousNssf: slip.nssfEmployee,
+          currentShif: 0,
+          previousShif: slip.shif,
+          currentNet: 0,
+          previousNet: slip.netPay,
+          isNew: false,
+          isRemoved: true,
+        });
+      }
+    }
+
+    const totals = {
+      currentGross: rows.reduce((s, r) => s + r.currentGross, 0),
+      previousGross: rows.reduce((s, r) => s + r.previousGross, 0),
+      currentNet: rows.reduce((s, r) => s + r.currentNet, 0),
+      previousNet: rows.reduce((s, r) => s + r.previousNet, 0),
+      currentPaye: rows.reduce((s, r) => s + r.currentPaye, 0),
+      previousPaye: rows.reduce((s, r) => s + r.previousPaye, 0),
+    };
+
+    res.json({ current: run, previous: previousRun, rows, totals });
+  } catch (err) { next(err); }
+});
+
+// ── GET /:id/payslips/bulk-pdf — merged PDF of all payslips ─────────────────
+router.get("/:id/payslips/bulk-pdf", requireAuth("payroll:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+
+    const [run] = await db.select().from(payrollRuns)
+      .where(and(eq(payrollRuns.id, id), eq(payrollRuns.orgId, p.orgId)));
+    if (!run) throw new HttpError(404, "Run not found");
+
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, p.orgId));
+
+    const rows = await db
+      .select({ slip: payslips, emp: employees })
+      .from(payslips)
+      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
+
+    const { generatePayslipPdf } = await import("../lib/pdf-payslip.js");
+    const { PDFDocument } = await import("pdf-lib");
+
+    const merged = await PDFDocument.create();
+
+    for (const { slip, emp } of rows) {
+      const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number };
+      const pdfBuffer = await generatePayslipPdf({
+        orgName: org.name, orgKraPin: org.kraPin ?? undefined, orgNssfNo: org.nssfEmployerNo ?? undefined,
+        period: run.period, runName: run.name,
+        empNo: emp.empNo, empName: `${emp.firstName} ${emp.lastName}`,
+        position: emp.position ?? "", employmentType: emp.employmentType ?? "permanent",
+        nationalId: emp.nationalId ?? undefined, kraPin: emp.kraPin ?? undefined,
+        nssfNo: emp.nssfNo ?? undefined, shifNo: emp.shifNo ?? undefined,
+        bankName: emp.bankName ?? undefined, bankAccount: emp.bankAccount ?? undefined,
+        mpesaPhone: emp.mpesaPhone ?? undefined,
+        daysPayable: slip.daysPayable ?? 0, daysInPeriod: slip.daysInPeriod ?? 30,
+        basic: slip.basic, allowances: slip.allowances, overtime: slip.overtime,
+        adjustmentEarnings: slip.adjustmentEarnings, nonCashBenefit: slip.nonCashBenefit,
+        gross: slip.gross, cashGross: slip.cashGross,
+        paye: slip.paye, nssfEmployee: slip.nssfEmployee,
+        nssfTier1: bd.nssfTier1 ?? 0, nssfTier2: bd.nssfTier2 ?? 0,
+        shif: slip.shif, housingLevyEmployee: slip.housingLevyEmployee,
+        pension: slip.pension, helb: slip.helb, sacco: slip.sacco,
+        loanDeduction: slip.loanDeduction, adjustmentDeductions: slip.adjustmentDeductions,
+        totalDeductions: slip.totalDeductions, netPay: slip.netPay,
+        nssfEmployer: slip.nssfEmployer, housingLevyEmployer: slip.housingLevyEmployer,
+        pensionEmployer: slip.pensionEmployer,
+      });
+
+      const srcDoc = await PDFDocument.load(pdfBuffer);
+      const copiedPages = await merged.copyPages(srcDoc, srcDoc.getPageIndices());
+      for (const page of copiedPages) merged.addPage(page);
+    }
+
+    const mergedBytes = await merged.save();
+    const filename = `Payslips_${run.period}.pdf`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length", mergedBytes.length);
+    res.send(Buffer.from(mergedBytes));
+  } catch (err) { next(err); }
+});
+
 // ── Email all payslips for a run ────────────────────────────────────────────
 router.post("/:id/email-payslips", requireAuth("payroll:read"), async (req, res, next) => {
   try {

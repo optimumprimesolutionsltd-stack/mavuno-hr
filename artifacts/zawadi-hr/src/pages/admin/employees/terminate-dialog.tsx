@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { customFetch, getListEmployeesQueryKey } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
@@ -16,18 +16,32 @@ interface Props {
   employeeId: number;
   employeeName: string;
   empNo: string;
+  hireDate?: string;
+  basic?: number;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onSuccess?: () => void;
 }
 
-export function TerminateDialog({ employeeId, employeeName, empNo, open, onOpenChange, onSuccess }: Props) {
+export function TerminateDialog({ employeeId, employeeName, empNo, hireDate, basic, open, onOpenChange, onSuccess }: Props) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const today = new Date().toISOString().slice(0, 10);
   const [terminationDate, setTerminationDate] = useState(today);
   const [reason, setReason] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+
+  const gratuity = useMemo(() => {
+    if (!hireDate || !terminationDate || !basic) return null;
+    const hire = new Date(hireDate);
+    const term = new Date(terminationDate);
+    const msPerYear = 1000 * 60 * 60 * 24 * 365.25;
+    const years = (term.getTime() - hire.getTime()) / msPerYear;
+    if (years < 1) return { years, eligible: false };
+    // 15 days' basic pay per year: (basic / 30) * 15 * years
+    const amount = (basic / 30) * 15 * years;
+    return { years, eligible: true, amount: Math.round(amount * 100) / 100 };
+  }, [hireDate, basic, terminationDate]);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -98,6 +112,36 @@ export function TerminateDialog({ employeeId, employeeName, empNo, open, onOpenC
               maxLength={500}
             />
           </div>
+
+          {/* Statutory Gratuity Estimate */}
+          {hireDate && basic != null && (
+            <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 px-4 py-3 space-y-1">
+              <p className="text-xs font-mono font-semibold text-emerald-400 uppercase tracking-wide">
+                Statutory Gratuity Estimate
+              </p>
+              {!gratuity || !gratuity.eligible ? (
+                <p className="text-sm text-muted-foreground">
+                  Less than 1 year of service — no statutory gratuity.
+                </p>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-emerald-300">
+                    Estimated Statutory Gratuity:{" "}
+                    <span className="font-mono">
+                      Ksh {(gratuity.amount! / 100).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>{" "}
+                    <span className="text-muted-foreground font-normal">
+                      ({gratuity.years.toFixed(1)} years of service)
+                    </span>
+                  </p>
+                </>
+              )}
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                This is an estimate under the Employment Act Cap 226 (15 days' basic pay per year of service).
+                Actual entitlement may vary by contract.
+              </p>
+            </div>
+          )}
 
           {/* Confirmation checkbox */}
           <div

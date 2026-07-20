@@ -487,6 +487,8 @@ export function EmployeeDetail() {
         employeeId={employee.id}
         employeeName={`${employee.firstName} ${employee.lastName}`}
         empNo={employee.empNo}
+        hireDate={employee.hireDate}
+        basic={employee.basicSalary}
         open={terminateOpen}
         onOpenChange={setTerminateOpen}
         onSuccess={() => setLocation("/admin/employees")}

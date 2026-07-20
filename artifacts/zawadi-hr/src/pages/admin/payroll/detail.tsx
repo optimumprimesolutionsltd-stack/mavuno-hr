@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useRoute, Link } from "wouter";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useGetPayrollRun, useActionPayrollRun, customFetch,
   getGetPayrollRunQueryKey, getListPayrollRunsQueryKey
@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   ArrowLeft, CheckCircle, Send, PlayCircle, RotateCcw, FileText,
   RefreshCw, Pencil, Mail, Download, TrendingDown, TrendingUp,
-  FileSpreadsheet, AlertTriangle, ExternalLink,
+  FileSpreadsheet, AlertTriangle, ExternalLink, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PayslipEditDialog } from "./payslip-edit-dialog";
@@ -46,6 +46,8 @@ export function PayrollDetail() {
   const queryClient = useQueryClient();
   const [editTarget, setEditTarget] = useState<{ slip: any; emp: any } | null>(null);
   const [emailSending, setEmailSending] = useState(false);
+  const [bulkPdfLoading, setBulkPdfLoading] = useState(false);
+  const [varianceOpen, setVarianceOpen] = useState(false);
   const [itaxOpen, setItaxOpen] = useState(false);
   const [itaxData, setItaxData] = useState<any>(null);
   const [itaxLoading, setItaxLoading] = useState(false);
@@ -122,6 +124,30 @@ export function PayrollDetail() {
       .catch(() => toast({ variant: "destructive", title: "Download failed" }));
   };
 
+  const handleBulkPdfDownload = async () => {
+    setBulkPdfLoading(true);
+    try {
+      const token = sessionStorage.getItem("zawadi_session_token");
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const response = await fetch(`/api/payroll/${id}/payslips/bulk-pdf`, { headers });
+      if (!response.ok) throw new Error("Failed to generate bulk PDF");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Payslips_${run?.period ?? id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Download Failed", description: err?.message || "Could not generate bulk PDF." });
+    } finally {
+      setBulkPdfLoading(false);
+    }
+  };
+
   const handleItaxExport = async () => {
     setItaxLoading(true);
     setItaxOpen(true);
@@ -176,6 +202,12 @@ export function PayrollDetail() {
       setShifLoading(false);
     }
   };
+
+  const { data: varianceData, isLoading: varianceLoading } = useQuery({
+    queryKey: ["payroll-compare", id],
+    queryFn: () => customFetch(`/api/payroll/${id}/compare`) as Promise<any>,
+    enabled: id > 0 && !isLoading && !!(data as any)?.run && (data as any)?.run?.status !== "draft",
+  });
 
   if (isLoading || !data) {
     return (
@@ -455,6 +487,18 @@ export function PayrollDetail() {
                 <Mail className="h-3.5 w-3.5 mr-1.5" />
                 {emailSending ? "SENDING..." : "EMAIL ALL PAYSLIPS"}
               </Button>
+              {payslips?.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="font-mono text-xs"
+                  onClick={handleBulkPdfDownload}
+                  disabled={bulkPdfLoading}
+                >
+                  <Download className={`h-3.5 w-3.5 mr-1.5 ${bulkPdfLoading ? "animate-pulse" : ""}`} />
+                  {bulkPdfLoading ? "GENERATING..." : "DOWNLOAD ALL PDFs"}
+                </Button>
+              )}
               <Button variant="outline" size="sm" className="font-mono text-xs" asChild>
                 <a href={`/admin/reports?type=bank&runId=${id}`}>
                   <FileText className="h-3.5 w-3.5 mr-1.5" /> BANK SCHEDULE
@@ -462,6 +506,139 @@ export function PayrollDetail() {
               </Button>
             </div>
           </CardContent>
+        </Card>
+      )}
+
+      {/* Month-on-month variance section */}
+      {run?.status !== "draft" && (
+        <Card className="border-border/50 bg-card/30">
+          <CardHeader
+            className="border-b border-border/30 py-3 cursor-pointer select-none flex flex-row items-center justify-between"
+            onClick={() => setVarianceOpen((v) => !v)}
+          >
+            <CardTitle className="font-mono text-sm flex items-center gap-2">
+              {varianceOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              MONTH-ON-MONTH VARIANCE
+            </CardTitle>
+            {varianceData?.previous && (
+              <span className="text-xs text-muted-foreground font-mono">
+                vs {varianceData.previous.period}
+              </span>
+            )}
+          </CardHeader>
+          {varianceOpen && (
+            <CardContent className="p-0">
+              {varianceLoading ? (
+                <div className="py-8 text-center text-muted-foreground font-mono text-sm">LOADING...</div>
+              ) : !varianceData?.previous ? (
+                <div className="py-8 text-center text-muted-foreground font-mono text-sm">
+                  No previous run to compare against
+                </div>
+              ) : (() => {
+                const { rows, totals } = varianceData;
+                const grossDelta = totals.previousGross > 0
+                  ? ((totals.currentGross - totals.previousGross) / totals.previousGross) * 100
+                  : 0;
+                const fmtKsh = (cents: number) =>
+                  `Ksh ${Math.round(cents / 100).toLocaleString()}`;
+                const fmtPct = (curr: number, prev: number) => {
+                  if (prev === 0) return curr > 0 ? "+∞%" : "—";
+                  const d = ((curr - prev) / prev) * 100;
+                  return `${d >= 0 ? "+" : ""}${d.toFixed(1)}%`;
+                };
+                const pctColor = (curr: number, prev: number) => {
+                  if (prev === 0 && curr === 0) return "text-muted-foreground";
+                  const d = curr - prev;
+                  if (d > 0) return "text-emerald-400";
+                  if (d < 0) return "text-red-400";
+                  return "text-muted-foreground";
+                };
+                return (
+                  <>
+                    <div className="px-4 py-2 border-b border-border/20 text-xs font-mono text-muted-foreground flex items-center gap-2">
+                      <span>{rows.length} employees</span>
+                      <span>·</span>
+                      <span>Gross payroll</span>
+                      {grossDelta >= 0
+                        ? <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+                        : <TrendingDown className="h-3.5 w-3.5 text-red-400" />}
+                      <span className={grossDelta >= 0 ? "text-emerald-400" : "text-red-400"}>
+                        {grossDelta >= 0 ? "↑" : "↓"} {Math.abs(grossDelta).toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <Table className="text-xs">
+                        <TableHeader className="bg-muted/30">
+                          <TableRow>
+                            <TableHead className="font-mono text-[10px] pl-4">EMPLOYEE</TableHead>
+                            <TableHead className="font-mono text-[10px] text-right">GROSS (curr)</TableHead>
+                            <TableHead className="font-mono text-[10px] text-right">GROSS (prev)</TableHead>
+                            <TableHead className="font-mono text-[10px] text-right">Δ%</TableHead>
+                            <TableHead className="font-mono text-[10px] text-right">PAYE (curr)</TableHead>
+                            <TableHead className="font-mono text-[10px] text-right">PAYE (prev)</TableHead>
+                            <TableHead className="font-mono text-[10px] text-right">Δ%</TableHead>
+                            <TableHead className="font-mono text-[10px] text-right">NET (curr)</TableHead>
+                            <TableHead className="font-mono text-[10px] text-right">NET (prev)</TableHead>
+                            <TableHead className="font-mono text-[10px] text-right pr-4">Δ%</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {rows.map((row: any, i: number) => (
+                            <TableRow key={i} className={`hover:bg-muted/20 ${row.isNew ? "bg-emerald-500/5" : row.isRemoved ? "bg-red-500/5" : ""}`}>
+                              <TableCell className="pl-4 py-1.5">
+                                <span className="font-mono text-muted-foreground mr-1.5">{row.empNo}</span>
+                                {row.empName}
+                                {row.isNew && (
+                                  <span className="ml-2 text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">NEW</span>
+                                )}
+                                {row.isRemoved && (
+                                  <span className="ml-2 text-[10px] font-mono text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded">FINAL</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right font-mono py-1.5">{fmtKsh(row.currentGross)}</TableCell>
+                              <TableCell className="text-right font-mono py-1.5 text-muted-foreground">{fmtKsh(row.previousGross)}</TableCell>
+                              <TableCell className={`text-right font-mono py-1.5 font-semibold ${pctColor(row.currentGross, row.previousGross)}`}>
+                                {fmtPct(row.currentGross, row.previousGross)}
+                              </TableCell>
+                              <TableCell className="text-right font-mono py-1.5">{fmtKsh(row.currentPaye)}</TableCell>
+                              <TableCell className="text-right font-mono py-1.5 text-muted-foreground">{fmtKsh(row.previousPaye)}</TableCell>
+                              <TableCell className={`text-right font-mono py-1.5 font-semibold ${pctColor(row.currentPaye, row.previousPaye)}`}>
+                                {fmtPct(row.currentPaye, row.previousPaye)}
+                              </TableCell>
+                              <TableCell className="text-right font-mono py-1.5 text-primary">{fmtKsh(row.currentNet)}</TableCell>
+                              <TableCell className="text-right font-mono py-1.5 text-muted-foreground">{fmtKsh(row.previousNet)}</TableCell>
+                              <TableCell className={`text-right font-mono py-1.5 font-semibold pr-4 ${pctColor(row.currentNet, row.previousNet)}`}>
+                                {fmtPct(row.currentNet, row.previousNet)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          {/* Totals row */}
+                          <TableRow className="border-t border-border/40 bg-muted/20 font-bold">
+                            <TableCell className="pl-4 py-2 font-mono text-xs">TOTALS</TableCell>
+                            <TableCell className="text-right font-mono py-2">{fmtKsh(totals.currentGross)}</TableCell>
+                            <TableCell className="text-right font-mono py-2 text-muted-foreground">{fmtKsh(totals.previousGross)}</TableCell>
+                            <TableCell className={`text-right font-mono py-2 ${pctColor(totals.currentGross, totals.previousGross)}`}>
+                              {fmtPct(totals.currentGross, totals.previousGross)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono py-2">{fmtKsh(totals.currentPaye)}</TableCell>
+                            <TableCell className="text-right font-mono py-2 text-muted-foreground">{fmtKsh(totals.previousPaye)}</TableCell>
+                            <TableCell className={`text-right font-mono py-2 ${pctColor(totals.currentPaye, totals.previousPaye)}`}>
+                              {fmtPct(totals.currentPaye, totals.previousPaye)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono py-2 text-primary">{fmtKsh(totals.currentNet)}</TableCell>
+                            <TableCell className="text-right font-mono py-2 text-muted-foreground">{fmtKsh(totals.previousNet)}</TableCell>
+                            <TableCell className={`text-right font-mono py-2 pr-4 ${pctColor(totals.currentNet, totals.previousNet)}`}>
+                              {fmtPct(totals.currentNet, totals.previousNet)}
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
+                );
+              })()}
+            </CardContent>
+          )}
         </Card>
       )}
 
