@@ -88,9 +88,14 @@ export function PayrollDetail() {
     setEmailSending(true);
     try {
       const result = await customFetch(`/api/payroll/${id}/email-payslips`, { method: "POST" }) as any;
+      const allOk = result.sent === result.total;
+      const errorDetail = result.errors?.length
+        ? `\nFailed: ${result.errors.join("; ")}`
+        : "";
       toast({
-        title: `📧 Payslips Emailed`,
-        description: `Sent ${result.sent}/${result.total} payslip${result.total !== 1 ? "s" : ""} successfully.${result.errors?.length ? ` ${result.errors.length} failed.` : ""}`,
+        variant: allOk ? "default" : "destructive",
+        title: allOk ? `📧 Payslips Emailed` : `📧 Email Issues`,
+        description: `Sent ${result.sent}/${result.total} payslip${result.total !== 1 ? "s" : ""} successfully.${errorDetail}`,
       });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Email Failed", description: err?.message || "Could not send payslips." });
