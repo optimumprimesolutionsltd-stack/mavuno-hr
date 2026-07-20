@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { eq, and, ne, sql, leftJoin } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { employees, users, payslips, payrollRuns, departments } from "@workspace/db/schema";
+import { employees, users, payslips, payrollRuns, departments, leaveRequests } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { HttpError } from "../lib/http-error.js";
@@ -49,6 +49,7 @@ const employeeBaseSchema = z.object({
   workDaysPerWeek: z.enum(["5", "6"]).default("5").transform(Number),
   worksOnHolidays: z.boolean().default(false),
   hireDate: isoDate,
+  leaveBalance: z.number().int().min(0).max(3650).optional(),
 });
 
 function toRow(body: z.infer<typeof employeeBaseSchema>) {
@@ -141,7 +142,32 @@ router.get("/:id", requireAuth("employee:read"), async (req, res, next) => {
       .orderBy(payrollRuns.period)
       .limit(12);
 
-    res.json({ employee: row.employee, department: row.department, payslips: slips });
+    // Leave balance summary for this calendar year
+    const thisYear = new Date().getFullYear().toString();
+    const takenRows = await db
+      .select({ days: leaveRequests.days, startDate: leaveRequests.startDate })
+      .from(leaveRequests)
+      .where(and(
+        eq(leaveRequests.employeeId, id),
+        eq(leaveRequests.orgId, p.orgId),
+        eq(leaveRequests.status, "approved"),
+        eq(leaveRequests.type, "annual"),
+      ));
+    const takenDays = takenRows
+      .filter(l => l.startDate?.startsWith(thisYear))
+      .reduce((acc, l) => acc + Math.round((l.days ?? 0) / 10), 0);
+    const entitlement = Math.round((row.employee.leaveBalance ?? 210) / 10);
+
+    res.json({
+      employee: row.employee,
+      department: row.department,
+      payslips: slips,
+      leaveBalanceSummary: {
+        entitlement,
+        takenDays,
+        remaining: Math.max(0, entitlement - takenDays),
+      },
+    });
   } catch (err) { next(err); }
 });
 
@@ -192,6 +218,7 @@ router.patch("/:id", requireAuth("employee:write"), async (req, res, next) => {
     if (b.hireDate !== undefined) updateData.hireDate = b.hireDate;
     if (b.workDaysPerWeek !== undefined) updateData.workDaysPerWeek = b.workDaysPerWeek;
     if (b.worksOnHolidays !== undefined) updateData.worksOnHolidays = b.worksOnHolidays;
+    if (b.leaveBalance !== undefined) updateData.leaveBalance = b.leaveBalance;
 
     const [updated] = await db.update(employees).set(updateData).where(eq(employees.id, id)).returning();
 

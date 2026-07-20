@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   ArrowLeft, User, Briefcase, Landmark, FileText, Pencil, UserX, AlertCircle, KeyRound, Loader2,
+  CalendarDays, Check, X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EditEmployeeDialog } from "./edit-dialog";
@@ -49,9 +50,34 @@ export function EmployeeDetail() {
     },
   });
 
-  const { data, isLoading, error } = useGetEmployee(id, {
+  const [editingLeave, setEditingLeave] = useState(false);
+  const [leaveEntitlement, setLeaveEntitlement] = useState<number | "">(21);
+
+  const patchLeaveBalance = useMutation({
+    mutationFn: (days: number) =>
+      customFetch(`/api/employees/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leaveBalance: days * 10 }),
+      }),
+    onSuccess: () => {
+      toast({ title: "Saved", description: "Leave entitlement updated." });
+      setEditingLeave(false);
+    },
+    onError: (e: any) => {
+      toast({ variant: "destructive", title: "Save failed", description: e?.data?.error ?? e?.message });
+    },
+  });
+
+  const { data, isLoading, error, refetch } = useGetEmployee(id, {
     query: { enabled: !!id },
   });
+
+  // Sync edit field when data arrives
+  const summary = (data as any)?.leaveBalanceSummary as
+    | { entitlement: number; takenDays: number; remaining: number }
+    | undefined;
+  const currentEntitlement = summary?.entitlement ?? 21;
 
   if (isLoading) {
     return (
@@ -222,10 +248,6 @@ export function EmployeeDetail() {
                     <span className="text-muted-foreground block text-xs mb-0.5">Hire Date</span>
                     {formatDate(employee.hireDate)}
                   </div>
-                  <div>
-                    <span className="text-muted-foreground block text-xs mb-0.5">Leave Bal.</span>
-                    {Math.round((employee.leaveBalance ?? 210) / 10)} days
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -281,6 +303,72 @@ export function EmployeeDetail() {
                     <span className="font-mono">{employee.bankAccount || '-'}</span>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Leave Balance */}
+            <Card className="border-border/50 shadow-sm bg-card/30 md:col-span-2">
+              <CardHeader className="pb-3 border-b border-border/30">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-mono flex items-center text-muted-foreground">
+                    <CalendarDays className="h-4 w-4 mr-2 text-primary" />ANNUAL LEAVE BALANCE
+                  </CardTitle>
+                  {!isTerminated && !editingLeave && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="font-mono text-xs h-7 gap-1"
+                      onClick={() => { setLeaveEntitlement(currentEntitlement); setEditingLeave(true); }}
+                    >
+                      <Pencil className="h-3 w-3" />EDIT ENTITLEMENT
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  {[
+                    { label: "ENTITLED", value: currentEntitlement, color: "text-primary" },
+                    { label: "TAKEN THIS YEAR", value: summary?.takenDays ?? 0, color: "text-amber-400" },
+                    { label: "REMAINING", value: summary?.remaining ?? currentEntitlement, color: (summary?.remaining ?? currentEntitlement) <= 3 ? "text-destructive" : "text-emerald-400" },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} className="text-center p-4 rounded-lg bg-muted/20 border border-border/30">
+                      <div className={`text-3xl font-mono font-bold ${color}`}>{value}</div>
+                      <div className="text-xs text-muted-foreground font-mono mt-1">{label}</div>
+                      <div className="text-xs text-muted-foreground">days</div>
+                    </div>
+                  ))}
+                </div>
+                {editingLeave && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg border border-primary/20 bg-primary/5">
+                    <span className="text-sm font-mono text-muted-foreground shrink-0">Annual entitlement (days):</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={365}
+                      value={leaveEntitlement}
+                      onChange={(e) => setLeaveEntitlement(e.target.value === "" ? "" : Number(e.target.value))}
+                      className="w-24 h-8 px-2 rounded border border-border bg-background font-mono text-sm"
+                    />
+                    <Button
+                      size="sm"
+                      className="font-mono gap-1 h-8"
+                      disabled={patchLeaveBalance.isPending || leaveEntitlement === ""}
+                      onClick={() => patchLeaveBalance.mutate(Number(leaveEntitlement))}
+                    >
+                      {patchLeaveBalance.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                      SAVE
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="font-mono gap-1 h-8"
+                      onClick={() => setEditingLeave(false)}
+                    >
+                      <X className="h-3 w-3" />CANCEL
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

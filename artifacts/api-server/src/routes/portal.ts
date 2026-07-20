@@ -43,9 +43,11 @@ router.get("/me", requireAuth("self:read"), async (req, res, next) => {
       netPay: r.slip.netPay,
     }));
 
-    // Leave balance: annual entitlement (21 days) minus approved annual leave taken this year
+    // Leave balance: entitlement from employee record minus approved annual leave taken this year
     const thisYear = new Date().getFullYear().toString();
-    const takenLeaves = await db.select().from(leaveRequests)
+    const takenLeaves = await db
+      .select({ days: leaveRequests.days, startDate: leaveRequests.startDate })
+      .from(leaveRequests)
       .where(and(
         eq(leaveRequests.employeeId, empId),
         eq(leaveRequests.orgId, p.orgId),
@@ -53,11 +55,17 @@ router.get("/me", requireAuth("self:read"), async (req, res, next) => {
         eq(leaveRequests.type, "annual"),
       ));
     const takenDays = takenLeaves
-      .filter(l => l.startDate.startsWith(thisYear))
+      .filter(l => l.startDate?.startsWith(thisYear))
       .reduce((acc, l) => acc + Math.round((l.days ?? 0) / 10), 0);
-    const leaveBalance = Math.max(0, 21 - takenDays);
+    const entitled = Math.round((emp.leaveBalance ?? 210) / 10);
+    const remaining = Math.max(0, entitled - takenDays);
 
-    res.json({ employee: emp, payslips: flatSlips, leaveBalance });
+    res.json({
+      employee: emp,
+      payslips: flatSlips,
+      leaveBalance: remaining,
+      leaveBalanceSummary: { entitled, taken: takenDays, remaining },
+    });
   } catch (err) { next(err); }
 });
 
@@ -66,10 +74,40 @@ router.get("/leave", requireAuth("self:read"), async (req, res, next) => {
     const empId = requireEmployee(req);
     const p = (req as AuthRequest).principal;
 
+    const [empRow] = await db
+      .select({ leaveBalance: employees.leaveBalance })
+      .from(employees)
+      .where(and(eq(employees.id, empId), eq(employees.orgId, p.orgId)))
+      .limit(1);
+    const entitlement = Math.round(((empRow?.leaveBalance) ?? 210) / 10);
+
     const leaves = await db.select().from(leaveRequests)
       .where(and(eq(leaveRequests.employeeId, empId), eq(leaveRequests.orgId, p.orgId)))
       .orderBy(desc(leaveRequests.createdAt));
-    res.json(leaves);
+
+    // Compute balanceAfter for approved annual leaves in the current year
+    const thisYear = new Date().getFullYear().toString();
+    const approvedAnnual = leaves
+      .filter(l => l.type === "annual" && l.status === "approved" && l.startDate?.startsWith(thisYear))
+      .slice()
+      .sort((a, b) => a.startDate.localeCompare(b.startDate));
+
+    let running = entitlement;
+    const balanceAfterMap: Record<number, number> = {};
+    for (const l of approvedAnnual) {
+      running = Math.max(0, running - Math.round((l.days ?? 0) / 10));
+      balanceAfterMap[l.id] = running;
+    }
+
+    const result = leaves.map(l => ({
+      ...l,
+      balanceAfter:
+        l.type === "annual" && l.status === "approved" && l.startDate?.startsWith(thisYear)
+          ? (balanceAfterMap[l.id] ?? null)
+          : null,
+    }));
+
+    res.json(result);
   } catch (err) { next(err); }
 });
 
@@ -147,11 +185,38 @@ router.post("/leave", requireAuth("self:request"), async (req, res, next) => {
     const [emp] = await db.select({
       workDaysPerWeek: employees.workDaysPerWeek,
       worksOnHolidays: employees.worksOnHolidays,
+      leaveBalance: employees.leaveBalance,
     }).from(employees).where(and(eq(employees.id, empId), eq(employees.orgId, p.orgId)));
 
     const workDaysPerWeek = emp?.workDaysPerWeek ?? 5;
     const worksOnHolidays = emp?.worksOnHolidays ?? false;
     const days = countLeaveDays(parsed.data.startDate, parsed.data.endDate, workDaysPerWeek, worksOnHolidays);
+
+    // Annual leave balance check
+    if (parsed.data.type === "annual") {
+      const thisYear = parsed.data.startDate.slice(0, 4);
+      const takenRows = await db
+        .select({ days: leaveRequests.days, startDate: leaveRequests.startDate })
+        .from(leaveRequests)
+        .where(and(
+          eq(leaveRequests.employeeId, empId),
+          eq(leaveRequests.orgId, p.orgId),
+          eq(leaveRequests.status, "approved"),
+          eq(leaveRequests.type, "annual"),
+        ));
+      const takenDays = takenRows
+        .filter(l => l.startDate?.startsWith(thisYear))
+        .reduce((acc, l) => acc + Math.round((l.days ?? 0) / 10), 0);
+      const entitlement = Math.round((emp?.leaveBalance ?? 210) / 10);
+      const requested = days;
+      if (takenDays + requested > entitlement) {
+        res.status(422).json({
+          error: `Insufficient annual leave balance. You have ${entitlement - takenDays} day(s) remaining but this request requires ${requested} day(s).`,
+          code: "INSUFFICIENT_LEAVE_BALANCE",
+        });
+        return;
+      }
+    }
 
     const [leave] = await db.insert(leaveRequests).values({
       orgId: p.orgId, employeeId: empId, type: parsed.data.type,
