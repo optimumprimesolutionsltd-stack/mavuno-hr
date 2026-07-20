@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useLogout } from "@workspace/api-client-react";
 import { clearToken } from "@/lib/session";
-import { Building2, LayoutGrid, LogOut, Loader2, ShieldCheck } from "lucide-react";
+import { Building2, LayoutGrid, LogOut, Loader2, ShieldCheck, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function SuperAdminGuard({ children }: { children: ReactNode }) {
@@ -55,7 +55,10 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
 
         {/* Nav */}
         <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-1 px-3">
-          {[{ href: "/super", label: "Companies", icon: LayoutGrid, exact: true }].map((item) => {
+          {[
+            { href: "/super", label: "Companies", icon: LayoutGrid, exact: true },
+            { href: "/super/billing", label: "Billing", icon: CreditCard },
+          ].map((item) => {
             const isActive = item.exact ? location === item.href : location.startsWith(item.href);
             return (
               <Link

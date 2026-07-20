@@ -93,6 +93,28 @@ async function addOrgMonthlyCharge(): Promise<void> {
   await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS monthly_charge BIGINT NOT NULL DEFAULT 0`);
 }
 
+async function createBillingPaymentsTable(): Promise<void> {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS billing_payments (
+      id              SERIAL PRIMARY KEY,
+      org_id          INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      receipt_no      TEXT NOT NULL,
+      amount          BIGINT NOT NULL,
+      period          TEXT NOT NULL,
+      method          TEXT NOT NULL DEFAULT 'bank_transfer',
+      reference       TEXT,
+      description     TEXT,
+      status          TEXT NOT NULL DEFAULT 'pending',
+      verified_by_user_id INTEGER REFERENCES users(id),
+      verified_at     TIMESTAMP,
+      receipt_sent_at TIMESTAMP,
+      created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS billing_receipt_no_uq ON billing_payments(receipt_no);
+    CREATE INDEX IF NOT EXISTS billing_org_idx ON billing_payments(org_id);
+  `);
+}
+
 export async function runStartupMigrations(): Promise<void> {
   try {
     await migrateAdminCredentials();
@@ -102,6 +124,7 @@ export async function runStartupMigrations(): Promise<void> {
     await addEmployeeWorkSchedule();
     await addLoanRequestInterestRate();
     await addOrgMonthlyCharge();
+    await createBillingPaymentsTable();
   } catch (err) {
     logger.error({ err }, "startup-migration: failed (non-fatal)");
   }

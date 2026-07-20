@@ -11,6 +11,103 @@ const transporter = nodemailer.createTransport({
 
 const FROM = () => `"Zawadi HR" <${process.env.GMAIL_USER}>`;
 
+// ── Payment receipt ───────────────────────────────────────────────────────────
+
+export async function sendReceiptEmail(opts: {
+  to: string;
+  orgName: string;
+  receiptNo: string;
+  period: string;
+  amountKes: string;        // formatted, e.g. "KES 3,000"
+  method: string;
+  reference: string | null;
+  verifiedAt: string;       // formatted date string
+  plan: string;
+}): Promise<void> {
+  const { to, orgName, receiptNo, period, amountKes, method, reference, verifiedAt, plan } = opts;
+  const methodLabel: Record<string, string> = {
+    mpesa: "M-Pesa",
+    bank_transfer: "Bank Transfer",
+    cash: "Cash",
+    cheque: "Cheque",
+    other: "Other",
+  };
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<style>
+  body { margin: 0; padding: 0; background: #0d1117; font-family: 'Segoe UI', Arial, sans-serif; color: #e6edf3; }
+  .wrapper { max-width: 600px; margin: 32px auto; background: #161b22; border: 1px solid #30363d; border-radius: 12px; overflow: hidden; }
+  .header { background: #0d4429; padding: 32px 40px; text-align: center; }
+  .header-logo { font-size: 22px; font-weight: 700; font-family: monospace; color: #fff; letter-spacing: 2px; }
+  .header-logo span { color: #3fb950; }
+  .receipt-badge { display: inline-block; margin-top: 12px; background: #3fb950; color: #0d1117; font-size: 11px; font-weight: 700; font-family: monospace; padding: 4px 16px; border-radius: 20px; letter-spacing: 1px; }
+  .body { padding: 36px 40px; }
+  .greeting { font-size: 16px; margin-bottom: 24px; color: #8b949e; }
+  .amount-box { background: #0d4429; border: 1px solid #3fb950; border-radius: 10px; padding: 24px; text-align: center; margin-bottom: 28px; }
+  .amount-label { font-size: 11px; font-family: monospace; color: #3fb950; text-transform: uppercase; letter-spacing: 1px; }
+  .amount-value { font-size: 36px; font-weight: 700; font-family: monospace; color: #3fb950; margin: 6px 0 0; }
+  .detail-table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
+  .detail-table tr { border-bottom: 1px solid #21262d; }
+  .detail-table tr:last-child { border-bottom: none; }
+  .detail-table td { padding: 12px 4px; font-size: 14px; }
+  .detail-table td:first-child { color: #8b949e; width: 40%; font-family: monospace; font-size: 12px; text-transform: uppercase; }
+  .detail-table td:last-child { color: #e6edf3; font-weight: 500; text-align: right; }
+  .verified-box { background: #161b22; border: 1px solid #3fb950; border-radius: 8px; padding: 14px 20px; display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .check-icon { color: #3fb950; font-size: 20px; }
+  .verified-text { font-size: 13px; color: #8b949e; }
+  .verified-text strong { color: #3fb950; }
+  .footer { background: #0d1117; padding: 20px 40px; border-top: 1px solid #21262d; text-align: center; }
+  .footer p { font-size: 12px; color: #6e7681; margin: 4px 0; font-family: monospace; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="header">
+    <div class="header-logo">ZAWADI<span>.HR</span></div>
+    <div class="receipt-badge">✓ PAYMENT RECEIPT</div>
+  </div>
+  <div class="body">
+    <p class="greeting">Dear ${orgName},<br>Your payment has been verified and a receipt has been generated.</p>
+    <div class="amount-box">
+      <div class="amount-label">Amount Paid</div>
+      <div class="amount-value">${amountKes}</div>
+    </div>
+    <table class="detail-table">
+      <tr><td>Receipt No.</td><td>${receiptNo}</td></tr>
+      <tr><td>Company</td><td>${orgName}</td></tr>
+      <tr><td>Plan</td><td>${plan}</td></tr>
+      <tr><td>Billing Period</td><td>${period}</td></tr>
+      <tr><td>Payment Method</td><td>${methodLabel[method] ?? method}</td></tr>
+      ${reference ? `<tr><td>Reference</td><td style="font-family:monospace">${reference}</td></tr>` : ""}
+      <tr><td>Verified On</td><td>${verifiedAt}</td></tr>
+    </table>
+    <div class="verified-box">
+      <span class="check-icon">✓</span>
+      <span class="verified-text">This is an official payment receipt from <strong>Zawadi HR</strong>. Please keep this for your records.</span>
+    </div>
+  </div>
+  <div class="footer">
+    <p>ZAWADI HR — Cloud Payroll & HR for Africa</p>
+    <p>This email was sent automatically. Do not reply.</p>
+  </div>
+</div>
+</body>
+</html>`;
+
+  const text = `ZAWADI HR — PAYMENT RECEIPT\n\nReceipt No: ${receiptNo}\nCompany: ${orgName}\nPlan: ${plan}\nPeriod: ${period}\nAmount: ${amountKes}\nMethod: ${methodLabel[method] ?? method}\n${reference ? `Reference: ${reference}\n` : ""}Verified: ${verifiedAt}\n\nThank you for your payment.`;
+
+  await transporter.sendMail({
+    from: FROM(),
+    to,
+    subject: `[Zawadi HR] Payment Receipt ${receiptNo} — ${period}`,
+    html,
+    text,
+  });
+  logger.info({ to, receiptNo }, "receipt email sent");
+}
+
 // ── Password reset ────────────────────────────────────────────────────────────
 
 export async function sendPasswordResetEmail(

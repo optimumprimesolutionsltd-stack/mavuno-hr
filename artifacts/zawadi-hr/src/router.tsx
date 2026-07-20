@@ -26,6 +26,8 @@ import { AdminLayout, AdminGuard } from "@/components/layout/admin-layout";
 import { PortalLayout, PortalGuard } from "@/components/layout/portal-layout";
 import { SuperAdminLayout, SuperAdminGuard } from "@/components/layout/super-layout";
 import { SuperAdminCompanies } from "@/pages/super";
+import { SuperAdminBilling } from "@/pages/super/billing";
+import { AdminBilling } from "@/pages/admin/billing";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 
@@ -74,6 +76,7 @@ export function Router() {
               <Route path="/admin/reports" component={Reports} />
               <Route path="/admin/users" component={UsersAdmin} />
               <Route path="/admin/audit" component={AuditLog} />
+              <Route path="/admin/billing" component={AdminBilling} />
               <Route path="/admin/settings" component={AdminSettings} />
               <Route><Redirect to="/admin" /></Route>
             </Switch>

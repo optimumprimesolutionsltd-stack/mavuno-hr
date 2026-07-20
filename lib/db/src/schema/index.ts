@@ -356,6 +356,25 @@ export const idempotencyKeys = pgTable("idempotency_keys", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.orgId, t.key] })]);
 
+export const billingPayments = pgTable("billing_payments", {
+  id: serial("id").primaryKey(),
+  orgId: integer("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  receiptNo: text("receipt_no").notNull(),
+  amount: money("amount").notNull(),
+  period: text("period").notNull(),              // e.g. "July 2026" or "Annual 2026"
+  method: text("method").notNull().default("bank_transfer"), // mpesa | bank_transfer | cash | cheque | other
+  reference: text("reference"),                  // M-Pesa code / bank ref etc.
+  description: text("description"),
+  status: text("status").notNull().default("pending"), // pending | verified | failed
+  verifiedByUserId: integer("verified_by_user_id").references(() => users.id),
+  verifiedAt: timestamp("verified_at"),
+  receiptSentAt: timestamp("receipt_sent_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("billing_org_idx").on(t.orgId),
+  uniqueIndex("billing_receipt_no_uq").on(t.receiptNo),
+]);
+
 export const passwordResetTokens = pgTable("password_reset_tokens", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),

@@ -19,6 +19,7 @@ import {
   X,
   ShieldCheck,
   Settings,
+  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
   { href: "/admin/reports", label: "Reports", icon: FileText },
   { href: "/admin/users", label: "Access & Logins", icon: KeyRound },
   { href: "/admin/audit", label: "Audit Log", icon: ShieldCheck },
+  { href: "/admin/billing", label: "Billing", icon: CreditCard },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
