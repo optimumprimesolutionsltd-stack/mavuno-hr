@@ -86,11 +86,23 @@ export function Router() {
         </AdminGuard>
       </Route>
 
-      {/* ── Super-admin panel ── */}
+      {/* ── Super-admin panel (exact /super) ── */}
       <Route path="/super">
         <SuperAdminGuard>
           <SuperAdminLayout>
             <SuperAdminCompanies />
+          </SuperAdminLayout>
+        </SuperAdminGuard>
+      </Route>
+
+      {/* ── Super-admin sub-pages (/super/anything) ── */}
+      <Route path="/super/*">
+        <SuperAdminGuard>
+          <SuperAdminLayout>
+            <Switch>
+              <Route path="/super/billing" component={SuperAdminBilling} />
+              <Route><Redirect to="/super" /></Route>
+            </Switch>
           </SuperAdminLayout>
         </SuperAdminGuard>
       </Route>
