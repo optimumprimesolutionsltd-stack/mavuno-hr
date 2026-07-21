@@ -852,6 +852,8 @@ router.get("/:id/itax/nssf", requireAuth("payroll:read"), async (req, res, next)
     }
 
     // Send confirmation email to the HR user who triggered the download
+    let emailSent = false;
+    let emailError: string | undefined;
     try {
       await sendStatutoryRemittanceEmail({
         to: p.email,
@@ -862,9 +864,20 @@ router.get("/:id/itax/nssf", requireAuth("payroll:read"), async (req, res, next)
         totalAmountKes: totalNssf,
         filedAt: now,
       });
-    } catch (mailErr) {
+      emailSent = true;
+    } catch (mailErr: any) {
+      emailError = mailErr?.message ?? "Unknown mail error";
       logger.warn({ err: mailErr }, "nssf: failed to send remittance confirmation email");
     }
+
+    await db.transaction(async (tx) => {
+      await writeAudit(tx as any, {
+        orgId: p.orgId, action: "NSSF_DOWNLOAD", entity: "statutory_filings", entityId: id,
+        detail: emailSent ? "Remittance confirmation email sent" : `Email not sent: ${emailError}`,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        after: { period: run.period, totalNssf, employeeCount: rows.length, emailSent },
+      });
+    });
 
     res.json({
       rows: nssfRows,
@@ -875,6 +888,8 @@ router.get("/:id/itax/nssf", requireAuth("payroll:read"), async (req, res, next)
       runName: run.name,
       totalNssf,
       nssfFiledAt: now.toISOString(),
+      emailSent,
+      ...(emailError ? { emailError } : {}),
     });
   } catch (err) { next(err); }
 });
@@ -933,6 +948,8 @@ router.get("/:id/itax/shif", requireAuth("payroll:read"), async (req, res, next)
     }
 
     // Send confirmation email to the HR user who triggered the download
+    let emailSent = false;
+    let emailError: string | undefined;
     try {
       await sendStatutoryRemittanceEmail({
         to: p.email,
@@ -943,9 +960,20 @@ router.get("/:id/itax/shif", requireAuth("payroll:read"), async (req, res, next)
         totalAmountKes: totalShif,
         filedAt: now,
       });
-    } catch (mailErr) {
+      emailSent = true;
+    } catch (mailErr: any) {
+      emailError = mailErr?.message ?? "Unknown mail error";
       logger.warn({ err: mailErr }, "shif: failed to send remittance confirmation email");
     }
+
+    await db.transaction(async (tx) => {
+      await writeAudit(tx as any, {
+        orgId: p.orgId, action: "SHIF_DOWNLOAD", entity: "statutory_filings", entityId: id,
+        detail: emailSent ? "Remittance confirmation email sent" : `Email not sent: ${emailError}`,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        after: { period: run.period, totalShif, employeeCount: rows.length, emailSent },
+      });
+    });
 
     res.json({
       rows: shifRows,
@@ -955,6 +983,8 @@ router.get("/:id/itax/shif", requireAuth("payroll:read"), async (req, res, next)
       runName: run.name,
       totalShif,
       shifFiledAt: now.toISOString(),
+      emailSent,
+      ...(emailError ? { emailError } : {}),
     });
   } catch (err) { next(err); }
 });
@@ -1017,6 +1047,8 @@ router.get("/:id/itax/ahl", requireAuth("payroll:read"), async (req, res, next) 
     }
 
     // Send confirmation email
+    let emailSent = false;
+    let emailError: string | undefined;
     try {
       await sendStatutoryRemittanceEmail({
         to: p.email,
@@ -1027,9 +1059,20 @@ router.get("/:id/itax/ahl", requireAuth("payroll:read"), async (req, res, next) 
         totalAmountKes: totalAhl,
         filedAt: now,
       });
-    } catch (mailErr) {
+      emailSent = true;
+    } catch (mailErr: any) {
+      emailError = mailErr?.message ?? "Unknown mail error";
       logger.warn({ err: mailErr }, "ahl: failed to send remittance confirmation email");
     }
+
+    await db.transaction(async (tx) => {
+      await writeAudit(tx as any, {
+        orgId: p.orgId, action: "AHL_DOWNLOAD", entity: "statutory_filings", entityId: id,
+        detail: emailSent ? "Remittance confirmation email sent" : `Email not sent: ${emailError}`,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        after: { period: run.period, totalAhl, employeeCount: rows.length, emailSent },
+      });
+    });
 
     res.json({
       rows: ahlRows,
@@ -1039,6 +1082,8 @@ router.get("/:id/itax/ahl", requireAuth("payroll:read"), async (req, res, next) 
       runName: run.name,
       totalAhl,
       ahlFiledAt: now.toISOString(),
+      emailSent,
+      ...(emailError ? { emailError } : {}),
     });
   } catch (err) { next(err); }
 });

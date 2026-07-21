@@ -57,6 +57,9 @@ export function PayrollDetail() {
   const [nssfLoading, setNssfLoading] = useState(false);
   const [shifLoading, setShifLoading] = useState(false);
   const [ahlLoading, setAhlLoading] = useState(false);
+  const [nssfEmailFailed, setNssfEmailFailed] = useState<string | null>(null);
+  const [shifEmailFailed, setShifEmailFailed] = useState<string | null>(null);
+  const [ahlEmailFailed, setAhlEmailFailed] = useState<string | null>(null);
 
   const { data, isLoading } = useGetPayrollRun(id);
 
@@ -169,6 +172,7 @@ export function PayrollDetail() {
 
   const handleNssfExport = async () => {
     setNssfLoading(true);
+    setNssfEmailFailed(null);
     try {
       const result = await customFetch(`/api/payroll/${id}/itax/nssf`) as any;
       queryClient.invalidateQueries({ queryKey: getGetPayrollRunQueryKey(id) });
@@ -178,6 +182,9 @@ export function PayrollDetail() {
           title: `NSSF — ${result.warnings.length} warning(s)`,
           description: result.warnings.slice(0, 3).join("; "),
         });
+      }
+      if (result.emailSent === false) {
+        setNssfEmailFailed(result.emailError ?? "Confirmation email could not be delivered.");
       }
       downloadNssfCsv(result);
     } catch (err: any) {
@@ -189,6 +196,7 @@ export function PayrollDetail() {
 
   const handleShifExport = async () => {
     setShifLoading(true);
+    setShifEmailFailed(null);
     try {
       const result = await customFetch(`/api/payroll/${id}/itax/shif`) as any;
       queryClient.invalidateQueries({ queryKey: getGetPayrollRunQueryKey(id) });
@@ -198,6 +206,9 @@ export function PayrollDetail() {
           title: `SHIF — ${result.warnings.length} warning(s)`,
           description: result.warnings.slice(0, 3).join("; "),
         });
+      }
+      if (result.emailSent === false) {
+        setShifEmailFailed(result.emailError ?? "Confirmation email could not be delivered.");
       }
       downloadShifCsv(result);
     } catch (err: any) {
@@ -209,6 +220,7 @@ export function PayrollDetail() {
 
   const handleAhlExport = async () => {
     setAhlLoading(true);
+    setAhlEmailFailed(null);
     try {
       const result = await customFetch(`/api/payroll/${id}/itax/ahl`) as any;
       queryClient.invalidateQueries({ queryKey: getGetPayrollRunQueryKey(id) });
@@ -218,6 +230,9 @@ export function PayrollDetail() {
           title: `AHL — ${result.warnings.length} warning(s)`,
           description: result.warnings.slice(0, 3).join("; "),
         });
+      }
+      if (result.emailSent === false) {
+        setAhlEmailFailed(result.emailError ?? "Confirmation email could not be delivered.");
       }
       downloadAhlCsv(result);
     } catch (err: any) {
@@ -448,6 +463,56 @@ export function PayrollDetail() {
           <p className="text-[11px] text-muted-foreground font-mono">
             Update employee records in the Employees tab before submitting this payroll run.
           </p>
+        </div>
+      )}
+
+      {/* Email delivery failure banners */}
+      {nssfEmailFailed && (
+        <div className="rounded-lg border border-red-500/40 bg-red-500/5 px-4 py-3 flex items-start gap-3">
+          <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-red-400 font-mono text-xs">NSSF CONFIRMATION EMAIL NOT DELIVERED</p>
+            <p className="text-xs text-red-300/80 mt-0.5">
+              The NSSF remittance confirmation email could not be sent to your account.
+              The CSV was still downloaded and the filing was recorded.
+            </p>
+            {nssfEmailFailed && (
+              <p className="text-[11px] text-red-400/60 mt-1 font-mono">{nssfEmailFailed}</p>
+            )}
+          </div>
+          <button onClick={() => setNssfEmailFailed(null)} className="text-red-400/60 hover:text-red-300 text-xs shrink-0">✕</button>
+        </div>
+      )}
+      {shifEmailFailed && (
+        <div className="rounded-lg border border-red-500/40 bg-red-500/5 px-4 py-3 flex items-start gap-3">
+          <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-red-400 font-mono text-xs">SHIF CONFIRMATION EMAIL NOT DELIVERED</p>
+            <p className="text-xs text-red-300/80 mt-0.5">
+              The SHIF remittance confirmation email could not be sent to your account.
+              The CSV was still downloaded and the filing was recorded.
+            </p>
+            {shifEmailFailed && (
+              <p className="text-[11px] text-red-400/60 mt-1 font-mono">{shifEmailFailed}</p>
+            )}
+          </div>
+          <button onClick={() => setShifEmailFailed(null)} className="text-red-400/60 hover:text-red-300 text-xs shrink-0">✕</button>
+        </div>
+      )}
+      {ahlEmailFailed && (
+        <div className="rounded-lg border border-red-500/40 bg-red-500/5 px-4 py-3 flex items-start gap-3">
+          <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-red-400 font-mono text-xs">AHL CONFIRMATION EMAIL NOT DELIVERED</p>
+            <p className="text-xs text-red-300/80 mt-0.5">
+              The AHL remittance confirmation email could not be sent to your account.
+              The CSV was still downloaded and the filing was recorded.
+            </p>
+            {ahlEmailFailed && (
+              <p className="text-[11px] text-red-400/60 mt-1 font-mono">{ahlEmailFailed}</p>
+            )}
+          </div>
+          <button onClick={() => setAhlEmailFailed(null)} className="text-red-400/60 hover:text-red-300 text-xs shrink-0">✕</button>
         </div>
       )}
 
