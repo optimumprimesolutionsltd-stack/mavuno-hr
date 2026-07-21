@@ -161,6 +161,34 @@ router.post("/", requireAuth("leave:admin"), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── PATCH /:id/cancel — admin/HR cancels an already-approved leave ────────────
+router.patch("/:id/cancel", requireAuth("leave:admin"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+
+    const [leave] = await db.select().from(leaveRequests)
+      .where(and(eq(leaveRequests.id, id), eq(leaveRequests.orgId, p.orgId)));
+    if (!leave) { res.status(404).json({ error: "Leave request not found" }); return; }
+    if (leave.status !== "approved") throw new HttpError(409, "Only approved leaves can be cancelled");
+
+    const [updated] = await db.update(leaveRequests).set({
+      status: "cancelled", decidedByUserId: p.userId, decidedAt: new Date(),
+    }).where(eq(leaveRequests.id, id)).returning();
+
+    await db.transaction(async (tx) => {
+      await writeAudit(tx as any, {
+        orgId: p.orgId, action: "LEAVE_CANCELLED", entity: "leave_requests", entityId: id,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        before: { status: "approved" }, after: { status: "cancelled" },
+        detail: `Leave cancelled by ${p.email}`,
+      });
+    });
+
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
 router.patch("/:id", requireAuth("leave:approve"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;

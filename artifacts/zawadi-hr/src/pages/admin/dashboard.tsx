@@ -116,26 +116,6 @@ export function AdminDashboard() {
         </div>
       </div>
 
-      {/* Outstanding filings banner */}
-      {outstanding.length > 0 && currentPeriod && (
-        <div className="border border-amber-500/40 bg-amber-500/10 rounded-lg p-4 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-amber-400 text-sm">
-              Outstanding statutory filings for {formatPeriodLabel(currentPeriod)}
-            </p>
-            <p className="text-xs text-amber-300/80 mt-0.5">
-              {outstanding.join(", ")} {outstanding.length === 1 ? "return has" : "returns have"} not been downloaded yet.
-            </p>
-          </div>
-          <Link href="/admin/filings">
-            <Button size="sm" variant="outline" className="border-amber-500/50 text-amber-400 hover:bg-amber-500/10 text-xs h-7 shrink-0">
-              <FileBadge className="h-3.5 w-3.5 mr-1.5" />
-              View Filings
-            </Button>
-          </Link>
-        </div>
-      )}
 
       {/* KPI Cards — row 1 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -464,4 +464,68 @@ router.get("/timesheets", requireAuth("self:read"), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+const portalTimesheetSchema = z.object({
+  period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  daysWorked: z.number().int().min(0).max(31).default(0),
+  normalHours: z.number().int().min(0).max(400).default(0),
+  overtimeHours: z.number().int().min(0).max(200).default(0),
+  holidayHours: z.number().int().min(0).max(100).default(0),
+});
+
+router.post("/timesheets", requireAuth("self:request"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const empId = requireEmployee(req);
+
+    const parsed = portalTimesheetSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return; }
+
+    const { timesheets } = await import("@workspace/db/schema");
+    const [existing] = await db.select().from(timesheets).where(and(
+      eq(timesheets.orgId, p.orgId),
+      eq(timesheets.employeeId, empId),
+      eq(timesheets.period, parsed.data.period),
+    ));
+
+    let result;
+    if (existing) {
+      if (existing.approvedAt) {
+        res.status(409).json({ error: "This timesheet has already been approved. Please contact HR to make changes." });
+        return;
+      }
+      const [updated] = await db.update(timesheets).set({
+        daysWorked: parsed.data.daysWorked,
+        normalHours: parsed.data.normalHours,
+        overtimeHours: parsed.data.overtimeHours,
+        holidayHours: parsed.data.holidayHours,
+        approvedAt: null,
+        approvedBy: null,
+      }).where(eq(timesheets.id, existing.id)).returning();
+      result = updated;
+    } else {
+      const [created] = await db.insert(timesheets).values({
+        orgId: p.orgId, employeeId: empId, ...parsed.data,
+      }).returning();
+      result = created;
+    }
+
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+// ── Pending leave requests for approvers (managers, HR, admins) ─────────────
+router.get("/pending-leaves", requireAuth("leave:approve"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+
+    const rows = await db.select({ leave: leaveRequests, employee: employees })
+      .from(leaveRequests)
+      .innerJoin(employees, eq(leaveRequests.employeeId, employees.id))
+      .where(eq(leaveRequests.orgId, p.orgId))
+      .orderBy(desc(leaveRequests.createdAt));
+
+    res.json(rows);
+  } catch (err) { next(err); }
+});
+
 export default router;

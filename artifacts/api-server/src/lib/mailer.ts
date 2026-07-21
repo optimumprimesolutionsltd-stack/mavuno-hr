@@ -247,3 +247,148 @@ export async function sendPayslipEmail(opts: {
   });
   logger.info({ to, period }, "mailer: payslip email sent");
 }
+
+// ── Statutory remittance confirmation ────────────────────────────────────────
+
+export async function sendStatutoryRemittanceEmail(opts: {
+  to: string;
+  orgName: string;
+  kind: "NSSF" | "SHIF";
+  period: string;
+  employeeCount: number;
+  totalAmountKes: number; // cents
+  filedAt: Date;
+}): Promise<void> {
+  const { to, orgName, kind, period, employeeCount, totalAmountKes, filedAt } = opts;
+
+  const label = kind === "NSSF" ? "NSSF (eCitizen)" : "SHIF (SHA Portal)";
+  const actionUrl = kind === "NSSF"
+    ? "https://ecitizen.go.ke"
+    : "https://sha.go.ke";
+  const actionLabel = kind === "NSSF" ? "File on eCitizen →" : "File on SHA Portal →";
+  const accentColor = kind === "NSSF" ? "#f59e0b" : "#3b82f6";
+  const accentBg = kind === "NSSF" ? "#fffbeb" : "#eff6ff";
+  const accentBorder = kind === "NSSF" ? "#fde68a" : "#bfdbfe";
+
+  const fmt = (cents: number) =>
+    "KES " + (cents / 100).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const fmtDate = (d: Date) =>
+    d.toLocaleString("en-KE", { dateStyle: "long", timeStyle: "short", timeZone: "Africa/Nairobi" });
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif;color:#1e293b">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0">
+    <tr><td align="center">
+      <table width="540" cellpadding="0" cellspacing="0"
+             style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
+
+        <!-- Header -->
+        <tr><td style="background:#0f172a;padding:28px 36px">
+          <span style="font-size:20px;font-weight:bold;letter-spacing:2px;color:#fff;font-family:'Courier New',monospace">
+            ZAWADI<span style="color:#22c55e">.HR</span>
+          </span>
+          <div style="margin-top:6px;font-size:11px;color:#94a3b8;letter-spacing:1px;font-family:'Courier New',monospace">
+            ${orgName.toUpperCase()}
+          </div>
+        </td></tr>
+
+        <!-- Body -->
+        <tr><td style="padding:36px">
+
+          <!-- Badge -->
+          <div style="background:${accentBg};border:1px solid ${accentBorder};border-radius:8px;padding:16px 20px;margin-bottom:24px">
+            <div style="font-size:11px;color:${accentColor};font-weight:bold;letter-spacing:1px;margin-bottom:4px;font-family:'Courier New',monospace">
+              ${kind} REMITTANCE FILE DOWNLOADED
+            </div>
+            <div style="font-size:18px;font-weight:bold;color:#0f172a;font-family:'Courier New',monospace">${period}</div>
+          </div>
+
+          <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#334155">
+            The <strong>${label}</strong> remittance file for <strong>${period}</strong> has been downloaded
+            from Zawadi HR. Please upload this file to the ${kind === "NSSF" ? "NSSF eCitizen portal" : "SHA portal"} to complete the statutory filing.
+          </p>
+
+          <!-- Summary table -->
+          <table width="100%" cellpadding="0" cellspacing="0"
+                 style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:24px">
+            <tr style="background:#f8fafc">
+              <td style="padding:12px 16px;font-size:11px;color:#64748b;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #e2e8f0">Filing</td>
+              <td style="padding:12px 16px;font-size:14px;font-weight:600;color:#0f172a;border-bottom:1px solid #e2e8f0">${label}</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 16px;font-size:11px;color:#64748b;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #e2e8f0">Period</td>
+              <td style="padding:12px 16px;font-size:14px;font-weight:600;color:#0f172a;border-bottom:1px solid #e2e8f0">${period}</td>
+            </tr>
+            <tr style="background:#f8fafc">
+              <td style="padding:12px 16px;font-size:11px;color:#64748b;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #e2e8f0">Employees</td>
+              <td style="padding:12px 16px;font-size:14px;font-weight:600;color:#0f172a;border-bottom:1px solid #e2e8f0">${employeeCount}</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 16px;font-size:11px;color:#64748b;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #e2e8f0">Total Amount</td>
+              <td style="padding:12px 16px;font-size:14px;font-weight:700;color:${accentColor};border-bottom:1px solid #e2e8f0">${fmt(totalAmountKes)}</td>
+            </tr>
+            <tr style="background:#f8fafc">
+              <td style="padding:12px 16px;font-size:11px;color:#64748b;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:1px">Downloaded At</td>
+              <td style="padding:12px 16px;font-size:13px;color:#475569">${fmtDate(filedAt)}</td>
+            </tr>
+          </table>
+
+          <!-- CTA -->
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:24px">
+            <tr><td style="background:${accentColor};border-radius:6px">
+              <a href="${actionUrl}"
+                 style="display:inline-block;padding:12px 28px;color:#ffffff;font-weight:bold;font-size:13px;letter-spacing:1px;text-decoration:none;font-family:'Courier New',monospace">
+                ${actionLabel}
+              </a>
+            </td></tr>
+          </table>
+
+          <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6">
+            This email serves as an audit record that the ${kind} remittance file was generated.
+            Please retain it until you have confirmed the upload on the government portal.<br><br>
+            — ${orgName} Payroll System
+          </p>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="padding:16px 36px;border-top:1px solid #f1f5f9;background:#f8fafc">
+          <p style="margin:0;font-size:11px;color:#94a3b8">
+            Zawadi HR — Kenya Payroll &amp; HR Platform &nbsp;|&nbsp;
+            This is an automated email, please do not reply.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  const text = [
+    `ZAWADI HR — ${kind} REMITTANCE CONFIRMATION`,
+    ``,
+    `Organisation: ${orgName}`,
+    `Filing:       ${label}`,
+    `Period:       ${period}`,
+    `Employees:    ${employeeCount}`,
+    `Total Amount: ${fmt(totalAmountKes)}`,
+    `Downloaded:   ${fmtDate(filedAt)}`,
+    ``,
+    `Next step: upload the CSV file to ${actionUrl}`,
+    ``,
+    `This email is an audit record that the remittance file was generated.`,
+    `— Zawadi HR`,
+  ].join("\n");
+
+  await transporter.sendMail({
+    from: FROM(),
+    to,
+    subject: `[Zawadi HR] ${kind} Remittance File — ${period} | ${orgName}`,
+    html,
+    text,
+  });
+  logger.info({ to, kind, period }, "mailer: statutory remittance email sent");
+}

@@ -12,6 +12,8 @@ import {
   Loader2,
   Menu,
   X,
+  Clock,
+  ClipboardCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -19,11 +21,17 @@ interface PortalLayoutProps {
   children: ReactNode;
 }
 
-const NAV_ITEMS = [
-  { href: "/portal", label: "My Profile", icon: User, exact: true },
-  { href: "/portal/leave", label: "Leave", icon: Calendar },
-  { href: "/portal/loans", label: "Loans", icon: Coins },
-  { href: "/portal/p9", label: "P9 Tax Form", icon: FileText },
+// Roles that can approve leave requests
+const APPROVER_ROLES = new Set(["manager", "hr", "admin", "approver"]);
+
+// All nav items; approvals is filtered by role in the component
+const BASE_NAV_ITEMS = [
+  { href: "/portal", label: "My Profile", icon: User, exact: true, roles: null },
+  { href: "/portal/leave", label: "Leave", icon: Calendar, roles: null },
+  { href: "/portal/timesheet", label: "Timesheet", icon: Clock, roles: null },
+  { href: "/portal/loans", label: "Loans", icon: Coins, roles: null },
+  { href: "/portal/p9", label: "P9 Tax Form", icon: FileText, roles: null },
+  { href: "/portal/approvals", label: "Approvals", icon: ClipboardCheck, roles: APPROVER_ROLES },
 ];
 
 export function PortalGuard({ children }: { children: ReactNode }) {
@@ -52,6 +60,10 @@ export function PortalLayout({ children }: PortalLayoutProps) {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const NAV_ITEMS = BASE_NAV_ITEMS.filter(
+    (item) => !item.roles || (user?.role && item.roles.has(user.role))
+  );
 
   const handleLogout = () => {
     logout.mutate(undefined, {

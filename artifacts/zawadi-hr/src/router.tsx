@@ -21,6 +21,8 @@ import { PortalProfile } from "@/pages/portal/profile";
 import { PortalLeave } from "@/pages/portal/leave";
 import { PortalLoans } from "@/pages/portal/loans";
 import { PortalP9 } from "@/pages/portal/p9";
+import { PortalTimesheet } from "@/pages/portal/timesheet";
+import { PortalApprovals } from "@/pages/portal/approvals";
 
 import { AdminLayout, AdminGuard } from "@/components/layout/admin-layout";
 import { PortalLayout, PortalGuard } from "@/components/layout/portal-layout";
@@ -123,6 +125,8 @@ export function Router() {
           <PortalLayout>
             <Switch>
               <Route path="/portal/leave" component={PortalLeave} />
+              <Route path="/portal/timesheet" component={PortalTimesheet} />
+              <Route path="/portal/approvals" component={PortalApprovals} />
               <Route path="/portal/loans" component={PortalLoans} />
               <Route path="/portal/p9" component={PortalP9} />
               <Route><Redirect to="/portal" /></Route>

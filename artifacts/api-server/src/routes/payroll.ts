@@ -10,6 +10,8 @@ import { computePayslip } from "../lib/payroll.js";
 import { resolveConfig } from "../lib/statutory-resolve.js";
 import { canApproveRun, can } from "../lib/rbac.js";
 import { HttpError } from "../lib/http-error.js";
+import { sendStatutoryRemittanceEmail } from "../lib/mailer.js";
+import { logger } from "../lib/logger.js";
 import { createHash } from "crypto";
 
 const router = Router();
@@ -849,6 +851,21 @@ router.get("/:id/itax/nssf", requireAuth("payroll:read"), async (req, res, next)
       });
     }
 
+    // Send confirmation email to the HR user who triggered the download
+    try {
+      await sendStatutoryRemittanceEmail({
+        to: p.email,
+        orgName: org?.name ?? "",
+        kind: "NSSF",
+        period: run.period,
+        employeeCount: rows.length,
+        totalAmountKes: totalNssf,
+        filedAt: now,
+      });
+    } catch (mailErr) {
+      logger.warn({ err: mailErr }, "nssf: failed to send remittance confirmation email");
+    }
+
     res.json({
       rows: nssfRows,
       warnings,
@@ -913,6 +930,21 @@ router.get("/:id/itax/shif", requireAuth("payroll:read"), async (req, res, next)
         orgId: p.orgId, runId: id, kind: "SHIF", period: run.period,
         itemCount: rows.length, totalAmount: totalShif, status: "downloaded", filedAt: now,
       });
+    }
+
+    // Send confirmation email to the HR user who triggered the download
+    try {
+      await sendStatutoryRemittanceEmail({
+        to: p.email,
+        orgName: org?.name ?? "",
+        kind: "SHIF",
+        period: run.period,
+        employeeCount: rows.length,
+        totalAmountKes: totalShif,
+        filedAt: now,
+      });
+    } catch (mailErr) {
+      logger.warn({ err: mailErr }, "shif: failed to send remittance confirmation email");
     }
 
     res.json({
