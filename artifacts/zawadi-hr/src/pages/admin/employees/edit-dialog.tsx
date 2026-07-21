@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, User, Briefcase, Landmark, Shield } from "lucide-react";
+import { Loader2, User, Briefcase, Landmark, Shield, AlertTriangle } from "lucide-react";
 
 interface Employee {
   id: number;
@@ -336,8 +336,46 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
             <TabsContent value="compliance" className="mt-0 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 {textField("KRA PIN", "kraPin", "text", "A000000000B")}
-                {textField("NSSF NO", "nssfNo")}
-                {textField("SHIF NO", "shifNo")}
+
+                {/* NSSF No — required for statutory compliance */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-mono text-muted-foreground flex items-center gap-1.5">
+                    NSSF NO
+                    {!form.nssfNo && (
+                      <span className="inline-flex items-center gap-0.5 text-amber-500">
+                        <AlertTriangle className="h-3 w-3" />
+                        <span className="text-[10px]">Required for NSSF filing</span>
+                      </span>
+                    )}
+                  </Label>
+                  <Input
+                    type="text"
+                    value={form.nssfNo}
+                    onChange={(e) => setForm((f) => ({ ...f, nssfNo: e.target.value }))}
+                    placeholder="e.g. 1234567"
+                    className={`bg-background/50 ${!form.nssfNo ? "border-amber-500/50 focus-visible:ring-amber-500/30" : ""}`}
+                  />
+                </div>
+
+                {/* SHIF No — required for statutory compliance */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-mono text-muted-foreground flex items-center gap-1.5">
+                    SHIF NO
+                    {!form.shifNo && (
+                      <span className="inline-flex items-center gap-0.5 text-amber-500">
+                        <AlertTriangle className="h-3 w-3" />
+                        <span className="text-[10px]">Required for SHIF filing</span>
+                      </span>
+                    )}
+                  </Label>
+                  <Input
+                    type="text"
+                    value={form.shifNo}
+                    onChange={(e) => setForm((f) => ({ ...f, shifNo: e.target.value }))}
+                    placeholder="e.g. 1234567"
+                    className={`bg-background/50 ${!form.shifNo ? "border-amber-500/50 focus-visible:ring-amber-500/30" : ""}`}
+                  />
+                </div>
               </div>
               {selectField("RESIDENT STATUS", "residentStatus", [
                 { value: "resident", label: "Resident" },

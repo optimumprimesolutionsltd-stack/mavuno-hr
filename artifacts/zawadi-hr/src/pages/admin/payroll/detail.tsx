@@ -212,6 +212,13 @@ export function PayrollDetail() {
     enabled: id > 0 && !isLoading && !!(data as any)?.run && (data as any)?.run?.status !== "draft",
   });
 
+  const { data: readinessData } = useQuery({
+    queryKey: ["payroll-readiness", id],
+    queryFn: () => customFetch(`/api/payroll/${id}/readiness`) as Promise<any>,
+    enabled: id > 0 && !isLoading && ["draft", "pending_approval"].includes((data as any)?.run?.status ?? ""),
+    staleTime: 30_000,
+  });
+
   if (isLoading || !data) {
     return (
       <div className="animate-pulse space-y-4 max-w-[1200px] mx-auto">
@@ -387,6 +394,28 @@ export function PayrollDetail() {
           </CardHeader>
         </Card>
       </div>
+
+      {/* Compliance banner — missing NSSF / SHIF numbers */}
+      {canEdit && readinessData && !readinessData.ok && readinessData.missing?.length > 0 && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3 space-y-2">
+          <div className="flex items-center gap-2 text-amber-400 font-mono text-xs font-bold">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            {readinessData.missing.length} EMPLOYEE{readinessData.missing.length !== 1 ? "S" : ""} MISSING STATUTORY NUMBERS — NSSF / SHIF FILINGS MAY BE REJECTED
+          </div>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0.5">
+            {readinessData.missing.map((m: { name: string; employeeNo: string; missingFields: string[] }) => (
+              <li key={m.employeeNo} className="flex items-center gap-1.5 text-xs font-mono">
+                <span className="text-amber-300/80">{m.name}</span>
+                <span className="text-muted-foreground">({m.employeeNo})</span>
+                <span className="text-amber-500">— {m.missingFields.join(", ")}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-[11px] text-muted-foreground font-mono">
+            Update employee records in the Employees tab before submitting this payroll run.
+          </p>
+        </div>
+      )}
 
       {/* iTax P10 Export Dialog */}
       <Dialog open={itaxOpen} onOpenChange={setItaxOpen}>
