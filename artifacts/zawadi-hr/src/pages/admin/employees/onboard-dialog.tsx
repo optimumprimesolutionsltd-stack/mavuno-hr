@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, ChevronRight, ChevronLeft, Check, User, Briefcase, Landmark, Shield } from "lucide-react";
+import { Loader2, ChevronRight, ChevronLeft, Check, User, Briefcase, Landmark, Shield, Info as InfoIcon } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getListEmployeesQueryKey } from "@workspace/api-client-react";
 
 interface FormData {
@@ -267,7 +268,21 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-mono text-muted-foreground">WORKS ON PUBLIC HOLIDAYS?</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-xs font-mono text-muted-foreground">WORKS ON PUBLIC HOLIDAYS?</Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex cursor-default text-muted-foreground hover:text-foreground">
+                            <InfoIcon className="h-3.5 w-3.5" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[260px] text-center leading-relaxed">
+                          This controls whether public holidays reduce an employee's leave balance. It does not affect salary — pay is always based on contracted days.
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <Select
                     value={form.worksOnHolidays ? "yes" : "no"}
                     onValueChange={(v) => setForm(f => ({ ...f, worksOnHolidays: v === "yes" }))}

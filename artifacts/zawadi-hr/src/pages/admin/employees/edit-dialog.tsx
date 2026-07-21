@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, User, Briefcase, Landmark, Shield, AlertTriangle } from "lucide-react";
+import { Loader2, User, Briefcase, Landmark, Shield, AlertTriangle, Info as InfoIcon } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Employee {
   id: number;
@@ -285,10 +286,33 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
                     { value: "5", label: "5 days (Mon – Fri)" },
                     { value: "6", label: "6 days (Mon – Sat)" },
                   ])}
-                  {selectField("WORKS ON PUBLIC HOLIDAYS?", "worksOnHolidays", [
-                    { value: "no", label: "No — holidays not counted" },
-                    { value: "yes", label: "Yes — holidays count as leave" },
-                  ])}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-mono text-muted-foreground">WORKS ON PUBLIC HOLIDAYS?</Label>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex cursor-default text-muted-foreground hover:text-foreground">
+                              <InfoIcon className="h-3.5 w-3.5" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[260px] text-center leading-relaxed">
+                            This controls whether public holidays reduce an employee's leave balance. It does not affect salary — pay is always based on contracted days.
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <Select
+                      value={form.worksOnHolidays as string}
+                      onValueChange={(v) => setForm((f) => ({ ...f, worksOnHolidays: v }))}
+                    >
+                      <SelectTrigger className="bg-background/50"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no">No — holidays not counted</SelectItem>
+                        <SelectItem value="yes">Yes — holidays count as leave</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
               <div className="pt-2 border-t border-border/50">

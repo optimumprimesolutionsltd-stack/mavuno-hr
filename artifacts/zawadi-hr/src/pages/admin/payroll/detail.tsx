@@ -60,6 +60,7 @@ export function PayrollDetail() {
   const [nssfEmailFailed, setNssfEmailFailed] = useState<string | null>(null);
   const [shifEmailFailed, setShifEmailFailed] = useState<string | null>(null);
   const [ahlEmailFailed, setAhlEmailFailed] = useState<string | null>(null);
+  const [slipFilter, setSlipFilter] = useState("");
 
   const { data, isLoading } = useGetPayrollRun(id);
 
@@ -789,13 +790,22 @@ export function PayrollDetail() {
 
       {/* Payslips table */}
       <Card className="border-border/50 shadow-sm bg-card/30">
-        <CardHeader className="border-b border-border/30 flex flex-row items-center justify-between">
+        <CardHeader className="border-b border-border/30 flex flex-row items-center justify-between gap-3 flex-wrap">
           <CardTitle className="font-mono text-sm">INDIVIDUAL PAYSLIPS</CardTitle>
-          {canEdit && (
-            <p className="text-xs text-muted-foreground">
-              Click <Pencil className="h-3 w-3 inline mx-0.5" /> to edit any payslip before approving
-            </p>
-          )}
+          <div className="flex items-center gap-3 flex-1 justify-end">
+            <input
+              type="search"
+              placeholder="Filter by name or dept…"
+              value={slipFilter}
+              onChange={(e) => setSlipFilter(e.target.value)}
+              className="h-8 w-48 rounded-md border border-border bg-background/50 px-3 text-xs font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            {canEdit && (
+              <p className="text-xs text-muted-foreground hidden sm:block">
+                Click <Pencil className="h-3 w-3 inline mx-0.5" /> to edit a payslip
+              </p>
+            )}
+          </div>
         </CardHeader>
         <div className="overflow-x-auto">
           <Table>
@@ -803,64 +813,89 @@ export function PayrollDetail() {
               <TableRow>
                 <TableHead className="font-mono text-xs">EMP NO</TableHead>
                 <TableHead className="font-mono text-xs">EMPLOYEE</TableHead>
+                <TableHead className="font-mono text-xs">DEPARTMENT</TableHead>
+                <TableHead className="font-mono text-xs text-right">BASIC</TableHead>
                 <TableHead className="font-mono text-xs text-right">GROSS</TableHead>
-                <TableHead className="font-mono text-xs text-right">PAYE</TableHead>
-                <TableHead className="font-mono text-xs text-right">NSSF</TableHead>
-                <TableHead className="font-mono text-xs text-right">SHIF</TableHead>
+                <TableHead className="font-mono text-xs text-right">DEDUCTIONS</TableHead>
                 <TableHead className="font-mono text-xs text-right text-primary">NET PAY</TableHead>
                 <TableHead className="w-16" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {payslips && payslips.length > 0 ? (
-                payslips.map((item: any, i: number) => {
-                  const slip = item.slip ?? item;
-                  const emp = item.emp ?? item.employee ?? {};
-                  const hasOverrides = !!slip.breakdown?.overrides &&
-                    Object.keys(slip.breakdown.overrides).some((k) => {
-                      const v = slip.breakdown.overrides[k];
-                      return v !== null && v !== 0 && v !== "" && v !== undefined;
-                    });
-                  const empName = `${emp.firstName ?? ""} ${emp.lastName ?? ""}`.trim();
-                  return (
-                    <TableRow key={slip.id || i} className="group hover:bg-muted/20">
-                      <TableCell className="font-mono text-xs text-muted-foreground">{emp.empNo || "-"}</TableCell>
-                      <TableCell className="font-medium text-sm">
-                        <span>{empName}</span>
-                        {hasOverrides && (
-                          <span className="ml-2 text-[10px] font-mono text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">EDITED</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm">{formatMoney(slip.gross ?? 0)}</TableCell>
-                      <TableCell className="text-right font-mono text-sm text-muted-foreground">{formatMoney(slip.paye ?? 0)}</TableCell>
-                      <TableCell className="text-right font-mono text-sm text-muted-foreground">{formatMoney(slip.nssfEmployee ?? 0)}</TableCell>
-                      <TableCell className="text-right font-mono text-sm text-muted-foreground">{formatMoney(slip.shif ?? 0)}</TableCell>
-                      <TableCell className="text-right font-mono text-sm text-primary font-bold">{formatMoney(slip.netPay ?? 0)}</TableCell>
-                      <TableCell className="p-1">
-                        <div className="flex gap-0.5">
-                          {canEdit && (
-                            <Button
-                              variant="ghost" size="icon" className="h-7 w-7"
-                              onClick={() => setEditTarget({ slip, emp })}
-                              title="Edit payslip"
-                            >
-                              <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-                            </Button>
+                (() => {
+                  const filterLower = slipFilter.trim().toLowerCase();
+                  const filtered = payslips.filter((item: any) => {
+                    if (!filterLower) return true;
+                    const slip = item.slip ?? item;
+                    const emp = item.emp ?? {};
+                    const dept = item.dept ?? {};
+                    const empName = `${emp.firstName ?? ""} ${emp.lastName ?? ""}`.trim().toLowerCase();
+                    const deptName = (dept.name ?? "").toLowerCase();
+                    const empNo = (emp.empNo ?? "").toLowerCase();
+                    return empName.includes(filterLower) || deptName.includes(filterLower) || empNo.includes(filterLower);
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground font-mono text-sm">
+                          NO RESULTS FOR "{slipFilter}"
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+
+                  return filtered.map((item: any, i: number) => {
+                    const slip = item.slip ?? item;
+                    const emp = item.emp ?? item.employee ?? {};
+                    const dept = item.dept ?? {};
+                    const hasOverrides = !!slip.breakdown?.overrides &&
+                      Object.keys(slip.breakdown.overrides).some((k) => {
+                        const v = slip.breakdown.overrides[k];
+                        return v !== null && v !== 0 && v !== "" && v !== undefined;
+                      });
+                    const empName = `${emp.firstName ?? ""} ${emp.lastName ?? ""}`.trim();
+                    return (
+                      <TableRow key={slip.id || i} className="group hover:bg-muted/20">
+                        <TableCell className="font-mono text-xs text-muted-foreground">{emp.empNo || "-"}</TableCell>
+                        <TableCell className="font-medium text-sm">
+                          <span>{empName}</span>
+                          {hasOverrides && (
+                            <span className="ml-2 text-[10px] font-mono text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">EDITED</span>
                           )}
-                          {slip.id && (
-                            <Button
-                              variant="ghost" size="icon" className="h-7 w-7"
-                              onClick={() => handleDownloadPayslip(slip.id, empName, run?.period)}
-                              title="Download PDF payslip"
-                            >
-                              <Download className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{dept.name || <span className="text-muted-foreground/40">—</span>}</TableCell>
+                        <TableCell className="text-right font-mono text-sm text-muted-foreground">{formatMoney(emp.basicSalary ?? 0)}</TableCell>
+                        <TableCell className="text-right font-mono text-sm">{formatMoney(slip.gross ?? 0)}</TableCell>
+                        <TableCell className="text-right font-mono text-sm text-muted-foreground">{formatMoney(slip.totalDeductions ?? 0)}</TableCell>
+                        <TableCell className="text-right font-mono text-sm text-primary font-bold">{formatMoney(slip.netPay ?? 0)}</TableCell>
+                        <TableCell className="p-1">
+                          <div className="flex gap-0.5">
+                            {canEdit && (
+                              <Button
+                                variant="ghost" size="icon" className="h-7 w-7"
+                                onClick={() => setEditTarget({ slip, emp })}
+                                title="Edit payslip"
+                              >
+                                <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                              </Button>
+                            )}
+                            {slip.id && (
+                              <Button
+                                variant="ghost" size="icon" className="h-7 w-7"
+                                onClick={() => handleDownloadPayslip(slip.id, empName, run?.period)}
+                                title="Download PDF payslip"
+                              >
+                                <Download className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  });
+                })()
               ) : (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-12 text-muted-foreground font-mono text-sm">

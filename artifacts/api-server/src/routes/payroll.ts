@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { payrollRuns, payslips, employees, loans, payoutBatches, statutoryFilings, organizations } from "@workspace/db/schema";
+import { payrollRuns, payslips, employees, loans, payoutBatches, statutoryFilings, organizations, departments } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { calculateRun, recalculateRun, applyLoanRepayments } from "../lib/payroll-run.js";
@@ -63,9 +63,10 @@ router.get("/:id", requireAuth("payroll:read"), async (req, res, next) => {
       .where(and(eq(payrollRuns.id, id), eq(payrollRuns.orgId, p.orgId)));
     if (!run) { res.status(404).json({ error: "Payroll run not found" }); return; }
 
-    const slips = await db.select({ slip: payslips, emp: employees })
+    const slips = await db.select({ slip: payslips, emp: employees, dept: departments })
       .from(payslips)
       .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .leftJoin(departments, eq(employees.departmentId, departments.id))
       .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
 
     const filings = await db.select().from(statutoryFilings)
