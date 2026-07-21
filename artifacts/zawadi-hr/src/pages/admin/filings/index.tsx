@@ -152,7 +152,7 @@ export function FilingsPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-mono">STATUTORY FILINGS</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Monthly P10, NSSF, and SHIF filing status — download exports from the payroll run page
+            Monthly P10, NSSF, SHIF, and AHL filing status — download exports from the payroll run page
           </p>
         </div>
       </div>

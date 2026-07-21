@@ -20,7 +20,7 @@ import { PayslipEditDialog } from "./payslip-edit-dialog";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
-import { downloadP10Csv, downloadNssfCsv, downloadShifCsv } from "@/lib/itax-csv";
+import { downloadP10Csv, downloadNssfCsv, downloadShifCsv, downloadAhlCsv } from "@/lib/itax-csv";
 
 // Status badge colour map
 function StatusBadge({ status }: { status: string }) {
@@ -56,6 +56,7 @@ export function PayrollDetail() {
   const [itaxLoading, setItaxLoading] = useState(false);
   const [nssfLoading, setNssfLoading] = useState(false);
   const [shifLoading, setShifLoading] = useState(false);
+  const [ahlLoading, setAhlLoading] = useState(false);
 
   const { data, isLoading } = useGetPayrollRun(id);
 
@@ -206,6 +207,26 @@ export function PayrollDetail() {
     }
   };
 
+  const handleAhlExport = async () => {
+    setAhlLoading(true);
+    try {
+      const result = await customFetch(`/api/payroll/${id}/itax/ahl`) as any;
+      queryClient.invalidateQueries({ queryKey: getGetPayrollRunQueryKey(id) });
+      if (result.warnings?.length) {
+        toast({
+          variant: "destructive",
+          title: `AHL — ${result.warnings.length} warning(s)`,
+          description: result.warnings.slice(0, 3).join("; "),
+        });
+      }
+      downloadAhlCsv(result);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "AHL Export Failed", description: err?.data?.error ?? err?.message });
+    } finally {
+      setAhlLoading(false);
+    }
+  };
+
   const { data: varianceData, isLoading: varianceLoading } = useQuery({
     queryKey: ["payroll-compare", id],
     queryFn: () => customFetch(`/api/payroll/${id}/compare`) as Promise<any>,
@@ -233,6 +254,7 @@ export function PayrollDetail() {
   const p10Filing = (filings as any[])?.find((f: any) => f.kind === "P10");
   const nssfFiling = (filings as any[])?.find((f: any) => f.kind === "NSSF");
   const shifFiling = (filings as any[])?.find((f: any) => f.kind === "SHIF");
+  const ahlFiling = (filings as any[])?.find((f: any) => f.kind === "AHL");
 
   const handleAction = (action: string) => {
     actionMutation.mutate({ id, data: { action: action as any } });
@@ -343,6 +365,18 @@ export function PayrollDetail() {
                 {shifLoading ? "LOADING..." : "SHIF CSV"}
                 {shifFiling && !shifLoading && (
                   <span className="ml-1 text-[10px] bg-sky-500/20 text-sky-300 px-1 rounded font-mono">FILED</span>
+                )}
+              </Button>
+              <Button
+                size="sm" variant="outline"
+                onClick={handleAhlExport}
+                disabled={ahlLoading}
+                className="font-mono gap-1.5 border-violet-500/50 text-violet-400 hover:bg-violet-500/10"
+              >
+                <Download className={`h-3.5 w-3.5 ${ahlLoading ? "animate-pulse" : ""}`} />
+                {ahlLoading ? "LOADING..." : "AHL CSV"}
+                {ahlFiling && !ahlLoading && (
+                  <span className="ml-1 text-[10px] bg-violet-500/20 text-violet-300 px-1 rounded font-mono">FILED</span>
                 )}
               </Button>
               <Button

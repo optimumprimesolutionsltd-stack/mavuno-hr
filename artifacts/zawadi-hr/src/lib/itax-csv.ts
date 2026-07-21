@@ -186,6 +186,44 @@ export function downloadShifCsv(data: {
   downloadCsv(`SHIF_${data.period}_${org}.csv`, csv);
 }
 
+// ── AHL (Affordable Housing Levy) bulk-upload format ────────────────────────
+
+export const AHL_HEADERS = [
+  "KRA PIN",
+  "Employee Name",
+  "National ID",
+  "Employee AHL",
+  "Employer AHL",
+  "Total AHL",
+] as const;
+
+/** Build and immediately download an AHL CSV from the API response */
+export function downloadAhlCsv(data: {
+  rows: Array<{
+    kraPin: string;
+    name: string;
+    nationalId: string;
+    employeeAhl: number;
+    employerAhl: number;
+    totalAhl: number;
+  }>;
+  period: string;
+  orgName: string;
+}): void {
+  const csvRows = data.rows.map((r) => [
+    r.kraPin,
+    r.name,
+    r.nationalId,
+    r.employeeAhl,
+    r.employerAhl,
+    r.totalAhl,
+  ] as (string | number)[]);
+
+  const csv = buildCsv(AHL_HEADERS, csvRows);
+  const org = data.orgName.replace(/[^A-Z0-9]/gi, "").slice(0, 10) || "ORG";
+  downloadCsv(`AHL_${data.period}_${org}.csv`, csv);
+}
+
 /** Build and immediately download a P9 CSV from the API response */
 export function downloadP9Csv(data: {
   rows: Array<{

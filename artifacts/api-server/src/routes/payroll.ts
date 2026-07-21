@@ -959,6 +959,90 @@ router.get("/:id/itax/shif", requireAuth("payroll:read"), async (req, res, next)
   } catch (err) { next(err); }
 });
 
+// ── GET /:id/itax/ahl — AHL bulk-upload CSV data + record filing ─────────────
+router.get("/:id/itax/ahl", requireAuth("payroll:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+
+    const [run] = await db.select().from(payrollRuns)
+      .where(and(eq(payrollRuns.id, id), eq(payrollRuns.orgId, p.orgId)));
+    if (!run) throw new HttpError(404, "Payroll run not found");
+
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, p.orgId));
+
+    const rows = await db.select({ slip: payslips, emp: employees })
+      .from(payslips)
+      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
+
+    const warnings: string[] = [];
+    const ahlRows = rows.map(({ slip, emp }) => {
+      const name = `${emp.firstName} ${emp.lastName}`;
+      if (!emp.kraPin) warnings.push(`${emp.empNo} — ${name}: missing KRA PIN`);
+      const employeeAhl = slip.housingLevyEmployee;
+      const employerAhl = slip.housingLevyEmployer;
+      return {
+        empNo: emp.empNo,
+        kraPin: emp.kraPin ?? "",
+        nationalId: emp.nationalId ?? "",
+        name,
+        employeeAhl,
+        employerAhl,
+        totalAhl: employeeAhl + employerAhl,
+        missingPin: !emp.kraPin,
+      };
+    });
+
+    const totalAhl = rows.reduce((s, r) => s + r.slip.housingLevyEmployee + r.slip.housingLevyEmployer, 0);
+
+    // Upsert filing record
+    const [existing] = await db.select({ id: statutoryFilings.id }).from(statutoryFilings)
+      .where(and(
+        eq(statutoryFilings.orgId, p.orgId),
+        eq(statutoryFilings.runId, id),
+        eq(statutoryFilings.kind, "AHL"),
+      )).limit(1);
+
+    const now = new Date();
+    if (existing) {
+      await db.update(statutoryFilings)
+        .set({ status: "downloaded", filedAt: now, itemCount: rows.length, totalAmount: totalAhl })
+        .where(eq(statutoryFilings.id, existing.id));
+    } else {
+      await db.insert(statutoryFilings).values({
+        orgId: p.orgId, runId: id, kind: "AHL", period: run.period,
+        itemCount: rows.length, totalAmount: totalAhl, status: "downloaded", filedAt: now,
+      });
+    }
+
+    // Send confirmation email
+    try {
+      await sendStatutoryRemittanceEmail({
+        to: p.email,
+        orgName: org?.name ?? "",
+        kind: "AHL",
+        period: run.period,
+        employeeCount: rows.length,
+        totalAmountKes: totalAhl,
+        filedAt: now,
+      });
+    } catch (mailErr) {
+      logger.warn({ err: mailErr }, "ahl: failed to send remittance confirmation email");
+    }
+
+    res.json({
+      rows: ahlRows,
+      warnings,
+      orgName: org?.name ?? "",
+      period: run.period,
+      runName: run.name,
+      totalAhl,
+      ahlFiledAt: now.toISOString(),
+    });
+  } catch (err) { next(err); }
+});
+
 router.get("/:id/filings", requireAuth("payroll:read"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;

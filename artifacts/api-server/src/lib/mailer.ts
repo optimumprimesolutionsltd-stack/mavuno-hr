@@ -253,7 +253,7 @@ export async function sendPayslipEmail(opts: {
 export async function sendStatutoryRemittanceEmail(opts: {
   to: string;
   orgName: string;
-  kind: "NSSF" | "SHIF";
+  kind: "NSSF" | "SHIF" | "AHL";
   period: string;
   employeeCount: number;
   totalAmountKes: number; // cents
@@ -261,14 +261,30 @@ export async function sendStatutoryRemittanceEmail(opts: {
 }): Promise<void> {
   const { to, orgName, kind, period, employeeCount, totalAmountKes, filedAt } = opts;
 
-  const label = kind === "NSSF" ? "NSSF (eCitizen)" : "SHIF (SHA Portal)";
-  const actionUrl = kind === "NSSF"
-    ? "https://ecitizen.go.ke"
-    : "https://sha.go.ke";
-  const actionLabel = kind === "NSSF" ? "File on eCitizen →" : "File on SHA Portal →";
-  const accentColor = kind === "NSSF" ? "#f59e0b" : "#3b82f6";
-  const accentBg = kind === "NSSF" ? "#fffbeb" : "#eff6ff";
-  const accentBorder = kind === "NSSF" ? "#fde68a" : "#bfdbfe";
+  const kindMeta: Record<"NSSF" | "SHIF" | "AHL", {
+    label: string; actionUrl: string; actionLabel: string;
+    accentColor: string; accentBg: string; accentBorder: string; portal: string;
+  }> = {
+    NSSF: {
+      label: "NSSF (eCitizen)", actionUrl: "https://ecitizen.go.ke",
+      actionLabel: "File on eCitizen →",
+      accentColor: "#f59e0b", accentBg: "#fffbeb", accentBorder: "#fde68a",
+      portal: "NSSF eCitizen portal",
+    },
+    SHIF: {
+      label: "SHIF (SHA Portal)", actionUrl: "https://sha.go.ke",
+      actionLabel: "File on SHA Portal →",
+      accentColor: "#3b82f6", accentBg: "#eff6ff", accentBorder: "#bfdbfe",
+      portal: "SHA portal",
+    },
+    AHL: {
+      label: "AHL (KRA iTax)", actionUrl: "https://itax.kra.go.ke",
+      actionLabel: "File on KRA iTax →",
+      accentColor: "#8b5cf6", accentBg: "#f5f3ff", accentBorder: "#ddd6fe",
+      portal: "KRA iTax portal",
+    },
+  };
+  const { label, actionUrl, actionLabel, accentColor, accentBg, accentBorder, portal } = kindMeta[kind];
 
   const fmt = (cents: number) =>
     "KES " + (cents / 100).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -309,7 +325,7 @@ export async function sendStatutoryRemittanceEmail(opts: {
 
           <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#334155">
             The <strong>${label}</strong> remittance file for <strong>${period}</strong> has been downloaded
-            from Zawadi HR. Please upload this file to the ${kind === "NSSF" ? "NSSF eCitizen portal" : "SHA portal"} to complete the statutory filing.
+            from Zawadi HR. Please upload this file to the ${portal} to complete the statutory filing.
           </p>
 
           <!-- Summary table -->
