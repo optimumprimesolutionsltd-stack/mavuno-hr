@@ -860,7 +860,13 @@ export function PayrollDetail() {
                       <TableRow key={slip.id || i} className="group hover:bg-muted/20">
                         <TableCell className="font-mono text-xs text-muted-foreground">{emp.empNo || "-"}</TableCell>
                         <TableCell className="font-medium text-sm">
-                          <span>{empName}</span>
+                          {emp.id ? (
+                            <Link href={`/admin/employees/${emp.id}`} className="hover:underline underline-offset-2 text-foreground hover:text-primary transition-colors">
+                              {empName}
+                            </Link>
+                          ) : (
+                            <span>{empName}</span>
+                          )}
                           {hasOverrides && (
                             <span className="ml-2 text-[10px] font-mono text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">EDITED</span>
                           )}
