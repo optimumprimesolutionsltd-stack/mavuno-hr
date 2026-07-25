@@ -14,6 +14,7 @@ import {
   ArrowLeft, CheckCircle, Send, PlayCircle, RotateCcw, FileText,
   RefreshCw, Pencil, Mail, Download, TrendingDown, TrendingUp,
   FileSpreadsheet, AlertTriangle, ExternalLink, ChevronDown, ChevronUp,
+  ArrowUpDown,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PayslipEditDialog } from "./payslip-edit-dialog";
@@ -61,6 +62,8 @@ export function PayrollDetail() {
   const [shifEmailFailed, setShifEmailFailed] = useState<string | null>(null);
   const [ahlEmailFailed, setAhlEmailFailed] = useState<string | null>(null);
   const [slipFilter, setSlipFilter] = useState("");
+  const [sortCol, setSortCol] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const { data, isLoading } = useGetPayrollRun(id);
 
@@ -811,13 +814,40 @@ export function PayrollDetail() {
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
-                <TableHead className="font-mono text-xs">EMP NO</TableHead>
-                <TableHead className="font-mono text-xs">EMPLOYEE</TableHead>
-                <TableHead className="font-mono text-xs">DEPARTMENT</TableHead>
-                <TableHead className="font-mono text-xs text-right">BASIC</TableHead>
-                <TableHead className="font-mono text-xs text-right">GROSS</TableHead>
-                <TableHead className="font-mono text-xs text-right">DEDUCTIONS</TableHead>
-                <TableHead className="font-mono text-xs text-right text-primary">NET PAY</TableHead>
+                {(["empno", "name", "dept", "basic", "gross", "deductions", "net"] as const).map((col, idx) => {
+                  const labels: Record<string, string> = {
+                    empno: "EMP NO", name: "EMPLOYEE", dept: "DEPARTMENT",
+                    basic: "BASIC", gross: "GROSS",
+                    deductions: "DEDUCTIONS", net: "NET PAY",
+                  };
+                  const isNumeric = ["basic", "gross", "deductions", "net"].includes(col);
+                  const isActive = sortCol === col;
+                  return (
+                    <TableHead
+                      key={col}
+                      className={`font-mono text-xs select-none cursor-pointer hover:text-foreground transition-colors ${isNumeric ? "text-right" : ""} ${col === "net" ? "text-primary" : ""}`}
+                      onClick={() => {
+                        if (sortCol === col) {
+                          setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+                        } else {
+                          setSortCol(col);
+                          setSortDir("asc");
+                        }
+                      }}
+                    >
+                      <span className={`inline-flex items-center gap-1 ${isNumeric ? "flex-row-reverse" : ""}`}>
+                        {labels[col]}
+                        {isActive ? (
+                          sortDir === "asc"
+                            ? <ChevronUp className="h-3 w-3 shrink-0" />
+                            : <ChevronDown className="h-3 w-3 shrink-0" />
+                        ) : (
+                          <ArrowUpDown className="h-3 w-3 shrink-0 text-muted-foreground/40" />
+                        )}
+                      </span>
+                    </TableHead>
+                  );
+                })}
                 <TableHead className="w-16" />
               </TableRow>
             </TableHeader>
@@ -835,6 +865,35 @@ export function PayrollDetail() {
                     const empNo = (emp.empNo ?? "").toLowerCase();
                     return empName.includes(filterLower) || deptName.includes(filterLower) || empNo.includes(filterLower);
                   });
+
+                  if (sortCol) {
+                    filtered.sort((a: any, b: any) => {
+                      const aSlip = a.slip ?? a; const aEmp = a.emp ?? a.employee ?? {}; const aDept = a.dept ?? {};
+                      const bSlip = b.slip ?? b; const bEmp = b.emp ?? b.employee ?? {}; const bDept = b.dept ?? {};
+                      let aVal: any, bVal: any;
+                      if (sortCol === "empno") {
+                        aVal = (aEmp.empNo ?? "").toLowerCase();
+                        bVal = (bEmp.empNo ?? "").toLowerCase();
+                      } else if (sortCol === "name") {
+                        aVal = `${aEmp.firstName ?? ""} ${aEmp.lastName ?? ""}`.trim().toLowerCase();
+                        bVal = `${bEmp.firstName ?? ""} ${bEmp.lastName ?? ""}`.trim().toLowerCase();
+                      } else if (sortCol === "dept") {
+                        aVal = (aDept.name ?? "").toLowerCase();
+                        bVal = (bDept.name ?? "").toLowerCase();
+                      } else if (sortCol === "basic") {
+                        aVal = aEmp.basicSalary ?? 0; bVal = bEmp.basicSalary ?? 0;
+                      } else if (sortCol === "gross") {
+                        aVal = aSlip.gross ?? 0; bVal = bSlip.gross ?? 0;
+                      } else if (sortCol === "deductions") {
+                        aVal = aSlip.totalDeductions ?? 0; bVal = bSlip.totalDeductions ?? 0;
+                      } else if (sortCol === "net") {
+                        aVal = aSlip.netPay ?? 0; bVal = bSlip.netPay ?? 0;
+                      }
+                      if (aVal < bVal) return sortDir === "asc" ? -1 : 1;
+                      if (aVal > bVal) return sortDir === "asc" ? 1 : -1;
+                      return 0;
+                    });
+                  }
 
                   if (filtered.length === 0) {
                     return (
