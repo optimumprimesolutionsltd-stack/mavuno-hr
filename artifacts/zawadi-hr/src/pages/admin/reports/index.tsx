@@ -5,22 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileText, Loader2, Info, AlertTriangle, FileSpreadsheet } from "lucide-react";
+import { Download, FileText, Loader2, Info, AlertTriangle, FileSpreadsheet, FileDown } from "lucide-react";
 import { downloadP9Csv, centsToKes } from "@/lib/itax-csv";
 import { formatMoney } from "@/lib/utils";
 
 const BASE_REPORT_TYPES = [
-  { id: "muster",  label: "📋  Muster Roll (Full Payroll)" },
-  { id: "paye",    label: "🏛️  P10 — PAYE Return (KRA)" },
-  { id: "nssf",    label: "🏛️  NSSF Contribution Return" },
-  { id: "shif",    label: "🏛️  SHIF Contribution Return" },
-  { id: "housing", label: "🏛️  Affordable Housing Levy" },
-  { id: "pension", label: "🦺  Pension Fund Return (Tier II)" },
-  { id: "bank",    label: "🏦  Bank Payment Schedule" },
-  { id: "mpesa",   label: "📱  M-Pesa Bulk Disbursement" },
-  { id: "cash",    label: "💵  Cash / Cheque List" },
-  { id: "gl",      label: "📊  General Ledger Journal" },
-  { id: "p9",      label: "📄  P9 Annual Tax Certificate" },
+  { id: "muster",   label: "📋  Muster Roll (Full Payroll)" },
+  { id: "paye",     label: "🏛️  P10 — PAYE Return (KRA)" },
+  { id: "p10-pdf",  label: "🏛️  P10 Tax Cards (PDF)" },
+  { id: "nssf",     label: "🏛️  NSSF Contribution Return" },
+  { id: "shif",     label: "🏛️  SHIF Contribution Return" },
+  { id: "housing",  label: "🏛️  Affordable Housing Levy" },
+  { id: "pension",  label: "🦺  Pension Fund Return (Tier II)" },
+  { id: "bank",     label: "🏦  Bank Payment Schedule" },
+  { id: "mpesa",    label: "📱  M-Pesa Bulk Disbursement" },
+  { id: "cash",     label: "💵  Cash / Cheque List" },
+  { id: "gl",       label: "📊  General Ledger Journal" },
+  { id: "p9",       label: "📄  P9 Annual Tax Certificate" },
 ];
 
 export function Reports() {
@@ -30,6 +31,8 @@ export function Reports() {
   const [p9Year, setP9Year] = useState<string>(String(new Date().getFullYear()));
   const [p9Loading, setP9Loading] = useState(false);
   const [p9Warnings, setP9Warnings] = useState<string[]>([]);
+  const [p9PdfLoading, setP9PdfLoading] = useState(false);
+  const [p10PdfLoading, setP10PdfLoading] = useState(false);
 
   useEffect(() => {
     if (runs && runs.length > 0 && !runId) {
@@ -44,6 +47,33 @@ export function Reports() {
 
   const tier2Provider = (report as any)?.tier2Provider ?? "nssf";
   const tier2ProviderName = (report as any)?.tier2ProviderName ?? "Private Pension Fund";
+
+  const downloadPdf = async (url: string, filename: string, setLoading: (v: boolean) => void) => {
+    setLoading(true);
+    try {
+      const token = sessionStorage.getItem("zawadi_session_token");
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const resp = await fetch(url, { headers });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error((err as any).error ?? `HTTP ${resp.status}`);
+      }
+      const blob = await resp.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      document.body.removeChild(a);
+      setP9Warnings([]);
+    } catch (err: any) {
+      setP9Warnings([err?.message ?? "Failed to download PDF."]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleP9Download = async () => {
     setP9Loading(true);
@@ -68,6 +98,16 @@ export function Reports() {
     } finally {
       setP9Loading(false);
     }
+  };
+
+  const handleP9PdfDownload = async () => {
+    const orgPin = "ORG";
+    await downloadPdf(`/api/reports/p9-pdf?year=${p9Year}`, `P9_${p9Year}_${orgPin}.pdf`, setP9PdfLoading);
+  };
+
+  const handleP10PdfDownload = async () => {
+    const orgPin = "ORG";
+    await downloadPdf(`/api/reports/p10-pdf?year=${p9Year}`, `P10_${p9Year}_${orgPin}.pdf`, setP10PdfLoading);
   };
 
   const handleExport = () => {
@@ -136,7 +176,7 @@ export function Reports() {
             </SelectContent>
           </Select>
 
-          {reportType !== "p9" && (
+          {reportType !== "p9" && reportType !== "p10-pdf" && (
             <Button
               variant="outline"
               className="font-mono shrink-0"
@@ -148,7 +188,7 @@ export function Reports() {
             </Button>
           )}
 
-          {reportType === "p9" && (
+          {(reportType === "p9" || reportType === "p10-pdf") && (
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -157,16 +197,39 @@ export function Reports() {
                 value={p9Year}
                 onChange={(e) => { setP9Year(e.target.value); setP9Warnings([]); }}
                 className="w-24 h-9 px-2 rounded border border-border bg-card font-mono text-sm text-center"
-                title="Tax year for P9 annual return"
+                title="Tax year for annual statutory return"
               />
-              <Button
-                className="font-mono shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
-                onClick={handleP9Download}
-                disabled={p9Loading}
-              >
-                {p9Loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
-                {p9Loading ? "GENERATING..." : "DOWNLOAD iTAX P9 CSV"}
-              </Button>
+              {reportType === "p9" && (
+                <>
+                  <Button
+                    className="font-mono shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                    onClick={handleP9Download}
+                    disabled={p9Loading}
+                  >
+                    {p9Loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
+                    {p9Loading ? "GENERATING..." : "DOWNLOAD iTAX P9 CSV"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="font-mono shrink-0 gap-1.5"
+                    onClick={handleP9PdfDownload}
+                    disabled={p9PdfLoading}
+                  >
+                    {p9PdfLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                    {p9PdfLoading ? "GENERATING..." : "P9 FORM PDF"}
+                  </Button>
+                </>
+              )}
+              {reportType === "p10-pdf" && (
+                <Button
+                  className="font-mono shrink-0 bg-emerald-700 hover:bg-emerald-800 text-white gap-1.5"
+                  onClick={handleP10PdfDownload}
+                  disabled={p10PdfLoading}
+                >
+                  {p10PdfLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                  {p10PdfLoading ? "GENERATING..." : "DOWNLOAD P10 CARDS PDF"}
+                </Button>
+              )}
             </div>
           )}
         </div>

@@ -6,6 +6,8 @@ import { requireAuth, type AuthRequest } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
 import type { Cents } from "../lib/money.js";
 import type { StatutoryConfig } from "../lib/statutory-types.js";
+import { generateP10Pdf, type P10CardData } from "../lib/pdf-p10.js";
+import { generateP9Pdf } from "../lib/pdf-p9.js";
 
 const router = Router();
 
@@ -412,6 +414,261 @@ router.get("/itax/p9", requireAuth("report:read"), async (req, res, next) => {
       totalPaye,
       monthsIncluded: yearRuns.length,
     });
+  } catch (err) { next(err); }
+});
+
+// ── GET /p10-pdf?year=YYYY — KRA P10 annual tax deduction cards per employee ─
+router.get("/p10-pdf", requireAuth("report:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const year = String(req.query.year ?? new Date().getFullYear());
+    if (!/^\d{4}$/.test(year)) throw new HttpError(422, "Invalid year parameter");
+
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, p.orgId));
+
+    const allRuns = await db.select().from(payrollRuns)
+      .where(and(eq(payrollRuns.orgId, p.orgId), eq(payrollRuns.status, "paid")));
+    const yearRuns = allRuns.filter((r) => r.period.startsWith(year));
+    if (yearRuns.length === 0) throw new HttpError(404, `No paid payroll runs found for ${year}`);
+
+    const runIds = yearRuns.map((r) => r.id);
+    const runPeriodMap = new Map(yearRuns.map((r) => [r.id, r.period]));
+    const allSlips = await db.select({ slip: payslips, emp: employees })
+      .from(payslips)
+      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .where(and(eq(payslips.orgId, p.orgId), inArray(payslips.runId, runIds)));
+
+    type SlipAgg = {
+      emp: typeof allSlips[0]["emp"];
+      months: Map<string, {
+        basic: number; benefits: number; quarters: number; grossPay: number;
+        definedContribution: number; affordableHousingLevy: number; shif: number;
+        postRetirementMedical: number; ownerOccupiedInterest: number; totalDeductions: number;
+        chargeablePay: number; taxCharged: number; personalRelief: number;
+        insuranceRelief: number; payeTax: number;
+      }>;
+    };
+
+    const byEmp = new Map<number, SlipAgg>();
+    for (const { slip, emp } of allSlips) {
+      const period = runPeriodMap.get(slip.runId) ?? `${year}-01`;
+      const month = period.slice(5, 7);
+      const monthName = new Date(`${year}-${month}-01`).toLocaleString("en-US", { month: "long" });
+
+      let entry = byEmp.get(emp.id);
+      if (!entry) {
+        entry = { emp, months: new Map() };
+        byEmp.set(emp.id, entry);
+      }
+
+      let m = entry.months.get(monthName);
+      if (!m) {
+        m = {
+          basic: 0, benefits: 0, quarters: 0, grossPay: 0,
+          definedContribution: 0, affordableHousingLevy: 0, shif: 0,
+          postRetirementMedical: 0, ownerOccupiedInterest: 0, totalDeductions: 0,
+          chargeablePay: 0, taxCharged: 0, personalRelief: 0, insuranceRelief: 0, payeTax: 0,
+        };
+        entry.months.set(monthName, m);
+      }
+
+      m.basic += slip.basic;
+      m.benefits += slip.nonCashBenefit;
+      m.quarters += 0; // not tracked separately
+      m.grossPay += slip.gross;
+      m.definedContribution += slip.nssfEmployee + slip.pension;
+      m.affordableHousingLevy += slip.housingLevyEmployee;
+      m.shif += slip.shif;
+      m.postRetirementMedical += 0; // not tracked separately
+      m.ownerOccupiedInterest += slip.mortgageInterest;
+      m.totalDeductions += slip.nssfEmployee + slip.pension + slip.housingLevyEmployee + slip.shif + slip.mortgageInterest;
+      m.chargeablePay += slip.taxableIncome;
+      m.taxCharged += slip.payeBeforeRelief;
+      m.personalRelief += slip.personalRelief;
+      m.insuranceRelief += slip.insuranceRelief;
+      m.payeTax += slip.paye;
+    }
+
+    const cards: P10CardData[] = Array.from(byEmp.values()).map(({ emp, months }) => {
+      const allMonths = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December",
+      ].map((month) => {
+        const m = months.get(month);
+        return {
+          month,
+          basic: m?.basic ?? 0,
+          benefits: m?.benefits ?? 0,
+          quarters: m?.quarters ?? 0,
+          grossPay: m?.grossPay ?? 0,
+          definedContribution: m?.definedContribution ?? 0,
+          affordableHousingLevy: m?.affordableHousingLevy ?? 0,
+          shif: m?.shif ?? 0,
+          postRetirementMedical: m?.postRetirementMedical ?? 0,
+          ownerOccupiedInterest: m?.ownerOccupiedInterest ?? 0,
+          totalDeductions: m?.totalDeductions ?? 0,
+          chargeablePay: m?.chargeablePay ?? 0,
+          taxCharged: m?.taxCharged ?? 0,
+          personalRelief: m?.personalRelief ?? 0,
+          insuranceRelief: m?.insuranceRelief ?? 0,
+          payeTax: m?.payeTax ?? 0,
+        };
+      });
+
+      const totals = allMonths.reduce((acc, m) => ({
+        month: "TOTAL",
+        basic: acc.basic + m.basic,
+        benefits: acc.benefits + m.benefits,
+        quarters: acc.quarters + m.quarters,
+        grossPay: acc.grossPay + m.grossPay,
+        definedContribution: acc.definedContribution + m.definedContribution,
+        affordableHousingLevy: acc.affordableHousingLevy + m.affordableHousingLevy,
+        shif: acc.shif + m.shif,
+        postRetirementMedical: acc.postRetirementMedical + m.postRetirementMedical,
+        ownerOccupiedInterest: acc.ownerOccupiedInterest + m.ownerOccupiedInterest,
+        totalDeductions: acc.totalDeductions + m.totalDeductions,
+        chargeablePay: acc.chargeablePay + m.chargeablePay,
+        taxCharged: acc.taxCharged + m.taxCharged,
+        personalRelief: acc.personalRelief + m.personalRelief,
+        insuranceRelief: acc.insuranceRelief + m.insuranceRelief,
+        payeTax: acc.payeTax + m.payeTax,
+      }), {
+        month: "TOTAL", basic: 0, benefits: 0, quarters: 0, grossPay: 0,
+        definedContribution: 0, affordableHousingLevy: 0, shif: 0, postRetirementMedical: 0,
+        ownerOccupiedInterest: 0, totalDeductions: 0, chargeablePay: 0, taxCharged: 0,
+        personalRelief: 0, insuranceRelief: 0, payeTax: 0,
+      });
+
+      return {
+        orgName: org?.name ?? "",
+        orgKraPin: org?.kraPin ?? undefined,
+        year,
+        employee: {
+          empNo: emp.empNo,
+          firstName: emp.firstName,
+          lastName: emp.lastName,
+          otherNames: "",
+          kraPin: emp.kraPin ?? undefined,
+        },
+        months: allMonths,
+        totals,
+      };
+    });
+
+    // Record P10 filing
+    await db.insert(statutoryFilings).values({
+      orgId: p.orgId, runId: null, kind: "P10", period: year,
+      itemCount: cards.length, totalAmount: cards.reduce((s, c) => s + c.totals.payeTax, 0),
+      status: "downloaded", filedAt: new Date(),
+    });
+
+    const pdfBuffer = await generateP10Pdf(cards);
+    const orgPin = (org?.kraPin ?? "ORG").replace(/[^A-Z0-9]/gi, "");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="P10_${year}_${orgPin}.pdf"`);
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (err) { next(err); }
+});
+
+// ── GET /p9-pdf?year=YYYY — KRA P9 annual tax return form PDF ─────────────────
+router.get("/p9-pdf", requireAuth("report:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const year = String(req.query.year ?? new Date().getFullYear());
+    if (!/^\d{4}$/.test(year)) throw new HttpError(422, "Invalid year parameter");
+
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, p.orgId));
+
+    const allRuns = await db.select().from(payrollRuns)
+      .where(and(eq(payrollRuns.orgId, p.orgId), eq(payrollRuns.status, "paid")));
+    const yearRuns = allRuns.filter((r) => r.period.startsWith(year));
+    if (yearRuns.length === 0) throw new HttpError(404, `No paid payroll runs found for ${year}`);
+
+    const runIds = yearRuns.map((r) => r.id);
+    const allSlips = await db.select({ slip: payslips, emp: employees })
+      .from(payslips)
+      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .where(and(eq(payslips.orgId, p.orgId), inArray(payslips.runId, runIds)));
+
+    const byEmp = new Map<number, {
+      emp: typeof allSlips[0]["emp"];
+      gross: number; benefits: number; mortgageInterest: number;
+      definedContribution: number; chargeablePay: number;
+      taxChargeable: number; personalRelief: number;
+      insuranceRelief: number; netPaye: number;
+    }>();
+
+    for (const { slip, emp } of allSlips) {
+      const existing = byEmp.get(emp.id);
+      if (existing) {
+        existing.gross += slip.gross;
+        existing.benefits += slip.nonCashBenefit;
+        existing.mortgageInterest += slip.mortgageInterest;
+        existing.definedContribution += slip.nssfEmployee + slip.pension;
+        existing.chargeablePay += slip.taxableIncome;
+        existing.taxChargeable += slip.payeBeforeRelief;
+        existing.personalRelief += slip.personalRelief;
+        existing.insuranceRelief += slip.insuranceRelief;
+        existing.netPaye += slip.paye;
+      } else {
+        byEmp.set(emp.id, {
+          emp,
+          gross: slip.gross,
+          benefits: slip.nonCashBenefit,
+          mortgageInterest: slip.mortgageInterest,
+          definedContribution: slip.nssfEmployee + slip.pension,
+          chargeablePay: slip.taxableIncome,
+          taxChargeable: slip.payeBeforeRelief,
+          personalRelief: slip.personalRelief,
+          insuranceRelief: slip.insuranceRelief,
+          netPaye: slip.paye,
+        });
+      }
+    }
+
+    const rows = Array.from(byEmp.values()).map(({ emp, ...totals }) => ({
+      empNo: emp.empNo,
+      kraPin: emp.kraPin ?? "",
+      name: `${emp.firstName} ${emp.lastName}`,
+      annualGross: totals.gross,
+      benefits: totals.benefits,
+      quarters: 0,
+      annualTotalGross: totals.gross,
+      annualMortgageInterest: totals.mortgageInterest,
+      annualDefinedContribution: totals.definedContribution,
+      annualChargeablePay: totals.chargeablePay,
+      annualTaxChargeable: totals.taxChargeable,
+      annualPersonalRelief: totals.personalRelief,
+      annualInsuranceRelief: totals.insuranceRelief,
+      annualNetPaye: totals.netPaye,
+    }));
+
+    const totalPaye = rows.reduce((s, r) => s + r.annualNetPaye, 0);
+    const totalGross = rows.reduce((s, r) => s + r.annualGross, 0);
+    const totalChargeablePay = rows.reduce((s, r) => s + r.annualChargeablePay, 0);
+
+    await db.insert(statutoryFilings).values({
+      orgId: p.orgId, runId: null, kind: "P9", period: year,
+      itemCount: rows.length, totalAmount: totalPaye,
+      status: "downloaded", filedAt: new Date(),
+    });
+
+    const pdfBuffer = await generateP9Pdf({
+      orgName: org?.name ?? "",
+      orgKraPin: org?.kraPin ?? undefined,
+      year,
+      rows,
+      totalPaye,
+      totalGross,
+      totalChargeablePay,
+    });
+
+    const orgPin = (org?.kraPin ?? "ORG").replace(/[^A-Z0-9]/gi, "");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="P9_${year}_${orgPin}.pdf"`);
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
   } catch (err) { next(err); }
 });
 
