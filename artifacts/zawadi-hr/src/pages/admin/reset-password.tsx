@@ -12,7 +12,7 @@ import { Building2, Loader2, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { customFetch } from "@workspace/api-client-react";
 
 const schema = z.object({
-  password: z.string().min(12, "Password must be at least 12 characters"),
+  password: z.string().min(7, "Password must be at least 7 characters"),
   confirm: z.string(),
 }).refine((d) => d.password === d.confirm, {
   message: "Passwords do not match",

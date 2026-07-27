@@ -37,7 +37,7 @@ const step1Schema = z.object({
 const step2Schema = z.object({
   adminName:       z.string().min(2, "Your name is required"),
   adminEmail:      z.string().email("Invalid email address"),
-  password:        z.string().min(12, "Password must be at least 12 characters"),
+  password:        z.string().min(7, "Password must be at least 7 characters"),
   confirmPassword: z.string(),
 }).refine((d) => d.password === d.confirmPassword, {
   message: "Passwords do not match",
@@ -310,7 +310,7 @@ export function Register() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="Min 12 characters" {...field} className="bg-background/50" />
+                        <Input type="password" placeholder="Min 7 characters" {...field} className="bg-background/50" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

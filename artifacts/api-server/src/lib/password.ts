@@ -15,7 +15,7 @@ export function generateTempPassword(): string {
 
 const WEAK = new Set(["password","welcome@2026","12345678","qwerty123","admin123","letmein1"]);
 export function validatePasswordStrength(pw: string): string | null {
-  if (pw.length < 12) return "Password must be at least 12 characters";
+  if (pw.length < 7) return "Password must be at least 7 characters";
   if (WEAK.has(pw.toLowerCase())) return "This password is too common";
   if (!/[a-z]/.test(pw) || !/[A-Z]/.test(pw) || !/\d/.test(pw))
     return "Password must contain upper case, lower case and a digit";

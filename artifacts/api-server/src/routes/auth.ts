@@ -21,7 +21,7 @@ const loginSchema = z.object({
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(12).max(200),
+  newPassword: z.string().min(7).max(200),
 });
 
 const MAX_FAILURES = 10;
@@ -114,7 +114,7 @@ const registerSchema = z.object({
   kraPin:       z.string().max(20).optional(),
   adminName:    z.string().min(2).max(120),
   adminEmail:   z.string().email().max(255),
-  password:     z.string().min(12).max(200),
+  password:     z.string().min(7).max(200),
 });
 
 router.post("/register", async (req, res, next) => {
@@ -225,7 +225,7 @@ router.post("/forgot-password", async (req, res, next) => {
 // ── Reset password ────────────────────────────────────────────────────────
 const resetSchema = z.object({
   token: z.string().min(1).max(128),
-  password: z.string().min(12).max(200),
+  password: z.string().min(7).max(200),
 });
 
 router.post("/reset-password", async (req, res, next) => {
