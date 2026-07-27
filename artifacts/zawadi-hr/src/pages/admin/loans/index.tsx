@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useListLoans, useListLoanRequests, getListLoansQueryKey, getListLoanRequestsQueryKey } from "@workspace/api-client-react";
-import { formatMoney, formatDate, formatPercent } from "@/lib/utils";
+import { formatMoney, formatDate, formatPercent, fullName } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -101,7 +101,7 @@ export function LoansAdmin() {
                     loans.map((row) => (
                       <TableRow key={row.loan.id} className="hover:bg-muted/20">
                         <TableCell>
-                          <div className="font-medium text-sm">{row.employee.firstName} {row.employee.lastName}</div>
+                          <div className="font-medium text-sm">{fullName(row.employee)}</div>
                           <div className="text-xs text-muted-foreground font-mono">{row.employee.empNo}</div>
                         </TableCell>
                         <TableCell>
@@ -169,7 +169,7 @@ export function LoansAdmin() {
                         <TableRow key={row.request.id} className="hover:bg-muted/20">
                           <TableCell className="font-mono text-xs text-muted-foreground">{formatDate(row.request.createdAt)}</TableCell>
                           <TableCell>
-                            <div className="font-medium text-sm">{row.employee.firstName} {row.employee.lastName}</div>
+                            <div className="font-medium text-sm">{fullName(row.employee)}</div>
                             <div className="text-xs text-muted-foreground font-mono">{row.employee.empNo}</div>
                           </TableCell>
                           <TableCell>

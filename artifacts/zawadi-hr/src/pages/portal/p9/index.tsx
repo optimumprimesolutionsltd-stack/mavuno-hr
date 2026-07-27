@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useGetPortalP9 } from "@workspace/api-client-react";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, fullName } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ function exportP9Pdf(p9: any, year: number) {
   doc.text("P000000000X", 42, 36);
   doc.text("ZAWADI HR DEMO ORG", 110, 36);
   doc.text(p9.employee.kraPin || "-", 42, 42);
-  doc.text(`${p9.employee.firstName} ${p9.employee.lastName}`, 110, 42);
+  doc.text(fullName(p9.employee), 110, 42);
 
   // ── Monthly table ─────────────────────────────────────────────────────
   const months = p9.months as any[];
@@ -174,7 +174,7 @@ export function PortalP9() {
               <div><span className="text-muted-foreground">EMPLOYER PIN:</span> P000000000X</div>
               <div><span className="text-muted-foreground">EMPLOYER NAME:</span> ZAWADI HR DEMO ORG</div>
               <div><span className="text-muted-foreground">EMPLOYEE PIN:</span> {p9.employee.kraPin || '-'}</div>
-              <div><span className="text-muted-foreground">EMPLOYEE NAME:</span> {p9.employee.firstName} {p9.employee.lastName}</div>
+              <div><span className="text-muted-foreground">EMPLOYEE NAME:</span> {fullName(p9.employee)}</div>
             </div>
 
             <div className="overflow-x-auto">

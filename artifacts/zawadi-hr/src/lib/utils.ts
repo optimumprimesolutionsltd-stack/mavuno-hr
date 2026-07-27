@@ -43,6 +43,16 @@ export const formatDateTime = (dateString: string | null | undefined) => {
   }).format(d);
 };
 
+export function fullName(employee: {
+  firstName?: string | null;
+  middleName?: string | null;
+  lastName?: string | null;
+}) {
+  return [employee.firstName, employee.middleName, employee.lastName]
+    .filter((s): s is string => !!s)
+    .join(" ");
+}
+
 export const formatPeriod = (period: string | null | undefined) => {
   if (!period) return "—";
   const parts = period.split('-');

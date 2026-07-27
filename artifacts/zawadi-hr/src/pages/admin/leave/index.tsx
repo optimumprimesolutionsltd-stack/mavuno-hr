@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useListLeaves, useDecideLeave, getListLeavesQueryKey, customFetch } from "@workspace/api-client-react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, fullName } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -159,7 +159,7 @@ function WhosOffCalendar({ leaves }: { leaves: any[] }) {
               {dayLeaves.map((r, i) => {
                 const eid = r.employee?.id ?? r.leave?.employeeId;
                 const color = employeeColorMap[eid] ?? BADGE_COLORS[0];
-                const name = `${r.employee?.firstName ?? ""} ${r.employee?.lastName ?? ""}`.trim();
+                const name = fullName(r.employee ?? {});
                 return (
                   <span
                     key={i}
@@ -300,7 +300,7 @@ export function LeaveAdmin() {
                     return (
                       <TableRow key={row.leave.id} className="group transition-colors hover:bg-muted/20">
                         <TableCell>
-                          <div className="font-medium text-sm">{row.employee.firstName} {row.employee.lastName}</div>
+                          <div className="font-medium text-sm">{fullName(row.employee)}</div>
                           <div className="text-xs text-muted-foreground font-mono">{row.employee.empNo}</div>
                         </TableCell>
                         <TableCell>

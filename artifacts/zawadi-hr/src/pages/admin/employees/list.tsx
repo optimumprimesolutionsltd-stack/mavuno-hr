@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useListEmployees } from "@workspace/api-client-react";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, fullName } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,8 +20,8 @@ export function EmployeeList() {
   const [editEmployee, setEditEmployee] = useState<any | null>(null);
 
   const filtered = employees?.filter(r =>
-    r.employee.firstName.toLowerCase().includes(search.toLowerCase()) ||
-    r.employee.lastName.toLowerCase().includes(search.toLowerCase()) ||
+    fullName(r.employee).toLowerCase().includes(search.toLowerCase()) ||
+    r.employee.middleName?.toLowerCase().includes(search.toLowerCase()) ||
     r.employee.empNo.toLowerCase().includes(search.toLowerCase()) ||
     r.employee.email.toLowerCase().includes(search.toLowerCase())
   ) || [];
@@ -109,7 +109,7 @@ export function EmployeeList() {
                       <div className="min-w-0">
                         <div className="font-medium">
                           <Link href={`/admin/employees/${row.employee.id}`} className="hover:text-primary transition-colors">
-                            {row.employee.firstName} {row.employee.lastName}
+                            {fullName(row.employee)}
                           </Link>
                         </div>
                         <div className="text-xs text-muted-foreground truncate">{row.employee.email}</div>

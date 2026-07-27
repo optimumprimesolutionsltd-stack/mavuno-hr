@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
-import { formatDate } from "@/lib/utils";
+import { formatDate, fullName } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -148,7 +148,7 @@ export function PortalApprovals() {
                   pending.map((row: any) => (
                     <TableRow key={row.leave.id} className="hover:bg-muted/20">
                       <TableCell>
-                        <div className="font-medium text-sm">{row.employee?.firstName} {row.employee?.lastName}</div>
+                        <div className="font-medium text-sm">{fullName(row.employee ?? {})}</div>
                         <div className="text-xs text-muted-foreground font-mono">{row.employee?.empNo}</div>
                       </TableCell>
                       <TableCell className="capitalize text-sm">{row.leave.type}</TableCell>
@@ -231,7 +231,7 @@ export function PortalApprovals() {
                   (rows as any[]).map((row: any) => (
                     <TableRow key={row.leave.id} className="hover:bg-muted/20">
                       <TableCell>
-                        <div className="font-medium text-sm">{row.employee?.firstName} {row.employee?.lastName}</div>
+                        <div className="font-medium text-sm">{fullName(row.employee ?? {})}</div>
                         <div className="text-xs text-muted-foreground font-mono">{row.employee?.empNo}</div>
                       </TableCell>
                       <TableCell className="capitalize text-sm">{row.leave.type}</TableCell>

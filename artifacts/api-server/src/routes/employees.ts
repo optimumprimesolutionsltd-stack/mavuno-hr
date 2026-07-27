@@ -8,6 +8,7 @@ import { writeAudit } from "../lib/audit.js";
 import { HttpError } from "../lib/http-error.js";
 import { toCents } from "../lib/money.js";
 import { hashPassword, generateTempPassword } from "../lib/password.js";
+import { fullName } from "../lib/employee-name.js";
 
 const router = Router();
 
@@ -16,6 +17,7 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 const employeeBaseSchema = z.object({
   firstName: z.string().min(1).max(80),
+  middleName: z.string().max(80).optional(),
   lastName: z.string().min(1).max(80),
   email: z.string().email().max(255),
   phone: z.string().max(20).optional(),
@@ -54,7 +56,7 @@ const employeeBaseSchema = z.object({
 
 function toRow(body: z.infer<typeof employeeBaseSchema>) {
   return {
-    firstName: body.firstName, lastName: body.lastName, email: body.email.toLowerCase(),
+    firstName: body.firstName, middleName: body.middleName ?? null, lastName: body.lastName, email: body.email.toLowerCase(),
     phone: body.phone ?? null, gender: body.gender, nationalId: body.nationalId ?? null,
     kraPin: body.kraPin ?? null, nssfNo: body.nssfNo ?? null, shifNo: body.shifNo ?? null,
     payMethod: body.payMethod, bankName: body.bankName ?? null, bankCode: body.bankCode ?? null,
@@ -185,6 +187,7 @@ router.patch("/:id", requireAuth("employee:write"), async (req, res, next) => {
     const updateData: Record<string, unknown> = {};
     const b = parsed.data;
     if (b.firstName !== undefined) updateData.firstName = b.firstName;
+    if (b.middleName !== undefined) updateData.middleName = b.middleName || null;
     if (b.lastName !== undefined) updateData.lastName = b.lastName;
     if (b.email !== undefined) updateData.email = b.email.toLowerCase();
     if (b.phone !== undefined) updateData.phone = b.phone;
@@ -375,7 +378,7 @@ router.post("/:id/portal-access", requireAuth("employee:write"), async (req, res
     await db.insert(users).values({
       orgId: p.orgId,
       email: emp.email,
-      name: `${emp.firstName} ${emp.lastName}`,
+      name: fullName(emp),
       passwordHash: await hashPassword(tempPassword),
       role: "employee",
       employeeId: emp.id,

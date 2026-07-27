@@ -5,7 +5,7 @@ import {
   useGetPayrollRun, useActionPayrollRun, customFetch,
   getGetPayrollRunQueryKey, getListPayrollRunsQueryKey
 } from "@workspace/api-client-react";
-import { formatMoney, formatDateTime } from "@/lib/utils";
+import { formatMoney, formatDateTime, fullName } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -860,7 +860,7 @@ export function PayrollDetail() {
                     const slip = item.slip ?? item;
                     const emp = item.emp ?? {};
                     const dept = item.dept ?? {};
-                    const empName = `${emp.firstName ?? ""} ${emp.lastName ?? ""}`.trim().toLowerCase();
+                    const empName = fullName(emp).toLowerCase();
                     const deptName = (dept.name ?? "").toLowerCase();
                     const empNo = (emp.empNo ?? "").toLowerCase();
                     return empName.includes(filterLower) || deptName.includes(filterLower) || empNo.includes(filterLower);
@@ -875,8 +875,8 @@ export function PayrollDetail() {
                         aVal = (aEmp.empNo ?? "").toLowerCase();
                         bVal = (bEmp.empNo ?? "").toLowerCase();
                       } else if (sortCol === "name") {
-                        aVal = `${aEmp.firstName ?? ""} ${aEmp.lastName ?? ""}`.trim().toLowerCase();
-                        bVal = `${bEmp.firstName ?? ""} ${bEmp.lastName ?? ""}`.trim().toLowerCase();
+                        aVal = fullName(aEmp).toLowerCase();
+                        bVal = fullName(bEmp).toLowerCase();
                       } else if (sortCol === "dept") {
                         aVal = (aDept.name ?? "").toLowerCase();
                         bVal = (bDept.name ?? "").toLowerCase();
@@ -914,7 +914,7 @@ export function PayrollDetail() {
                         const v = slip.breakdown.overrides[k];
                         return v !== null && v !== 0 && v !== "" && v !== undefined;
                       });
-                    const empName = `${emp.firstName ?? ""} ${emp.lastName ?? ""}`.trim();
+                    const empName = fullName(emp);
                     return (
                       <TableRow key={slip.id || i} className="group hover:bg-muted/20">
                         <TableCell className="font-mono text-xs text-muted-foreground">{emp.empNo || "-"}</TableCell>

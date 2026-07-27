@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useGetPortalProfile } from "@workspace/api-client-react";
-import { formatMoney, formatDate } from "@/lib/utils";
+import { formatMoney, formatDate, fullName } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { User, Briefcase, FileText, Eye, Download } from "lucide-react";
@@ -59,7 +59,7 @@ export function PortalProfile() {
             <div className="grid grid-cols-2 gap-y-4 text-sm">
               <div className="col-span-2">
                 <span className="text-muted-foreground block text-xs">Full Name</span>
-                <span className="font-medium text-lg">{employee.firstName} {employee.lastName}</span>
+                <span className="font-medium text-lg">{fullName(employee)}</span>
               </div>
               <div><span className="text-muted-foreground block text-xs">Email</span>{employee.email}</div>
               <div><span className="text-muted-foreground block text-xs">Phone</span>{employee.phone || "-"}</div>
@@ -170,7 +170,7 @@ export function PortalProfile() {
         slip={selectedSlip}
         open={!!selectedSlip}
         onOpenChange={(v) => { if (!v) setSelectedSlip(null); }}
-        employeeName={`${employee.firstName} ${employee.lastName}`}
+        employeeName={fullName(employee)}
       />
     </div>
   );

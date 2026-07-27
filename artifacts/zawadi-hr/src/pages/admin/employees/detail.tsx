@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useRoute, Link, useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { useGetEmployee, customFetch } from "@workspace/api-client-react";
-import { formatMoney, formatDate } from "@/lib/utils";
+import { formatMoney, formatDate, fullName } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -115,7 +115,7 @@ export function EmployeeDetail() {
         </Button>
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight font-mono uppercase truncate">
-            {employee.firstName} {employee.lastName}
+            {fullName(employee)}
           </h1>
           <p className="text-muted-foreground text-sm font-mono">
             {employee.empNo} • {employee.position}
@@ -485,7 +485,7 @@ export function EmployeeDetail() {
       />
       <TerminateDialog
         employeeId={employee.id}
-        employeeName={`${employee.firstName} ${employee.lastName}`}
+        employeeName={fullName(employee)}
         empNo={employee.empNo}
         hireDate={employee.hireDate}
         basic={employee.basicSalary}

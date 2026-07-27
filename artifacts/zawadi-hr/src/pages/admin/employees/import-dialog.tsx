@@ -18,6 +18,7 @@ import {
 
 const COLUMNS = [
   { key: "firstName",          label: "First Name",             required: true,  example: "Jane" },
+  { key: "middleName",         label: "Middle Name",            required: false, example: "Muthoni" },
   { key: "lastName",           label: "Last Name",              required: true,  example: "Wanjiku" },
   { key: "email",              label: "Email",                  required: true,  example: "jane@company.co.ke" },
   { key: "position",           label: "Position",               required: true,  example: "Accountant" },
@@ -126,6 +127,7 @@ function validateRow(row: Record<string, string>): string[] {
 function toApiRow(row: Record<string, string>) {
   return {
     firstName: row.firstName?.trim(),
+    middleName: row.middleName?.trim() || undefined,
     lastName: row.lastName?.trim(),
     email: row.email?.trim().toLowerCase(),
     position: row.position?.trim(),
@@ -428,7 +430,7 @@ export function ImportDialog({ open, onOpenChange }: Props) {
                         )}
                       </TableCell>
                       <TableCell className="font-medium text-sm">
-                        {row.raw.firstName} {row.raw.lastName}
+                        {row.raw.firstName} {row.raw.middleName ? row.raw.middleName + " " : ""}{row.raw.lastName}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{row.raw.email}</TableCell>
                       <TableCell className="text-xs">{row.raw.position}</TableCell>

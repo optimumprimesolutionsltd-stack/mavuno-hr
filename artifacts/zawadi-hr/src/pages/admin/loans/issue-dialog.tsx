@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useListEmployees, useCreateLoan, getListLoansQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { fullName } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,7 +92,7 @@ export function IssueLoanDialog({ open, onOpenChange }: Props) {
               <SelectContent>
                 {employees?.map(r => (
                   <SelectItem key={r.employee.id} value={String(r.employee.id)}>
-                    {r.employee.firstName} {r.employee.lastName} ({r.employee.empNo})
+                    {fullName(r.employee)} ({r.employee.empNo})
                   </SelectItem>
                 ))}
               </SelectContent>

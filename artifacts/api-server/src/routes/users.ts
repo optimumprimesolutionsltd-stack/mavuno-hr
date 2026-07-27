@@ -7,6 +7,7 @@ import { hashPassword, validatePasswordStrength } from "../lib/password.js";
 import { requireAuth, getIp, type AuthRequest } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { HttpError } from "../lib/http-error.js";
+import { fullName } from "../lib/employee-name.js";
 
 const router = Router();
 
@@ -46,7 +47,7 @@ router.get("/", requireAuth("user:admin"), async (req, res, next) => {
       name: r.user.name,
       role: r.user.role,
       employeeId: r.user.employeeId,
-      employeeName: r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : null,
+      employeeName: r.employee ? fullName(r.employee) : null,
       empNo: r.employee?.empNo ?? null,
       mustChangePassword: r.user.mustChangePassword,
       lastLoginAt: r.user.lastLoginAt,

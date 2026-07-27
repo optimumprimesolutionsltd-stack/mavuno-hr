@@ -16,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 interface Employee {
   id: number;
   firstName: string;
+  middleName?: string | null;
   lastName: string;
   email: string;
   phone?: string | null;
@@ -67,7 +68,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
   const qc = useQueryClient();
 
   const [form, setForm] = useState({
-    firstName: "", lastName: "", email: "", phone: "", gender: "male", nationalId: "",
+    firstName: "", middleName: "", lastName: "", email: "", phone: "", gender: "male", nationalId: "",
     position: "", hireDate: "", employmentType: "permanent", residentStatus: "resident",
     basicSalary: "", houseAllowance: "0", transportAllowance: "0", otherAllowance: "0",
     nonCashBenefit: "0", insurancePremium: "0", pensionEmployee: "0", pensionEmployer: "0",
@@ -82,6 +83,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
     if (!employee) return;
     setForm({
       firstName: employee.firstName ?? "",
+      middleName: employee.middleName ?? "",
       lastName: employee.lastName ?? "",
       email: employee.email ?? "",
       phone: employee.phone ?? "",
@@ -120,6 +122,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
       if (!employee) throw new Error("No employee");
       const payload: Record<string, unknown> = {
         firstName: form.firstName,
+        middleName: form.middleName || undefined,
         lastName: form.lastName,
         email: form.email,
         gender: form.gender,
@@ -228,7 +231,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
       <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="font-mono">
-            EDIT — {employee.firstName} {employee.lastName}
+            EDIT — {employee.firstName} {employee.middleName ? employee.middleName + " " : ""}{employee.lastName}
           </DialogTitle>
         </DialogHeader>
 
@@ -256,6 +259,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
                 {textField("FIRST NAME", "firstName")}
                 {textField("LAST NAME", "lastName")}
               </div>
+              {textField("MIDDLE NAME", "middleName")}
               {textField("EMAIL", "email", "email")}
               <div className="grid grid-cols-2 gap-4">
                 {textField("PHONE", "phone", "text", "+254 7xx xxx xxx")}

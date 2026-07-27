@@ -7,6 +7,7 @@ import { requireAuth, type AuthRequest } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
 import { computeLoanFringeBenefitTax } from "../lib/payroll.js";
 import { resolveConfig } from "../lib/statutory-resolve.js";
+import { fullName } from "../lib/employee-name.js";
 
 const router = Router();
 
@@ -423,7 +424,7 @@ router.get("/payslip/:slipId/pdf", requireAuth("self:read"), async (req, res, ne
     const pdfBuffer = await generatePayslipPdf({
       orgName: org.name, orgKraPin: org.kraPin ?? undefined, orgNssfNo: org.nssfEmployerNo ?? undefined,
       period: run.period, runName: run.name,
-      empNo: emp.empNo, empName: `${emp.firstName} ${emp.lastName}`,
+      empNo: emp.empNo, empName: `fullName(emp)`,
       position: emp.position ?? "", employmentType: emp.employmentType ?? "permanent",
       nationalId: emp.nationalId ?? undefined, kraPin: emp.kraPin ?? undefined,
       nssfNo: emp.nssfNo ?? undefined, shifNo: emp.shifNo ?? undefined,

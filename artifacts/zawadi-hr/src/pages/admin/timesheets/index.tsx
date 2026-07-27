@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { fullName } from "@/lib/utils";
 import { Check, Calendar } from "lucide-react";
 
 async function patchApproveTimesheet(id: number) {
@@ -89,7 +90,7 @@ export function TimesheetAdmin() {
               timesheets.map((row) => (
                 <TableRow key={row.timesheet.id} className="group transition-colors hover:bg-muted/20">
                   <TableCell>
-                    <div className="font-medium text-sm">{row.employee.firstName} {row.employee.lastName}</div>
+                    <div className="font-medium text-sm">{fullName(row.employee)}</div>
                     <div className="text-xs text-muted-foreground font-mono">{row.employee.empNo} • {row.employee.employmentType.replace('_', ' ')}</div>
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm">{row.timesheet.daysWorked}</TableCell>

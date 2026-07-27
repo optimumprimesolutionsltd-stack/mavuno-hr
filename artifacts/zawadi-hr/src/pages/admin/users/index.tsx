@@ -13,7 +13,7 @@ import { useListEmployees } from "@workspace/api-client-react";
 import {
   KeyRound, UserPlus, Eye, EyeOff, RefreshCw, Ban, CheckCircle2, Copy, Loader2, Shield
 } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, fullName } from "@/lib/utils";
 
 // ── API helpers ─────────────────────────────────────────────────────────────
 function authHeaders() {
@@ -358,7 +358,7 @@ function CreateLoginDialog({
     if (val === "__none__") { setName(""); setEmail(""); return; }
     const row = employees.find(r => String(r.employee.id) === val);
     if (row) {
-      setName(`${row.employee.firstName} ${row.employee.lastName}`);
+      setName(fullName(row.employee));
       setEmail(row.employee.email ?? "");
     }
   };
@@ -400,7 +400,7 @@ function CreateLoginDialog({
                 <SelectItem value="__none__">— No employee link (admin/standalone user) —</SelectItem>
                 {employees.map(r => (
                   <SelectItem key={r.employee.id} value={String(r.employee.id)}>
-                    {r.employee.firstName} {r.employee.lastName} ({r.employee.empNo})
+                    {fullName(r.employee)} ({r.employee.empNo})
                   </SelectItem>
                 ))}
               </SelectContent>

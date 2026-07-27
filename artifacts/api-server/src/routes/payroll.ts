@@ -13,6 +13,7 @@ import { HttpError } from "../lib/http-error.js";
 import { sendStatutoryRemittanceEmail } from "../lib/mailer.js";
 import { logger } from "../lib/logger.js";
 import { createHash } from "crypto";
+import { fullName } from "../lib/employee-name.js";
 
 const router = Router();
 
@@ -173,7 +174,7 @@ router.get("/:id/readiness", requireAuth("payroll:read"), async (req, res, next)
       .filter(({ emp }) => !emp.nssfNo || !emp.shifNo)
       .map(({ emp }) => ({
         id: emp.id,
-        name: `${emp.firstName} ${emp.lastName}`,
+        name: `fullName(emp)`,
         employeeNo: emp.employeeNo,
         missingFields: [
           ...(!emp.nssfNo ? ["NSSF No"] : []),
@@ -401,7 +402,7 @@ router.post("/:id/payouts", requireAuth("payroll:disburse"), async (req, res, ne
     const channel = req.body?.channel ?? "bank_eft";
     const format = req.body?.format ?? "csv";
 
-    const lines = slips.map((r) => `${r.emp.empNo},${r.emp.firstName} ${r.emp.lastName},${r.emp.bankAccount ?? ""},${r.slip.netPay}`).join("\n");
+    const lines = slips.map((r) => `${r.emp.empNo},fullName(r.emp),${r.emp.bankAccount ?? ""},${r.slip.netPay}`).join("\n");
     const checksum = createHash("sha256").update(lines).digest("hex");
     const totalAmount = slips.reduce((a, r) => a + r.slip.netPay, 0);
 
@@ -440,7 +441,7 @@ router.get("/:id/payslips/:slipId/pdf", requireAuth("payroll:read"), async (req,
       period: run.period,
       runName: run.name,
       empNo: emp.empNo,
-      empName: `${emp.firstName} ${emp.lastName}`,
+      empName: `fullName(emp)`,
       position: emp.position ?? "",
       employmentType: emp.employmentType ?? "permanent",
       nationalId: emp.nationalId ?? undefined,
@@ -529,7 +530,7 @@ router.get("/:id/compare", requireAuth("payroll:read"), async (req, res, next) =
       const prev = prevMap.get(emp.id);
       rows.push({
         empNo: emp.empNo,
-        empName: `${emp.firstName} ${emp.lastName}`,
+        empName: `fullName(emp)`,
         currentGross: slip.gross,
         previousGross: prev?.slip.gross ?? 0,
         currentPaye: slip.paye,
@@ -550,7 +551,7 @@ router.get("/:id/compare", requireAuth("payroll:read"), async (req, res, next) =
       if (!currMap.has(emp.id)) {
         rows.push({
           empNo: emp.empNo,
-          empName: `${emp.firstName} ${emp.lastName}`,
+          empName: `fullName(emp)`,
           currentGross: 0,
           previousGross: slip.gross,
           currentPaye: 0,
@@ -608,7 +609,7 @@ router.get("/:id/payslips/bulk-pdf", requireAuth("payroll:read"), async (req, re
       const pdfBuffer = await generatePayslipPdf({
         orgName: org.name, orgKraPin: org.kraPin ?? undefined, orgNssfNo: org.nssfEmployerNo ?? undefined,
         period: run.period, runName: run.name,
-        empNo: emp.empNo, empName: `${emp.firstName} ${emp.lastName}`,
+        empNo: emp.empNo, empName: `fullName(emp)`,
         position: emp.position ?? "", employmentType: emp.employmentType ?? "permanent",
         nationalId: emp.nationalId ?? undefined, kraPin: emp.kraPin ?? undefined,
         nssfNo: emp.nssfNo ?? undefined, shifNo: emp.shifNo ?? undefined,
@@ -674,7 +675,7 @@ router.post("/:id/email-payslips", requireAuth("payroll:read"), async (req, res,
         const pdfBuffer = await generatePayslipPdf({
           orgName: org.name, orgKraPin: org.kraPin ?? undefined, orgNssfNo: org.nssfEmployerNo ?? undefined,
           period: run.period, runName: run.name,
-          empNo: emp.empNo, empName: `${emp.firstName} ${emp.lastName}`,
+          empNo: emp.empNo, empName: `fullName(emp)`,
           position: emp.position ?? "", employmentType: emp.employmentType ?? "permanent",
           nationalId: emp.nationalId ?? undefined, kraPin: emp.kraPin ?? undefined,
           nssfNo: emp.nssfNo ?? undefined, shifNo: emp.shifNo ?? undefined,
@@ -693,7 +694,7 @@ router.post("/:id/email-payslips", requireAuth("payroll:read"), async (req, res,
           nssfEmployer: slip.nssfEmployer, housingLevyEmployer: slip.housingLevyEmployer,
           pensionEmployer: slip.pensionEmployer,
         });
-        await sendPayslipEmail({ to: email, empName: `${emp.firstName} ${emp.lastName}`, period: run.period, orgName: org.name, pdfBuffer });
+        await sendPayslipEmail({ to: email, empName: `fullName(emp)`, period: run.period, orgName: org.name, pdfBuffer });
         sent++;
       } catch (e: any) {
         errors.push(`${emp.empNo}: ${e?.message ?? "failed"}`);
@@ -732,7 +733,7 @@ router.get("/:id/itax/p10", requireAuth("payroll:read"), async (req, res, next) 
 
     const warnings: string[] = [];
     const p10Rows = rows.map(({ slip, emp }) => {
-      const name = `${emp.firstName} ${emp.lastName}`;
+      const name = `fullName(emp)`;
       if (!emp.kraPin) warnings.push(`${emp.empNo} — ${name}: missing KRA PIN (row will be rejected by iTax)`);
       return {
         empNo: emp.empNo,
@@ -807,7 +808,7 @@ router.get("/:id/itax/nssf", requireAuth("payroll:read"), async (req, res, next)
 
     const warnings: string[] = [];
     const nssfRows = rows.map(({ slip, emp }) => {
-      const name = `${emp.firstName} ${emp.lastName}`;
+      const name = `fullName(emp)`;
       if (!emp.nssfNo) warnings.push(`${emp.empNo} — ${name}: missing NSSF number`);
       const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number };
       const tier1Employee = bd.nssfTier1 ?? 0;
@@ -914,7 +915,7 @@ router.get("/:id/itax/shif", requireAuth("payroll:read"), async (req, res, next)
 
     const warnings: string[] = [];
     const shifRows = rows.map(({ slip, emp }) => {
-      const name = `${emp.firstName} ${emp.lastName}`;
+      const name = `fullName(emp)`;
       if (!emp.shifNo) warnings.push(`${emp.empNo} — ${name}: missing SHIF number`);
       return {
         empNo: emp.empNo,
@@ -1009,7 +1010,7 @@ router.get("/:id/itax/ahl", requireAuth("payroll:read"), async (req, res, next) 
 
     const warnings: string[] = [];
     const ahlRows = rows.map(({ slip, emp }) => {
-      const name = `${emp.firstName} ${emp.lastName}`;
+      const name = `fullName(emp)`;
       if (!emp.kraPin) warnings.push(`${emp.empNo} — ${name}: missing KRA PIN`);
       const employeeAhl = slip.housingLevyEmployee;
       const employerAhl = slip.housingLevyEmployer;

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { customFetch, getGetPayrollRunQueryKey, getListPayrollRunsQueryKey } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, fullName } from "@/lib/utils";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -171,7 +171,7 @@ export function PayslipEditDialog({ runId, slip, employee, open, onOpenChange }:
       <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="font-mono">
-            EDIT PAYSLIP — {employee.firstName} {employee.lastName}
+            EDIT PAYSLIP — {fullName(employee)}
           </DialogTitle>
           <DialogDescription className="font-mono text-xs">
             {employee.empNo} · Changes apply to this run only

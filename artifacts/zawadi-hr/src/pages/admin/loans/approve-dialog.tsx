@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Check, X, Lock } from "lucide-react";
-import { formatMoney, formatPercent } from "@/lib/utils";
+import { formatMoney, formatPercent, fullName } from "@/lib/utils";
 
 interface LoanRequest {
   id: number;
@@ -21,7 +21,7 @@ interface LoanRequest {
   status: string;
 }
 
-interface Employee { firstName: string; lastName: string; empNo: string; }
+interface Employee { firstName: string; middleName?: string | null; lastName: string; empNo: string; }
 
 interface Props {
   request: LoanRequest | null;
@@ -93,7 +93,7 @@ export function ApproveLoanDialog({ request, employee, open, onOpenChange }: Pro
         <DialogHeader>
           <DialogTitle className="font-mono">REVIEW LOAN REQUEST</DialogTitle>
           <DialogDescription>
-            {employee.firstName} {employee.lastName} ({employee.empNo}) — {request.type.toUpperCase()} —{" "}
+            {fullName(employee)} ({employee.empNo}) — {request.type.toUpperCase()} —{" "}
             <strong>{formatMoney(request.amount)}</strong> over {request.months} months
             {request.reason && <> — "{request.reason}"</>}
           </DialogDescription>

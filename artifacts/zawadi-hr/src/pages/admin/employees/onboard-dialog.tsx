@@ -14,6 +14,7 @@ import { getListEmployeesQueryKey } from "@workspace/api-client-react";
 interface FormData {
   // Step 1 — Personal
   firstName: string;
+  middleName: string;
   lastName: string;
   email: string;
   phone: string;
@@ -42,7 +43,7 @@ interface FormData {
 }
 
 const DEFAULTS: FormData = {
-  firstName: "", lastName: "", email: "", phone: "", gender: "male", nationalId: "",
+  firstName: "", middleName: "", lastName: "", email: "", phone: "", gender: "male", nationalId: "",
   position: "", hireDate: new Date().toISOString().slice(0, 10), employmentType: "permanent",
   residentStatus: "resident", basicSalary: "", houseAllowance: "0", transportAllowance: "0",
   workDaysPerWeek: "5", worksOnHolidays: false,
@@ -108,6 +109,7 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
     createEmployee.mutate({
       data: {
         firstName: form.firstName.trim(),
+        middleName: form.middleName.trim() || undefined,
         lastName: form.lastName.trim(),
         email: form.email.trim().toLowerCase(),
         phone: form.phone || undefined,
@@ -136,7 +138,7 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
     }, {
       onSuccess: (emp) => {
         queryClient.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
-        toast({ title: "Employee onboarded", description: `${emp.firstName} ${emp.lastName} added successfully` });
+        toast({ title: "Employee onboarded", description: `${emp.firstName} ${emp.middleName ? emp.middleName + " " : ""}${emp.lastName} added successfully` });
         close();
       },
       onError: (err: any) => {
@@ -178,6 +180,10 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
             <div className="space-y-1">
               <Label className="text-xs font-mono text-muted-foreground">FIRST NAME *</Label>
               <Input value={form.firstName} onChange={set("firstName")} placeholder="First name" className="bg-background/50" autoFocus />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">MIDDLE NAME</Label>
+              <Input value={form.middleName} onChange={set("middleName")} placeholder="Middle name" className="bg-background/50" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs font-mono text-muted-foreground">LAST NAME *</Label>

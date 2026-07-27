@@ -8,6 +8,7 @@ import type { Cents } from "../lib/money.js";
 import type { StatutoryConfig } from "../lib/statutory-types.js";
 import { generateP10Pdf, type P10CardData } from "../lib/pdf-p10.js";
 import { generateP9Pdf } from "../lib/pdf-p9.js";
+import { fullName } from "../lib/employee-name.js";
 
 const router = Router();
 
@@ -547,7 +548,7 @@ router.get("/p10-pdf", requireAuth("report:read"), async (req, res, next) => {
           empNo: emp.empNo,
           firstName: emp.firstName,
           lastName: emp.lastName,
-          otherNames: "",
+          otherNames: emp.middleName ?? undefined,
           kraPin: emp.kraPin ?? undefined,
         },
         months: allMonths,
@@ -630,7 +631,7 @@ router.get("/p9-pdf", requireAuth("report:read"), async (req, res, next) => {
     const rows = Array.from(byEmp.values()).map(({ emp, ...totals }) => ({
       empNo: emp.empNo,
       kraPin: emp.kraPin ?? "",
-      name: `${emp.firstName} ${emp.lastName}`,
+      name: fullName(emp),
       annualGross: totals.gross,
       benefits: totals.benefits,
       quarters: 0,

@@ -69,6 +69,7 @@ router.get("/", requireAuth(), async (req, res, next) => {
         days: leaveRequests.days,
         startDate: leaveRequests.startDate,
         firstName: employees.firstName,
+        middleName: employees.middleName,
         lastName: employees.lastName,
       })
       .from(leaveRequests)
@@ -80,7 +81,7 @@ router.get("/", requireAuth(), async (req, res, next) => {
     const pendingLeaveCount = pendingLeaveRows.length;
     const pendingLeaves = pendingLeaveRows.map((r) => ({
       leave: { id: r.leaveId, type: r.type, days: r.days, startDate: r.startDate },
-      employee: { firstName: r.firstName ?? "", lastName: r.lastName ?? "" },
+      employee: { firstName: r.firstName ?? "", middleName: r.middleName ?? undefined, lastName: r.lastName ?? "" },
     }));
 
     // Active loan balance + count
@@ -114,13 +115,13 @@ router.get("/", requireAuth(), async (req, res, next) => {
     const sixtyDaysAgo = new Date();
     sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
     const recentHireRows = await db
-      .select({ firstName: employees.firstName, lastName: employees.lastName, position: employees.position, hireDate: employees.hireDate })
+      .select({ firstName: employees.firstName, middleName: employees.middleName, lastName: employees.lastName, position: employees.position, hireDate: employees.hireDate })
       .from(employees)
       .where(and(eq(employees.orgId, orgId), gte(employees.hireDate, sixtyDaysAgo.toISOString().split("T")[0])))
       .orderBy(desc(employees.hireDate))
       .limit(5);
     const recentHires = recentHireRows.map((r) => ({
-      name: `${r.firstName} ${r.lastName}`,
+      name: fullName(r),
       position: r.position ?? "",
       hireDate: r.hireDate,
     }));
@@ -129,7 +130,7 @@ router.get("/", requireAuth(), async (req, res, next) => {
     const today = new Date();
     const in30 = new Date(); in30.setDate(today.getDate() + 30);
     const allActiveEmps = await db
-      .select({ firstName: employees.firstName, lastName: employees.lastName, hireDate: employees.hireDate, position: employees.position })
+      .select({ firstName: employees.firstName, middleName: employees.middleName, lastName: employees.lastName, hireDate: employees.hireDate, position: employees.position })
       .from(employees)
       .where(and(eq(employees.orgId, orgId), eq(employees.status, "active")));
 
@@ -151,7 +152,7 @@ router.get("/", requireAuth(), async (req, res, next) => {
         const anniv = new Date(today.getFullYear(), hire.getMonth(), hire.getDate());
         const annivDate = anniv >= today ? anniv : new Date(today.getFullYear() + 1, hire.getMonth(), hire.getDate());
         return {
-          name: `${e.firstName} ${e.lastName}`,
+          name: fullName(e),
           position: e.position ?? "",
           years,
           date: annivDate.toISOString().split("T")[0],

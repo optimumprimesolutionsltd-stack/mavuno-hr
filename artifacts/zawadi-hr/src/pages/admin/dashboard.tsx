@@ -1,5 +1,5 @@
 import { useGetDashboard, useGetFilings } from "@workspace/api-client-react";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, fullName } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -284,7 +284,7 @@ export function AdminDashboard() {
                 {pendingLeaves.slice(0, 5).map((item) => (
                   <div key={item.leave.id} className="flex items-center justify-between p-2 rounded-lg border border-border/50 bg-background/50">
                     <div>
-                      <p className="font-medium text-xs">{item.employee.firstName} {item.employee.lastName}</p>
+                      <p className="font-medium text-xs">{fullName(item.employee)}</p>
                       <p className="text-[10px] text-muted-foreground capitalize">{item.leave.type} • {item.leave.days} days</p>
                     </div>
                     <div className="px-1.5 py-0.5 bg-chart-2/10 text-chart-2 text-[10px] font-mono rounded">PENDING</div>
