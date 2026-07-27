@@ -11,6 +11,7 @@ import {
   auditLogs,
 } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest } from "../middlewares/require-auth.js";
+import { fullName } from "../lib/employee-name.js";
 
 const router = Router();
 

@@ -424,7 +424,7 @@ router.get("/payslip/:slipId/pdf", requireAuth("self:read"), async (req, res, ne
     const pdfBuffer = await generatePayslipPdf({
       orgName: org.name, orgKraPin: org.kraPin ?? undefined, orgNssfNo: org.nssfEmployerNo ?? undefined,
       period: run.period, runName: run.name,
-      empNo: emp.empNo, empName: `fullName(emp)`,
+      empNo: emp.empNo, empName: fullName(emp),
       position: emp.position ?? "", employmentType: emp.employmentType ?? "permanent",
       nationalId: emp.nationalId ?? undefined, kraPin: emp.kraPin ?? undefined,
       nssfNo: emp.nssfNo ?? undefined, shifNo: emp.shifNo ?? undefined,
