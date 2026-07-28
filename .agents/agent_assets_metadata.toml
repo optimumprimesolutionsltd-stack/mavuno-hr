@@ -12,3 +12,15 @@ id = "lQBK-U_390sD9HCbal-aF"
 uri = "file://attached_assets/branding/zawadi-hr-logo.svg"
 type = "image"
 title = "Zawadi HR complete logo — icon and name"
+
+[[outputs]]
+id = "ZlbIIa4lfo9tirwpH-kkU"
+uri = "file://attached_assets/branding/zawadi-mark.png"
+type = "image"
+title = "Zawadi HR favicon PNG — icon only"
+
+[[outputs]]
+id = "lNL3__4Z-jQROgw4xiS00"
+uri = "file://attached_assets/branding/zawadi-hr-logo.png"
+type = "image"
+title = "Zawadi HR complete logo PNG — icon and name"
