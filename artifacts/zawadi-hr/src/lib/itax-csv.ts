@@ -264,3 +264,125 @@ export function downloadP9Csv(data: {
   const orgPin = data.orgKraPin.replace(/[^A-Z0-9]/gi, "") || "ORG";
   downloadCsv(`P9_${data.year}_${orgPin}.csv`, csv);
 }
+
+// ── Employee roster export ──────────────────────────────────────────────────
+
+export const EMPLOYEE_EXPORT_HEADERS = [
+  "Emp No",
+  "First Name",
+  "Middle Name",
+  "Last Name",
+  "Email",
+  "Phone",
+  "Gender",
+  "National ID",
+  "KRA PIN",
+  "NSSF No",
+  "SHIF No",
+  "Department",
+  "Position",
+  "Employment Type",
+  "Resident Status",
+  "Salary Basis",
+  "Pay Method",
+  "Bank Name",
+  "Bank Branch",
+  "Bank Account",
+  "M-Pesa Phone",
+  "Basic Salary (KES)",
+  "House Allowance (KES)",
+  "Transport Allowance (KES)",
+  "Other Allowance (KES)",
+  "Non-Cash Benefit (KES)",
+  "Insurance Premium (KES)",
+  "Pension Employee (KES)",
+  "Pension Employer (KES)",
+  "Mortgage Interest (KES)",
+  "HELB Monthly (KES)",
+  "SACCO Monthly (KES)",
+  "Disability Exemption",
+  "Work Days/Week",
+  "Works on Holidays",
+  "Hire Date",
+  "Status",
+  "Date of Birth",
+  "Region",
+  "Education Level",
+  "NOK Name",
+  "NOK Relationship",
+  "NOK Phone",
+  "NOK Email",
+] as const;
+
+function cents(v: number | null | undefined): string {
+  if (v == null) return "";
+  return (v / 100).toFixed(2);
+}
+
+function str(v: string | null | undefined): string {
+  return v ?? "";
+}
+
+/**
+ * Build and immediately download the employee roster as a CSV file.
+ * `rows` is the array returned by GET /api/employees — each item has
+ * `{ employee: {...}, department: {...} | null }`.
+ */
+export function downloadEmployeesCsv(
+  rows: Array<{ employee: Record<string, any>; department: Record<string, any> | null | undefined }>,
+  filename = "employees.csv",
+): void {
+  const csvRows = rows.map((r) => {
+    const e = r.employee;
+    const dept = r.department;
+    return [
+      str(e.empNo),
+      str(e.firstName),
+      str(e.middleName),
+      str(e.lastName),
+      str(e.email),
+      str(e.phone),
+      str(e.gender),
+      str(e.nationalId),
+      str(e.kraPin),
+      str(e.nssfNo),
+      str(e.shifNo),
+      str(dept?.name),
+      str(e.position),
+      str(e.employmentType),
+      str(e.residentStatus),
+      str(e.salaryBasis),
+      str(e.payMethod),
+      str(e.bankName),
+      str(e.bankBranchName),
+      str(e.bankAccount),
+      str(e.mpesaPhone),
+      cents(e.basicSalary),
+      cents(e.houseAllowance),
+      cents(e.transportAllowance),
+      cents(e.otherAllowance),
+      cents(e.nonCashBenefit),
+      cents(e.insurancePremium),
+      cents(e.pensionEmployee),
+      cents(e.pensionEmployer),
+      cents(e.mortgageInterest),
+      cents(e.helbMonthly),
+      cents(e.saccoMonthly),
+      e.disabilityExemption ? "Yes" : "No",
+      str(e.workDaysPerWeek),
+      e.worksOnHolidays ? "Yes" : "No",
+      str(e.hireDate),
+      str(e.status),
+      str(e.dateOfBirth),
+      str(e.region),
+      str(e.educationLevel),
+      str(e.nokName),
+      str(e.nokRelationship),
+      str(e.nokPhone),
+      str(e.nokEmail),
+    ] as (string | number)[];
+  });
+
+  const csv = buildCsv(EMPLOYEE_EXPORT_HEADERS, csvRows);
+  downloadCsv(filename, csv);
+}

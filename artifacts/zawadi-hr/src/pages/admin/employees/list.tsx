@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, MoreHorizontal, FileSpreadsheet, Building2 } from "lucide-react";
+import { Search, UserPlus, MoreHorizontal, FileSpreadsheet, Building2, Download } from "lucide-react";
+import { downloadEmployeesCsv } from "@/lib/itax-csv";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { OnboardDialog } from "./onboard-dialog";
 import { ImportDialog } from "./import-dialog";
@@ -53,6 +54,19 @@ export function EmployeeList() {
           <p className="text-muted-foreground text-sm">Manage staff roster and payroll details</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="font-mono"
+            disabled={!employees || employees.length === 0}
+            onClick={() => {
+              if (!employees) return;
+              const today = new Date().toISOString().slice(0, 10);
+              downloadEmployeesCsv(employees as any[], `employees_${today}.csv`);
+            }}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            EXPORT
+          </Button>
           <Button variant="outline" className="font-mono" onClick={() => setImporting(true)}>
             <FileSpreadsheet className="h-4 w-4 mr-2" />
             IMPORT
