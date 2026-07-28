@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import { useListEmployees } from "@workspace/api-client-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,12 +8,25 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, MoreHorizontal, FileSpreadsheet, Building2, Download } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, UserPlus, MoreHorizontal, FileSpreadsheet, Building2, Download, X, SlidersHorizontal } from "lucide-react";
 import { downloadEmployeesCsv } from "@/lib/itax-csv";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { OnboardDialog } from "./onboard-dialog";
 import { ImportDialog } from "./import-dialog";
 import { EditEmployeeDialog } from "./edit-dialog";
+
+const EDUCATION_LEVELS: { value: string; label: string }[] = [
+  { value: "none",        label: "No Formal Education" },
+  { value: "primary",     label: "Primary" },
+  { value: "secondary",   label: "Secondary / O-Level" },
+  { value: "certificate", label: "Certificate" },
+  { value: "diploma",     label: "Diploma" },
+  { value: "bachelor",    label: "Bachelor's Degree" },
+  { value: "master",      label: "Master's Degree" },
+  { value: "phd",         label: "PhD / Doctorate" },
+  { value: "other",       label: "Other" },
+];
 
 export function EmployeeList() {
   const { data: employees, isLoading } = useListEmployees();
@@ -27,16 +40,38 @@ export function EmployeeList() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/departments"] }); setDepartmentName(""); setDepartmentCode(""); },
   });
   const [search, setSearch] = useState("");
+  const [filterRegion, setFilterRegion] = useState<string>("");
+  const [filterEducation, setFilterEducation] = useState<string>("");
   const [onboarding, setOnboarding] = useState(false);
   const [importing, setImporting] = useState(false);
   const [editEmployee, setEditEmployee] = useState<any | null>(null);
 
-  const filtered = employees?.filter(r =>
-    fullName(r.employee).toLowerCase().includes(search.toLowerCase()) ||
-    r.employee.middleName?.toLowerCase().includes(search.toLowerCase()) ||
-    r.employee.empNo.toLowerCase().includes(search.toLowerCase()) ||
-    r.employee.email.toLowerCase().includes(search.toLowerCase())
-  ) || [];
+  // Derive unique non-empty regions from the loaded list
+  const regionOptions = useMemo(() => {
+    const seen = new Set<string>();
+    employees?.forEach(r => { if (r.employee.region) seen.add(r.employee.region); });
+    return Array.from(seen).sort();
+  }, [employees]);
+
+  const filtered = useMemo(() => (employees ?? []).filter(r => {
+    const q = search.toLowerCase();
+    if (q && !(
+      fullName(r.employee).toLowerCase().includes(q) ||
+      r.employee.middleName?.toLowerCase().includes(q) ||
+      r.employee.empNo.toLowerCase().includes(q) ||
+      r.employee.email.toLowerCase().includes(q)
+    )) return false;
+    if (filterRegion && r.employee.region !== filterRegion) return false;
+    if (filterEducation && r.employee.educationLevel !== filterEducation) return false;
+    return true;
+  }), [employees, search, filterRegion, filterEducation]);
+
+  const hasActiveFilters = !!filterRegion || !!filterEducation;
+
+  function clearFilters() {
+    setFilterRegion("");
+    setFilterEducation("");
+  }
 
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto">
@@ -78,22 +113,82 @@ export function EmployeeList() {
         </div>
       </div>
 
-      <div className="flex items-center gap-4 bg-card/50 p-4 rounded-lg border border-border/50">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, employee number, or email..."
-            className="pl-9 bg-background/50"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <div className="flex flex-col gap-3 bg-card/50 p-4 rounded-lg border border-border/50">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px] max-w-md">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, employee number, or email..."
+              className="pl-9 bg-background/50"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          {/* Region filter */}
+          <div className="flex items-center gap-1.5">
+            <SlidersHorizontal className="h-4 w-4 text-muted-foreground shrink-0" />
+            <Select value={filterRegion} onValueChange={setFilterRegion}>
+              <SelectTrigger className="w-[160px] font-mono text-xs h-9">
+                <SelectValue placeholder="ALL REGIONS" />
+              </SelectTrigger>
+              <SelectContent>
+                {regionOptions.length === 0 ? (
+                  <SelectItem value="_none" disabled>No regions recorded</SelectItem>
+                ) : (
+                  regionOptions.map(r => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Education level filter */}
+          <Select value={filterEducation} onValueChange={setFilterEducation}>
+            <SelectTrigger className="w-[190px] font-mono text-xs h-9">
+              <SelectValue placeholder="ALL EDUCATION LEVELS" />
+            </SelectTrigger>
+            <SelectContent>
+              {EDUCATION_LEVELS.map(e => (
+                <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" className="font-mono text-xs h-9 text-muted-foreground hover:text-foreground" onClick={clearFilters}>
+              <X className="h-3.5 w-3.5 mr-1" /> CLEAR
+            </Button>
+          )}
+
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline" className="font-mono text-xs h-9" onClick={() => setShowDepartments(v => !v)}>
+              <Building2 className="h-4 w-4 mr-2" /> DEPARTMENTS
+            </Button>
+            <span className="text-sm text-muted-foreground font-mono whitespace-nowrap">
+              {filtered.length} RECORDS
+            </span>
+          </div>
         </div>
-          <Button variant="outline" className="font-mono" onClick={() => setShowDepartments(v => !v)}>
-            <Building2 className="h-4 w-4 mr-2" /> DEPARTMENTS
-          </Button>
-        <div className="text-sm text-muted-foreground font-mono">
-          {filtered.length} RECORDS
-        </div>
+
+        {/* Active filter chips */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap gap-2">
+            {filterRegion && (
+              <Badge variant="secondary" className="font-mono text-xs gap-1 pr-1 cursor-pointer" onClick={() => setFilterRegion("")}>
+                REGION: {filterRegion}
+                <X className="h-3 w-3 ml-0.5" />
+              </Badge>
+            )}
+            {filterEducation && (
+              <Badge variant="secondary" className="font-mono text-xs gap-1 pr-1 cursor-pointer" onClick={() => setFilterEducation("")}>
+                EDU: {EDUCATION_LEVELS.find(e => e.value === filterEducation)?.label ?? filterEducation}
+                <X className="h-3 w-3 ml-0.5" />
+              </Badge>
+            )}
+          </div>
+        )}
       </div>
       {showDepartments && (
         <div className="rounded-lg border border-border/50 bg-card/30 p-4 space-y-3">

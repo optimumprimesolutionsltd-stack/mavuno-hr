@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { eq, and, ne, sql, leftJoin } from "drizzle-orm";
+import { eq, and, ne, sql, type SQL } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { employees, users, payslips, payrollRuns, departments, leaveRequests } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
@@ -112,11 +112,20 @@ async function nextEmpNo(orgId: number): Promise<string> {
 router.get("/", requireAuth("employee:read"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
+    const { region, educationLevel } = req.query as { region?: string; educationLevel?: string };
+
+    const conditions: SQL[] = [
+      eq(employees.orgId, p.orgId),
+      ne(employees.status, "terminated"),
+    ];
+    if (region) conditions.push(eq(employees.region, region));
+    if (educationLevel) conditions.push(eq(employees.educationLevel, educationLevel as any));
+
     const list = await db
       .select({ employee: employees, department: departments })
       .from(employees)
       .leftJoin(departments, eq(employees.departmentId, departments.id))
-      .where(and(eq(employees.orgId, p.orgId), ne(employees.status, "terminated")));
+      .where(and(...conditions));
     res.json(list);
   } catch (err) { next(err); }
 });
