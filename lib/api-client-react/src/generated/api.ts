@@ -21,7 +21,6 @@ import type {
 
 import type {
   AuditLog,
-  FilingsGrid,
   ChangePasswordInput,
   DashboardData,
   Employee,
@@ -30,6 +29,7 @@ import type {
   EmployeeRow,
   EmployeeUpdate,
   FilingGenerateInput,
+  GetFilings200,
   GetPortalP9Params,
   GetReportParams,
   HealthStatus,
@@ -73,52 +73,6 @@ import type {
 
 import { customFetch } from '../custom-fetch';
 import type { ErrorType , BodyType } from '../custom-fetch';
-
-// ── Statutory filings ──────────────────────────────────────────────────────
-
-export const getGetFilingsUrl = () => `/api/filings`;
-
-export const getFilings = async (options?: RequestInit): Promise<FilingsGrid> => {
-  return customFetch<FilingsGrid>(getGetFilingsUrl(), { ...options, method: 'GET' });
-};
-
-export const getGetFilingsQueryKey = () => [`/api/filings`] as const;
-
-export const getGetFilingsQueryOptions = <TData = Awaited<ReturnType<typeof getFilings>>, TError = ErrorType<unknown>>(
-  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getFilings>>, TError, TData>; request?: SecondParameter<typeof customFetch> }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-  const queryKey = queryOptions?.queryKey ?? getGetFilingsQueryKey();
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getFilings>>> = ({ signal }) =>
-    getFilings({ signal, ...requestOptions });
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof getFilings>>, TError, TData> & { queryKey: QueryKey };
-};
-
-export type GetFilingsQueryResult = NonNullable<Awaited<ReturnType<typeof getFilings>>>;
-export type GetFilingsQueryError = ErrorType<unknown>;
-
-export function useGetFilings<TData = Awaited<ReturnType<typeof getFilings>>, TError = ErrorType<unknown>>(
-  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getFilings>>, TError, TData>; request?: SecondParameter<typeof customFetch> }
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetFilingsQueryOptions(options);
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-export const getConfirmFilingUrl = (id: number) => `/api/filings/${id}/confirm`;
-
-export const confirmFiling = async (id: number, options?: RequestInit): Promise<unknown> => {
-  return customFetch<unknown>(getConfirmFilingUrl(id), { ...options, method: 'PATCH' });
-};
-
-export const useConfirmFiling = <TError = ErrorType<unknown>, TContext = unknown>(
-  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof confirmFiling>>, TError, number, TContext>; request?: SecondParameter<typeof customFetch> }
-): UseMutationResult<Awaited<ReturnType<typeof confirmFiling>>, TError, number, TContext> => {
-  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
-  const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmFiling>>, number> = (id) =>
-    confirmFiling(id, requestOptions);
-  return useMutation({ mutationFn, ...mutationOptions });
-};
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -1920,6 +1874,83 @@ export const useGenerateFiling = <TError = ErrorType<unknown>,
       return useMutation(getGenerateFilingMutationOptions(options));
     }
 
+export const getGetFilingsUrl = () => {
+
+
+
+
+  return `/api/filings`
+}
+
+/**
+ * @summary Get statutory filing status grid
+ */
+export const getFilings = async ( options?: RequestInit): Promise<GetFilings200> => {
+
+  return customFetch<GetFilings200>(getGetFilingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFilingsQueryKey = () => {
+    return [
+    `/api/filings`
+    ] as const;
+    }
+
+
+export const getGetFilingsQueryOptions = <TData = Awaited<ReturnType<typeof getFilings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFilings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFilingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFilings>>> = ({ signal }) => getFilings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFilings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFilingsQueryResult = NonNullable<Awaited<ReturnType<typeof getFilings>>>
+export type GetFilingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get statutory filing status grid
+ */
+
+export function useGetFilings<TData = Awaited<ReturnType<typeof getFilings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFilings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFilingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListLeavesUrl = () => {
 
 
@@ -2068,20 +2099,20 @@ export const useCreateLeave = <TError = ErrorType<unknown>,
       return useMutation(getCreateLeaveMutationOptions(options));
     }
 
-export const getDecideLeaveUrl = (id: number) => {
+export const getDecideLeaveUrl = () => {
 
 
 
 
-  return `/api/leaves/${id}`
+  return `/api/leaves`
 }
 
 /**
  * @summary Approve or reject leave request
  */
-export const decideLeave = async (id: number, leaveDecisionInput: LeaveDecisionInput, options?: RequestInit): Promise<LeaveRequest> => {
+export const decideLeave = async (leaveDecisionInput: LeaveDecisionInput, options?: RequestInit): Promise<LeaveRequest> => {
 
-  return customFetch<LeaveRequest>(getDecideLeaveUrl(id),
+  return customFetch<LeaveRequest>(getDecideLeaveUrl(),
   {
     ...options,
     method: 'PATCH',
@@ -2095,8 +2126,8 @@ export const decideLeave = async (id: number, leaveDecisionInput: LeaveDecisionI
 
 
 export const getDecideLeaveMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideLeave>>, TError,{id: number;data: BodyType<LeaveDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof decideLeave>>, TError,{id: number;data: BodyType<LeaveDecisionInput>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideLeave>>, TError,{data: BodyType<LeaveDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideLeave>>, TError,{data: BodyType<LeaveDecisionInput>}, TContext> => {
 
 const mutationKey = ['decideLeave'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -2108,10 +2139,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideLeave>>, {id: number;data: BodyType<LeaveDecisionInput>}> = (props) => {
-          const {id, data} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideLeave>>, {data: BodyType<LeaveDecisionInput>}> = (props) => {
+          const {data} = props ?? {};
 
-          return  decideLeave(id,data,requestOptions)
+          return  decideLeave(data,requestOptions)
         }
 
 
@@ -2129,11 +2160,11 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  * @summary Approve or reject leave request
  */
 export const useDecideLeave = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideLeave>>, TError,{id: number;data: BodyType<LeaveDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideLeave>>, TError,{data: BodyType<LeaveDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof decideLeave>>,
         TError,
-        {id: number;data: BodyType<LeaveDecisionInput>},
+        {data: BodyType<LeaveDecisionInput>},
         TContext
       > => {
       return useMutation(getDecideLeaveMutationOptions(options));

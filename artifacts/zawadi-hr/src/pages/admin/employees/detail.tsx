@@ -310,6 +310,10 @@ export function EmployeeDetail() {
                     <span className="text-muted-foreground block text-xs mb-0.5">Bank</span>
                     {employee.bankName || '-'}
                   </div>
+                  <div>
+                    <span className="text-muted-foreground block text-xs mb-0.5">Branch</span>
+                    {employee.bankBranchName || employee.bankBranchCode || '-'}
+                  </div>
                   <div className="col-span-2">
                     <span className="text-muted-foreground block text-xs mb-0.5">Account No</span>
                     <span className="font-mono">{employee.bankAccount || '-'}</span>
@@ -484,6 +488,8 @@ export function EmployeeDetail() {
                     ["HELB Deduction", employee.helbMonthly, "text-destructive"],
                     ["SACCO Deduction", employee.saccoMonthly, "text-destructive"],
                     ["Mortgage Interest", employee.mortgageInterest, "text-chart-2"],
+                    ["NSSF (Employee)", (data as any).payslips?.[0]?.slip?.nssfEmployee, "text-destructive"],
+                    ["SHIF", (data as any).payslips?.[0]?.slip?.shif, "text-destructive"],
                   ].map(([label, val, cls]) => (
                     <div key={String(label)} className={`flex justify-between items-center py-2 text-sm ${cls}`}>
                       <span>{label}</span>

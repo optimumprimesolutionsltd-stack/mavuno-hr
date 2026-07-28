@@ -20,6 +20,7 @@ export interface EmployeeInput {
   bankName?: string;
   bankCode?: string;
   bankBranchCode?: string;
+  bankBranchName?: string;
   bankAccount?: string;
   mpesaPhone?: string;
   departmentId?: number;

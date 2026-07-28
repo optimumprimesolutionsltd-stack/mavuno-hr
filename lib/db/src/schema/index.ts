@@ -98,6 +98,7 @@ export const employees = pgTable("employees", {
   bankName: text("bank_name"),
   bankCode: text("bank_code"),
   bankBranchCode: text("bank_branch_code"),
+  bankBranchName: text("bank_branch_name"),
   bankAccount: text("bank_account"),
   mpesaPhone: text("mpesa_phone"),
   departmentId: integer("department_id").references(() => departments.id),

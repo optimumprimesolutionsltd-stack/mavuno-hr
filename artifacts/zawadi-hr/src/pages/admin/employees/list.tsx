@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useListEmployees } from "@workspace/api-client-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { customFetch } from "@workspace/api-client-react";
 import { formatMoney, fullName } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, MoreHorizontal, FileSpreadsheet } from "lucide-react";
+import { Search, UserPlus, MoreHorizontal, FileSpreadsheet, Building2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { OnboardDialog } from "./onboard-dialog";
 import { ImportDialog } from "./import-dialog";
@@ -14,6 +16,15 @@ import { EditEmployeeDialog } from "./edit-dialog";
 
 export function EmployeeList() {
   const { data: employees, isLoading } = useListEmployees();
+  const queryClient = useQueryClient();
+  const { data: departments = [] } = useQuery<any[]>({ queryKey: ["/api/departments"], queryFn: () => customFetch("/api/departments") as Promise<any[]> });
+  const [showDepartments, setShowDepartments] = useState(false);
+  const [departmentName, setDepartmentName] = useState("");
+  const [departmentCode, setDepartmentCode] = useState("");
+  const addDepartment = useMutation({
+    mutationFn: () => customFetch("/api/departments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: departmentName, code: departmentCode }) }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/departments"] }); setDepartmentName(""); setDepartmentCode(""); },
+  });
   const [search, setSearch] = useState("");
   const [onboarding, setOnboarding] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -57,16 +68,30 @@ export function EmployeeList() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name, ID, email..."
+            placeholder="Search by name, employee number, or email..."
             className="pl-9 bg-background/50"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+          <Button variant="outline" className="font-mono" onClick={() => setShowDepartments(v => !v)}>
+            <Building2 className="h-4 w-4 mr-2" /> DEPARTMENTS
+          </Button>
         <div className="text-sm text-muted-foreground font-mono">
           {filtered.length} RECORDS
         </div>
       </div>
+      {showDepartments && (
+        <div className="rounded-lg border border-border/50 bg-card/30 p-4 space-y-3">
+          <div className="flex items-center justify-between"><h2 className="font-mono font-semibold">DEPARTMENTS</h2><span className="text-xs text-muted-foreground">{departments.length} total</span></div>
+          <div className="flex flex-wrap gap-2">{departments.map((d) => <Badge key={d.id} variant="outline">{d.name} · {d.code}</Badge>)}</div>
+          <div className="flex gap-2 max-w-xl">
+            <Input placeholder="Department name" value={departmentName} onChange={(e) => setDepartmentName(e.target.value)} />
+            <Input placeholder="Code" value={departmentCode} onChange={(e) => setDepartmentCode(e.target.value.toUpperCase())} className="max-w-32" />
+            <Button disabled={!departmentName.trim() || !departmentCode.trim() || addDepartment.isPending} onClick={() => addDepartment.mutate()}>ADD</Button>
+          </div>
+        </div>
+      )}
 
       <div className="border border-border/50 rounded-lg overflow-hidden bg-card/30">
         <Table>

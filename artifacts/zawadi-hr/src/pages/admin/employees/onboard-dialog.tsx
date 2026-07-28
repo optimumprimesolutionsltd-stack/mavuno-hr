@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { customFetch } from "@workspace/api-client-react";
 import { useCreateEmployee, useListEmployees } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +26,7 @@ interface FormData {
   educationLevel: string;
   // Step 1 — Employment
   position: string;
+  departmentId: string;
   hireDate: string;
   employmentType: string;
   residentStatus: string;
@@ -38,6 +41,7 @@ interface FormData {
   bankName: string;
   bankAccount: string;
   bankBranchCode: string;
+  bankBranchName: string;
   mpesaPhone: string;
   // Step 3 — Compliance
   kraPin: string;
@@ -53,10 +57,10 @@ interface FormData {
 const DEFAULTS: FormData = {
   firstName: "", middleName: "", lastName: "", email: "", phone: "", gender: "male", nationalId: "",
   dateOfBirth: "", educationLevel: "",
-  position: "", hireDate: new Date().toISOString().slice(0, 10), employmentType: "permanent",
+  position: "", departmentId: "", hireDate: new Date().toISOString().slice(0, 10), employmentType: "permanent",
   residentStatus: "resident", region: "", basicSalary: "", houseAllowance: "0", transportAllowance: "0",
   workDaysPerWeek: "5", worksOnHolidays: false,
-  payMethod: "bank", bankName: "", bankAccount: "", bankBranchCode: "", mpesaPhone: "",
+  payMethod: "bank", bankName: "", bankAccount: "", bankBranchCode: "", bankBranchName: "", mpesaPhone: "",
   kraPin: "", nssfNo: "", shifNo: "",
   nokName: "", nokRelationship: "", nokPhone: "", nokEmail: "",
 };
@@ -92,6 +96,10 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const createEmployee = useCreateEmployee();
+  const { data: departments = [] } = useQuery<any[]>({
+    queryKey: ["/api/departments"],
+    queryFn: () => customFetch("/api/departments") as Promise<any[]>,
+  });
 
   const set = (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [field]: e.target.value }));
@@ -144,6 +152,7 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
         nssfNo: form.nssfNo || undefined,
         shifNo: form.shifNo || undefined,
         position: form.position.trim(),
+        departmentId: form.departmentId ? Number(form.departmentId) : undefined,
         hireDate: form.hireDate,
         employmentType: form.employmentType,
         residentStatus: form.residentStatus,
@@ -152,6 +161,7 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
         bankName: form.bankName || undefined,
         bankAccount: form.bankAccount || undefined,
         bankBranchCode: form.bankBranchCode || undefined,
+        bankBranchName: form.bankBranchName || undefined,
         mpesaPhone: form.mpesaPhone || undefined,
         // Backend moneyString expects KES string, e.g. "50000" → toCents → 5000000
         basicSalary: form.basicSalary as any,
@@ -266,6 +276,15 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
               <Input value={form.position} onChange={set("position")} placeholder="Software Engineer" className="bg-background/50" autoFocus />
             </div>
             <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">DEPARTMENT</Label>
+              <Select value={form.departmentId} onValueChange={setVal("departmentId")}>
+                <SelectTrigger className="bg-background/50"><SelectValue placeholder="Select department" /></SelectTrigger>
+                <SelectContent>
+                  {departments.map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name} ({d.code})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
               <Label className="text-xs font-mono text-muted-foreground">HIRE DATE *</Label>
               <Input type="date" value={form.hireDate} onChange={set("hireDate")} className="bg-background/50" />
             </div>
@@ -377,9 +396,13 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
                   <Input value={form.bankAccount} onChange={set("bankAccount")} placeholder="Account number" className="bg-background/50" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-mono text-muted-foreground">BRANCH CODE</Label>
+                   <Label className="text-xs font-mono text-muted-foreground">BRANCH CODE</Label>
                   <Input value={form.bankBranchCode} onChange={set("bankBranchCode")} placeholder="076" className="bg-background/50" />
                 </div>
+                 <div className="col-span-2 space-y-1">
+                   <Label className="text-xs font-mono text-muted-foreground">BANK BRANCH NAME</Label>
+                   <Input value={form.bankBranchName} onChange={set("bankBranchName")} placeholder="Westlands Branch" className="bg-background/50" />
+                 </div>
               </>
             )}
             {form.payMethod === "mpesa" && (

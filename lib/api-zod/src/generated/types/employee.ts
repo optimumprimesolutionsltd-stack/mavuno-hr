@@ -12,6 +12,8 @@ export interface Employee {
   empNo: string;
   firstName: string;
   lastName: string;
+  /** @nullable */
+  middleName?: string | null;
   email: string;
   /** @nullable */
   phone?: string | null;
@@ -27,6 +29,10 @@ export interface Employee {
   payMethod?: string;
   /** @nullable */
   bankName?: string | null;
+  /** @nullable */
+  bankBranchCode?: string | null;
+  /** @nullable */
+  bankBranchName?: string | null;
   /** @nullable */
   bankAccount?: string | null;
   /** @nullable */

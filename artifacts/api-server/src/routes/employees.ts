@@ -30,6 +30,7 @@ const employeeBaseSchema = z.object({
   bankName: z.string().max(80).optional(),
   bankCode: z.string().max(10).optional(),
   bankBranchCode: z.string().max(10).optional(),
+  bankBranchName: z.string().max(120).optional(),
   bankAccount: z.string().max(34).optional(),
   mpesaPhone: z.string().max(20).optional(),
   departmentId: z.number().int().positive().optional(),
@@ -67,7 +68,8 @@ function toRow(body: z.infer<typeof employeeBaseSchema>) {
     phone: body.phone ?? null, gender: body.gender, nationalId: body.nationalId ?? null,
     kraPin: body.kraPin ?? null, nssfNo: body.nssfNo ?? null, shifNo: body.shifNo ?? null,
     payMethod: body.payMethod, bankName: body.bankName ?? null, bankCode: body.bankCode ?? null,
-    bankBranchCode: body.bankBranchCode ?? null, bankAccount: body.bankAccount ?? null,
+    bankBranchCode: body.bankBranchCode ?? null, bankBranchName: body.bankBranchName ?? null,
+    bankAccount: body.bankAccount ?? null,
     mpesaPhone: body.mpesaPhone ?? null, departmentId: body.departmentId ?? null,
     position: body.position, employmentType: body.employmentType,
     residentStatus: body.residentStatus, disabilityExemption: body.disabilityExemption,
@@ -214,6 +216,7 @@ router.patch("/:id", requireAuth("employee:write"), async (req, res, next) => {
     if (b.bankName !== undefined) updateData.bankName = b.bankName;
     if (b.bankCode !== undefined) updateData.bankCode = b.bankCode;
     if (b.bankBranchCode !== undefined) updateData.bankBranchCode = b.bankBranchCode;
+    if (b.bankBranchName !== undefined) updateData.bankBranchName = b.bankBranchName;
     if (b.bankAccount !== undefined) updateData.bankAccount = b.bankAccount;
     if (b.mpesaPhone !== undefined) updateData.mpesaPhone = b.mpesaPhone;
     if (b.departmentId !== undefined) updateData.departmentId = b.departmentId;

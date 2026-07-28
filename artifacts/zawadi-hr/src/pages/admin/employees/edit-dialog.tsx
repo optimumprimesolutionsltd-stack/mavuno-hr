@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetch, getListEmployeesQueryKey, getGetEmployeeQueryKey } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -41,6 +41,7 @@ interface Employee {
   bankName?: string | null;
   bankAccount?: string | null;
   bankBranchCode?: string | null;
+  bankBranchName?: string | null;
   mpesaPhone?: string | null;
   kraPin?: string | null;
   nssfNo?: string | null;
@@ -88,15 +89,19 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
 
   const [form, setForm] = useState({
     firstName: "", middleName: "", lastName: "", email: "", phone: "", gender: "male", nationalId: "",
-    position: "", hireDate: "", employmentType: "permanent", residentStatus: "resident",
+    position: "", departmentId: "", hireDate: "", employmentType: "permanent", residentStatus: "resident",
     basicSalary: "", houseAllowance: "0", transportAllowance: "0", otherAllowance: "0",
     nonCashBenefit: "0", insurancePremium: "0", pensionEmployee: "0", pensionEmployer: "0",
     mortgageInterest: "0", helbMonthly: "0", saccoMonthly: "0",
-    payMethod: "bank", bankName: "", bankAccount: "", bankBranchCode: "", mpesaPhone: "",
+    payMethod: "bank", bankName: "", bankAccount: "", bankBranchCode: "", bankBranchName: "", mpesaPhone: "",
     kraPin: "", nssfNo: "", shifNo: "",
     workDaysPerWeek: "5", worksOnHolidays: "no",
     dateOfBirth: "", region: "", educationLevel: "",
     nokName: "", nokRelationship: "", nokPhone: "", nokEmail: "",
+  });
+  const { data: departments = [] } = useQuery<any[]>({
+    queryKey: ["/api/departments"],
+    queryFn: () => customFetch("/api/departments") as Promise<any[]>,
   });
 
   // Populate form when employee changes
@@ -111,6 +116,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
       gender: employee.gender ?? "male",
       nationalId: employee.nationalId ?? "",
       position: employee.position ?? "",
+      departmentId: employee.departmentId ? String(employee.departmentId) : "",
       hireDate: employee.hireDate ?? "",
       employmentType: employee.employmentType ?? "permanent",
       residentStatus: employee.residentStatus ?? "resident",
@@ -129,6 +135,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
       bankName: employee.bankName ?? "",
       bankAccount: employee.bankAccount ?? "",
       bankBranchCode: employee.bankBranchCode ?? "",
+      bankBranchName: employee.bankBranchName ?? "",
       mpesaPhone: employee.mpesaPhone ?? "",
       kraPin: employee.kraPin ?? "",
       nssfNo: employee.nssfNo ?? "",
@@ -155,6 +162,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
         email: form.email,
         gender: form.gender,
         position: form.position,
+        departmentId: form.departmentId ? Number(form.departmentId) : null,
         hireDate: form.hireDate || undefined,
         employmentType: form.employmentType,
         residentStatus: form.residentStatus,
@@ -181,6 +189,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
       if (form.bankName) payload.bankName = form.bankName;
       if (form.bankAccount) payload.bankAccount = form.bankAccount;
       if (form.bankBranchCode) payload.bankBranchCode = form.bankBranchCode;
+      if (form.bankBranchName) payload.bankBranchName = form.bankBranchName;
       if (form.mpesaPhone) payload.mpesaPhone = form.mpesaPhone;
       if (form.dateOfBirth) payload.dateOfBirth = form.dateOfBirth;
       if (form.region) payload.region = form.region;
@@ -317,6 +326,9 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
             {/* ── Employment ── */}
             <TabsContent value="employment" className="mt-0 space-y-4">
               {textField("POSITION / JOB TITLE", "position")}
+              {selectField("DEPARTMENT", "departmentId", departments.map((d: any) => ({
+                value: String(d.id), label: `${d.name} (${d.code})`,
+              })))}
               <div className="grid grid-cols-2 gap-4">
                 {textField("HIRE DATE", "hireDate", "date")}
                 {selectField("EMPLOYMENT TYPE", "employmentType", [
@@ -396,6 +408,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
                   {textField("BANK NAME", "bankName", "text", "Equity Bank")}
                   <div className="grid grid-cols-2 gap-4">
                     {textField("BRANCH CODE", "bankBranchCode", "text", "001")}
+                    {textField("BRANCH NAME", "bankBranchName", "text", "Westlands Branch")}
                     {textField("ACCOUNT NUMBER", "bankAccount", "text", "0123456789")}
                   </div>
                 </div>

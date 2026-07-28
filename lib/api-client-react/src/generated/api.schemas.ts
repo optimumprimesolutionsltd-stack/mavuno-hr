@@ -144,6 +144,8 @@ export interface Employee {
   empNo: string;
   firstName: string;
   lastName: string;
+  /** @nullable */
+  middleName?: string | null;
   email: string;
   /** @nullable */
   phone?: string | null;
@@ -159,6 +161,10 @@ export interface Employee {
   payMethod?: string;
   /** @nullable */
   bankName?: string | null;
+  /** @nullable */
+  bankBranchCode?: string | null;
+  /** @nullable */
+  bankBranchName?: string | null;
   /** @nullable */
   bankAccount?: string | null;
   /** @nullable */
@@ -234,6 +240,7 @@ export interface EmployeeInput {
   bankName?: string;
   bankCode?: string;
   bankBranchCode?: string;
+  bankBranchName?: string;
   bankAccount?: string;
   mpesaPhone?: string;
   departmentId?: number;
@@ -716,6 +723,8 @@ export type ListTimesheetsParams = {
 period?: string;
 };
 
+export type GetFilings200 = { [key: string]: unknown };
+
 export type GetReportParams = {
 /**
  * paye | nssf | shif | housing | bank | p9 | muster | journal
@@ -731,36 +740,4 @@ limit?: number;
 export type GetPortalP9Params = {
 year?: number;
 };
-
-export interface FilingsGridFiling {
-  id: number;
-  orgId: number;
-  /** @nullable */
-  runId?: number | null;
-  kind: string;
-  period: string;
-  itemCount: number;
-  totalAmount: number;
-  status: string;
-  /** @nullable */
-  filedAt?: string | null;
-  createdAt: string;
-}
-
-export interface FilingsGridPeriod {
-  period: string;
-  runId: number;
-  runName: string;
-  runStatus: string;
-  employeeCount: number;
-  /** @nullable */
-  paidAt?: string | null;
-  filings: Record<string, FilingsGridFiling | null>;
-}
-
-export interface FilingsGrid {
-  periods: FilingsGridPeriod[];
-  outstanding: string[];
-  currentPeriod: string;
-}
 

@@ -29,6 +29,7 @@ export * from './employeeRowDepartment';
 export * from './employeeUpdate';
 export * from './filingGenerateInput';
 export * from './filingGenerateInputKind';
+export * from './getFilings200';
 export * from './getPortalP9Params';
 export * from './getReportParams';
 export * from './healthStatus';

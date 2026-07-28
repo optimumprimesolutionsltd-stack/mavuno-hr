@@ -157,6 +157,10 @@ async function addEmployeePersonalDetails(): Promise<void> {
   `);
 }
 
+async function addEmployeeBankBranchName(): Promise<void> {
+  await db.execute(sql`ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_branch_name TEXT`);
+}
+
 export async function runStartupMigrations(): Promise<void> {
   try {
     await migrateAdminCredentials();
@@ -171,6 +175,7 @@ export async function runStartupMigrations(): Promise<void> {
     await addFilingConfirmedByColumns();
     await addEmployeeMiddleName();
     await addEmployeePersonalDetails();
+    await addEmployeeBankBranchName();
   } catch (err) {
     logger.error({ err }, "startup-migration: failed (non-fatal)");
   }
