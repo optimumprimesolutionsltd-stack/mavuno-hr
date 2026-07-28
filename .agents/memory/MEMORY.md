@@ -1,3 +1,4 @@
 - [Zawadi HR architecture](zawadi-hr-arch.md) — full-stack Kenya payroll SaaS; key design constraints and seed workflow
 - [Wouter 3 routing patterns](wouter-routing.md) — regexparam 3 breaks `/admin*` prefix matching; use two routes: `/admin` + `/admin/*`
 - [Tier II and net pay](tier2-and-net-pay.md) — preserve the Tier II provider in payroll snapshots and gross up employees contracted on net salary
+- [Zawadi brand identity](zawadi-brand.md) — use Zawadi HR as the full product name with the emerald-and-navy logo lockup
