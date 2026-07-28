@@ -141,10 +141,10 @@ export function Register() {
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="mx-auto w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
-            <Building2 className="w-6 h-6 text-primary" />
+            <img src="/branding/zawadi-mark.svg" alt="" className="w-7 h-7" />
           </div>
           <h1 className="text-2xl font-mono font-bold tracking-tight">
-            ZAWADI<span className="text-primary">.HR</span>
+             ZAWADI<span className="text-primary"> HR</span>
           </h1>
           <p className="text-muted-foreground text-sm">Set up your company in 2 minutes</p>
         </div>

@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "8EVRH0Sjd_l6dKVhOf4nD"
+uri = "file://attached_assets/branding/zawadi-mark.svg"
+type = "image"
+title = "Zawadi HR logo mark — SVG"

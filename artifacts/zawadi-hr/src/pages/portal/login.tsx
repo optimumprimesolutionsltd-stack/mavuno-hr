@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Loader2, User } from "lucide-react";
+import { Loader2, User } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -56,10 +56,10 @@ export function PortalLogin() {
       <Card className="w-full max-w-md z-10 border-border/50 shadow-2xl bg-card/80 backdrop-blur-sm">
         <CardHeader className="space-y-4 pb-6">
           <div className="mx-auto w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
-            <User className="w-6 h-6 text-primary" />
+             <img src="/branding/zawadi-mark.svg" alt="" className="w-7 h-7" />
           </div>
           <div className="text-center space-y-1">
-            <CardTitle className="text-2xl font-mono tracking-tight">ZAWADI<span className="text-primary">.PORTAL</span></CardTitle>
+           <CardTitle className="text-2xl font-mono tracking-tight">ZAWADI<span className="text-primary"> PORTAL</span></CardTitle>
             <CardDescription>Employee self-service login</CardDescription>
           </div>
         </CardHeader>
