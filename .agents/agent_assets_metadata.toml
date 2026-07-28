@@ -5,10 +5,10 @@ generated = []
 id = "8EVRH0Sjd_l6dKVhOf4nD"
 uri = "file://attached_assets/branding/zawadi-mark.svg"
 type = "image"
-title = "Zawadi HR logo mark — SVG"
+title = "Zawadi HR favicon — icon only"
 
 [[outputs]]
 id = "lQBK-U_390sD9HCbal-aF"
 uri = "file://attached_assets/branding/zawadi-hr-logo.svg"
 type = "image"
-title = "ZAWADI HR logo with name"
+title = "Zawadi HR complete logo — icon and name"
