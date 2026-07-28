@@ -37,6 +37,7 @@ const employeeBaseSchema = z.object({
   position: z.string().min(1).max(120),
   employmentType: z.enum(["permanent","contract","casual"]).default("permanent"),
   residentStatus: z.enum(["resident","non_resident"]).default("resident"),
+  salaryBasis: z.enum(["gross", "net"]).default("gross"),
   disabilityExemption: z.boolean().default(false),
   basicSalary: moneyString,
   houseAllowance: moneyString.default("0"),
@@ -73,6 +74,7 @@ function toRow(body: z.infer<typeof employeeBaseSchema>) {
     mpesaPhone: body.mpesaPhone ?? null, departmentId: body.departmentId ?? null,
     position: body.position, employmentType: body.employmentType,
     residentStatus: body.residentStatus, disabilityExemption: body.disabilityExemption,
+    salaryBasis: body.salaryBasis,
     workDaysPerWeek: body.workDaysPerWeek ?? 5,
     worksOnHolidays: body.worksOnHolidays ?? false,
     basicSalary: toCents(body.basicSalary),
@@ -223,6 +225,7 @@ router.patch("/:id", requireAuth("employee:write"), async (req, res, next) => {
     if (b.position !== undefined) updateData.position = b.position;
     if (b.employmentType !== undefined) updateData.employmentType = b.employmentType;
     if (b.residentStatus !== undefined) updateData.residentStatus = b.residentStatus;
+    if (b.salaryBasis !== undefined) updateData.salaryBasis = b.salaryBasis;
     if (b.disabilityExemption !== undefined) updateData.disabilityExemption = b.disabilityExemption;
     if (b.basicSalary !== undefined) updateData.basicSalary = toCents(b.basicSalary);
     if (b.houseAllowance !== undefined) updateData.houseAllowance = toCents(b.houseAllowance);

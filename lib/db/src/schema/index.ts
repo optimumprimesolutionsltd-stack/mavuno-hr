@@ -105,6 +105,7 @@ export const employees = pgTable("employees", {
   position: text("position").notNull(),
   employmentType: text("employment_type").notNull().default("permanent"),
   residentStatus: text("resident_status").notNull().default("resident"),
+  salaryBasis: text("salary_basis").notNull().default("gross"),
   disabilityExemption: boolean("disability_exemption").notNull().default(false),
   basicSalary: money("basic_salary").notNull(),
   houseAllowance: money("house_allowance").notNull().default(0),

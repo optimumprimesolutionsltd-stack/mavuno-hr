@@ -297,10 +297,15 @@ router.patch("/:runId/payslips/:slipId", requireAuth("payroll:calculate"), async
         disabilityExemption: emp.disabilityExemption,
       };
 
-      const r = computePayslip(pin, config);
+      const { basicSalary: _storedSalary, ...netTemplate } = pin;
+      const r = emp.salaryBasis === "net"
+        ? (await import("../lib/payroll.js")).solveGrossForNet(pin.basicSalary, netTemplate, config).result
+        : computePayslip(pin, config);
 
       const newBreakdown = {
         bands: r.bands, nssfTier1: r.nssfTier1, nssfTier2: r.nssfTier2,
+        tier2Provider: config.socialSecurity.tier2Provider ?? "nssf",
+        tier2ProviderName: config.socialSecurity.tier2ProviderName ?? "NSSF",
         warnings: r.warnings, overrides: merged,
       };
 
@@ -431,7 +436,7 @@ router.get("/:id/payslips/:slipId/pdf", requireAuth("payroll:read"), async (req,
       .innerJoin(payrollRuns, eq(payslips.runId, payrollRuns.id))
       .where(and(eq(payslips.id, slipId), eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
 
-    const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number; nssfTier1Employer?: number; nssfTier2Employer?: number };
+    const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number; tier2Provider?: string; tier2ProviderName?: string; nssfTier1Employer?: number; nssfTier2Employer?: number };
     const { generatePayslipPdf } = await import("../lib/pdf-payslip.js");
 
     const pdfBuffer = await generatePayslipPdf({
@@ -464,6 +469,7 @@ router.get("/:id/payslips/:slipId/pdf", requireAuth("payroll:read"), async (req,
       nssfEmployee: slip.nssfEmployee,
       nssfTier1: bd.nssfTier1 ?? 0,
       nssfTier2: bd.nssfTier2 ?? 0,
+      tier2Label: bd.tier2Provider === "private" ? `${bd.tier2ProviderName ?? "Private Pension Fund"} — Tier II` : "NSSF — Tier II",
       shif: slip.shif,
       housingLevyEmployee: slip.housingLevyEmployee,
       pension: slip.pension,
@@ -605,7 +611,7 @@ router.get("/:id/payslips/bulk-pdf", requireAuth("payroll:read"), async (req, re
     const merged = await PDFDocument.create();
 
     for (const { slip, emp } of rows) {
-      const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number };
+      const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number; tier2Provider?: string; tier2ProviderName?: string };
       const pdfBuffer = await generatePayslipPdf({
         orgName: org.name, orgKraPin: org.kraPin ?? undefined, orgNssfNo: org.nssfEmployerNo ?? undefined,
         period: run.period, runName: run.name,
@@ -621,6 +627,7 @@ router.get("/:id/payslips/bulk-pdf", requireAuth("payroll:read"), async (req, re
         gross: slip.gross, cashGross: slip.cashGross,
         paye: slip.paye, nssfEmployee: slip.nssfEmployee,
         nssfTier1: bd.nssfTier1 ?? 0, nssfTier2: bd.nssfTier2 ?? 0,
+         tier2Label: bd.tier2Provider === "private" ? `${bd.tier2ProviderName ?? "Private Pension Fund"} — Tier II` : "NSSF — Tier II",
         shif: slip.shif, housingLevyEmployee: slip.housingLevyEmployee,
         pension: slip.pension, helb: slip.helb, sacco: slip.sacco,
         loanDeduction: slip.loanDeduction, adjustmentDeductions: slip.adjustmentDeductions,

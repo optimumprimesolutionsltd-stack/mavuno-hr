@@ -1030,6 +1030,9 @@ components:
           type: string
         residentStatus:
           type: string
+        salaryBasis:
+          type: string
+          enum: [gross, net]
         disabilityExemption:
           type: boolean
         basicSalary:
@@ -1149,6 +1152,9 @@ components:
           type: string
         residentStatus:
           type: string
+        salaryBasis:
+          type: string
+          enum: [gross, net]
         disabilityExemption:
           type: boolean
         basicSalary:

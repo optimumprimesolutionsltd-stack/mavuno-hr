@@ -73,7 +73,13 @@ export function PayslipDialog({ slip, open, onOpenChange, employeeName }: Props)
           <div>
             <p className="text-xs font-mono text-muted-foreground mb-2 uppercase tracking-wider">Statutory Deductions</p>
             <Row label="PAYE (Income Tax)" amount={slip.paye || 0} negative />
-            <Row label="NSSF (Employee)" amount={slip.nssfEmployee || 0} negative />
+            <Row
+              label={slip.breakdown?.tier2Provider === "private"
+                ? `NSSF Tier I + ${slip.breakdown?.tier2ProviderName || "Private Pension Fund"} Tier II`
+                : "NSSF (Employee)"}
+              amount={slip.nssfEmployee || 0}
+              negative
+            />
             <Row label="SHIF / NHIF" amount={slip.shif || 0} negative />
             <Row label="Housing Levy (Employee)" amount={slip.housingLevyEmployee || 0} negative />
           </div>

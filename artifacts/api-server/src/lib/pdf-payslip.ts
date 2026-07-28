@@ -38,6 +38,7 @@ export interface PayslipPdfData {
   nssfEmployee: number;
   nssfTier1: number;
   nssfTier2: number;
+  tier2Label?: string;
   shif: number;
   housingLevyEmployee: number;
   // Non-statutory deductions
@@ -209,7 +210,7 @@ export function generatePayslipPdf(data: PayslipPdfData): Promise<Buffer> {
     dataRow("Income Tax (PAYE)",         data.paye);
     if (data.nssfTier1 > 0 || data.nssfTier2 > 0) {
       dataRow("NSSF — Tier I",           data.nssfTier1,       { indent: true });
-      dataRow("NSSF — Tier II",          data.nssfTier2,       { indent: true });
+      dataRow(data.tier2Label ?? "NSSF — Tier II", data.nssfTier2, { indent: true });
     } else {
       dataRow("NSSF",                    data.nssfEmployee);
     }

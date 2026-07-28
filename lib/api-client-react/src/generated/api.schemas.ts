@@ -138,6 +138,14 @@ export interface DashboardData {
   auditLogs: DashboardDataAuditLogsItem[];
 }
 
+export type EmployeeSalaryBasis = typeof EmployeeSalaryBasis[keyof typeof EmployeeSalaryBasis];
+
+
+export const EmployeeSalaryBasis = {
+  gross: 'gross',
+  net: 'net',
+} as const;
+
 export interface Employee {
   id: number;
   orgId: number;
@@ -172,6 +180,7 @@ export interface Employee {
   position: string;
   employmentType: string;
   residentStatus?: string;
+  salaryBasis?: EmployeeSalaryBasis;
   disabilityExemption?: boolean;
   basicSalary: number;
   houseAllowance?: number;
@@ -226,6 +235,14 @@ export interface EmployeeDetail {
   loans?: EmployeeDetailLoansItem[];
 }
 
+export type EmployeeInputSalaryBasis = typeof EmployeeInputSalaryBasis[keyof typeof EmployeeInputSalaryBasis];
+
+
+export const EmployeeInputSalaryBasis = {
+  gross: 'gross',
+  net: 'net',
+} as const;
+
 export interface EmployeeInput {
   firstName: string;
   lastName: string;
@@ -247,6 +264,7 @@ export interface EmployeeInput {
   position: string;
   employmentType: string;
   residentStatus: string;
+  salaryBasis?: EmployeeInputSalaryBasis;
   disabilityExemption?: boolean;
   basicSalary: number;
   houseAllowance?: number;

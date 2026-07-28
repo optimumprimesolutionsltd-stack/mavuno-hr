@@ -30,6 +30,7 @@ interface FormData {
   hireDate: string;
   employmentType: string;
   residentStatus: string;
+  salaryBasis: "gross" | "net";
   region: string;
   basicSalary: string;
   houseAllowance: string;
@@ -58,7 +59,7 @@ const DEFAULTS: FormData = {
   firstName: "", middleName: "", lastName: "", email: "", phone: "", gender: "male", nationalId: "",
   dateOfBirth: "", educationLevel: "",
   position: "", departmentId: "", hireDate: new Date().toISOString().slice(0, 10), employmentType: "permanent",
-  residentStatus: "resident", region: "", basicSalary: "", houseAllowance: "0", transportAllowance: "0",
+   residentStatus: "resident", salaryBasis: "gross", region: "", basicSalary: "", houseAllowance: "0", transportAllowance: "0",
   workDaysPerWeek: "5", worksOnHolidays: false,
   payMethod: "bank", bankName: "", bankAccount: "", bankBranchCode: "", bankBranchName: "", mpesaPhone: "",
   kraPin: "", nssfNo: "", shifNo: "",
@@ -156,6 +157,7 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
         hireDate: form.hireDate,
         employmentType: form.employmentType,
         residentStatus: form.residentStatus,
+        salaryBasis: form.salaryBasis,
         region: form.region || undefined,
         payMethod: form.payMethod,
         bankName: form.bankName || undefined,
@@ -316,6 +318,19 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
             <div className="space-y-1">
               <Label className="text-xs font-mono text-muted-foreground">BASIC SALARY (KES) *</Label>
               <Input type="number" value={form.basicSalary} onChange={set("basicSalary")} placeholder="50000" className="bg-background/50" />
+              <p className="text-[11px] text-muted-foreground">
+                {form.salaryBasis === "net" ? "Enter the employee's target take-home pay." : "Enter the employee's gross basic salary."}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">SALARY BASIS</Label>
+              <Select value={form.salaryBasis} onValueChange={setVal("salaryBasis")}>
+                <SelectTrigger className="bg-background/50"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gross">Gross salary</SelectItem>
+                  <SelectItem value="net">Net salary (gross-up)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <Label className="text-xs font-mono text-muted-foreground">HOUSE ALLOWANCE (KES)</Label>

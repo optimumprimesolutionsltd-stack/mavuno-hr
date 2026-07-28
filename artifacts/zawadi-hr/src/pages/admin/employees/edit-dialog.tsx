@@ -26,6 +26,7 @@ interface Employee {
   hireDate: string;
   employmentType: string;
   residentStatus: string;
+  salaryBasis?: "gross" | "net" | null;
   basicSalary: number;
   houseAllowance?: number | null;
   transportAllowance?: number | null;
@@ -89,7 +90,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
 
   const [form, setForm] = useState({
     firstName: "", middleName: "", lastName: "", email: "", phone: "", gender: "male", nationalId: "",
-    position: "", departmentId: "", hireDate: "", employmentType: "permanent", residentStatus: "resident",
+    position: "", departmentId: "", hireDate: "", employmentType: "permanent", residentStatus: "resident", salaryBasis: "gross",
     basicSalary: "", houseAllowance: "0", transportAllowance: "0", otherAllowance: "0",
     nonCashBenefit: "0", insurancePremium: "0", pensionEmployee: "0", pensionEmployer: "0",
     mortgageInterest: "0", helbMonthly: "0", saccoMonthly: "0",
@@ -120,6 +121,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
       hireDate: employee.hireDate ?? "",
       employmentType: employee.employmentType ?? "permanent",
       residentStatus: employee.residentStatus ?? "resident",
+      salaryBasis: employee.salaryBasis ?? "gross",
       basicSalary: centsToStr(employee.basicSalary),
       houseAllowance: centsToStr(employee.houseAllowance),
       transportAllowance: centsToStr(employee.transportAllowance),
@@ -166,6 +168,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
         hireDate: form.hireDate || undefined,
         employmentType: form.employmentType,
         residentStatus: form.residentStatus,
+        salaryBasis: form.salaryBasis,
         basicSalary: form.basicSalary || "0",
         houseAllowance: form.houseAllowance || "0",
         transportAllowance: form.transportAllowance || "0",
@@ -378,6 +381,10 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
                 <p className="text-xs font-mono text-muted-foreground mb-3">COMPENSATION</p>
                 <div className="grid grid-cols-2 gap-4">
                   {textField("BASIC SALARY (KES)", "basicSalary", "text", "50000.00")}
+                  {selectField("SALARY BASIS", "salaryBasis", [
+                    { value: "gross", label: "Gross salary" },
+                    { value: "net", label: "Net salary (gross-up)" },
+                  ])}
                   {textField("HOUSE ALLOWANCE", "houseAllowance", "text", "0")}
                   {textField("TRANSPORT ALLOWANCE", "transportAllowance", "text", "0")}
                   {textField("OTHER ALLOWANCE", "otherAllowance", "text", "0")}

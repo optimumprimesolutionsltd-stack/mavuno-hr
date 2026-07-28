@@ -5,6 +5,7 @@
  * Zawadi HR & Payroll API
  * OpenAPI spec version: 0.1.0
  */
+import type { EmployeeInputSalaryBasis } from './employeeInputSalaryBasis';
 
 export interface EmployeeInput {
   firstName: string;
@@ -27,6 +28,7 @@ export interface EmployeeInput {
   position: string;
   employmentType: string;
   residentStatus: string;
+  salaryBasis?: EmployeeInputSalaryBasis;
   disabilityExemption?: boolean;
   basicSalary: number;
   houseAllowance?: number;

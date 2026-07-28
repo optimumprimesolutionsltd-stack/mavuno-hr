@@ -5,7 +5,7 @@ import {
 } from "@workspace/db/schema";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "@workspace/db/schema";
-import { computePayslip, type PayInput } from "./payroll.js";
+import { computePayslip, solveGrossForNet, type PayInput } from "./payroll.js";
 import { resolveConfig } from "./statutory-resolve.js";
 import { writeAudit } from "./audit.js";
 import { HttpError } from "./http-error.js";
@@ -169,7 +169,10 @@ export async function calculateRun(
       disabilityExemption: e.disabilityExemption,
     };
 
-    const r = computePayslip(pin, config);
+    const { basicSalary: _storedSalary, ...netTemplate } = pin;
+    const r = e.salaryBasis === "net"
+      ? solveGrossForNet(e.basicSalary, netTemplate, config).result
+      : computePayslip(pin, config);
     if (r.warnings.length) warnings.push({ empNo: e.empNo, warnings: r.warnings });
 
     totals.gross += r.gross; totals.net += r.netPay; totals.paye += r.paye;
@@ -191,7 +194,16 @@ export async function calculateRun(
       adjustmentDeductions: r.adjustmentDeductions, totalDeductions: r.totalDeductions,
       netPay: r.netPay, employerCost: r.employerCost, daysInPeriod,
       daysPayable: pin.daysPayable,
-      breakdown: { bands: r.bands, nssfTier1: r.nssfTier1, nssfTier2: r.nssfTier2, nssfTier1Employer: r.nssfTier1Employer, nssfTier2Employer: r.nssfTier2Employer, warnings: r.warnings },
+      breakdown: {
+        bands: r.bands,
+        nssfTier1: r.nssfTier1,
+        nssfTier2: r.nssfTier2,
+        nssfTier1Employer: r.nssfTier1Employer,
+        nssfTier2Employer: r.nssfTier2Employer,
+        tier2Provider: config.socialSecurity.tier2Provider ?? "nssf",
+        tier2ProviderName: config.socialSecurity.tier2ProviderName ?? "NSSF",
+        warnings: r.warnings,
+      },
     };
   });
 
@@ -326,7 +338,10 @@ export async function recalculateRun(
       disabilityExemption: e.disabilityExemption,
     };
 
-    const r = computePayslip(pin, config);
+    const { basicSalary: _storedSalary, ...netTemplate } = pin;
+    const r = e.salaryBasis === "net"
+      ? solveGrossForNet(e.basicSalary, netTemplate, config).result
+      : computePayslip(pin, config);
     if (r.warnings.length) warnings.push({ empNo: e.empNo, warnings: r.warnings });
 
     totals.gross += r.gross; totals.net += r.netPay; totals.paye += r.paye;
@@ -348,7 +363,16 @@ export async function recalculateRun(
       adjustmentDeductions: r.adjustmentDeductions, totalDeductions: r.totalDeductions,
       netPay: r.netPay, employerCost: r.employerCost, daysInPeriod,
       daysPayable: pin.daysPayable,
-      breakdown: { bands: r.bands, nssfTier1: r.nssfTier1, nssfTier2: r.nssfTier2, nssfTier1Employer: r.nssfTier1Employer, nssfTier2Employer: r.nssfTier2Employer, warnings: r.warnings },
+      breakdown: {
+        bands: r.bands,
+        nssfTier1: r.nssfTier1,
+        nssfTier2: r.nssfTier2,
+        nssfTier1Employer: r.nssfTier1Employer,
+        nssfTier2Employer: r.nssfTier2Employer,
+        tier2Provider: config.socialSecurity.tier2Provider ?? "nssf",
+        tier2ProviderName: config.socialSecurity.tier2ProviderName ?? "NSSF",
+        warnings: r.warnings,
+      },
     };
   });
 
