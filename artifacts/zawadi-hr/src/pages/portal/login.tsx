@@ -59,7 +59,7 @@ export function PortalLogin() {
              <img src="/branding/zawadi-mark.svg" alt="" className="w-7 h-7" />
           </div>
           <div className="text-center space-y-1">
-           <CardTitle className="text-2xl font-mono tracking-tight">ZAWADI<span className="text-primary"> PORTAL</span></CardTitle>
+           <CardTitle className="text-2xl font-mono tracking-tight">zawadi<span className="text-primary">HR Portal</span></CardTitle>
             <CardDescription>Employee self-service login</CardDescription>
           </div>
         </CardHeader>

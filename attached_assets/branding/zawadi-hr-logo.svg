@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 180" role="img" aria-labelledby="title desc">
-  <title id="title">Zawadi HR</title>
-  <desc id="desc">Zawadi HR logo with an emerald and navy geometric mark and wordmark.</desc>
+  <title id="title">zawadiHR</title>
+  <desc id="desc">zawadiHR logo with an emerald and navy geometric mark and wordmark.</desc>
   <defs>
     <linearGradient id="navy" x1="97.12" x2="128.8" y1="99.61" y2="99.61" gradientUnits="userSpaceOnUse">
       <stop stop-color="#182C5B"/>
@@ -15,6 +15,6 @@
     <path fill="url(#navy)" d="m126.9 106.5-13.9-23.5-15.9 22.2 6.2 10.8h25.2c.6-5.4-1.6-9.5-1.6-9.5z"/>
     <path fill="#0BB463" d="m124.7 10.7-61.6 93.9v.1h23.6l25.8-29.7 26.2-40.8-14-23.5zm-84 105.3-15.6 23.2h87.5l15.9-23.2h-87.8z"/>
   </g>
-  <text x="205" y="104" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="800" letter-spacing="2" fill="#182C5B">ZAWADI</text>
-  <text x="508" y="104" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="800" letter-spacing="2" fill="#049756">HR</text>
+  <text x="205" y="104" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="800" letter-spacing="2" fill="#182C5B">zawadi</text>
+  <text x="450" y="104" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="800" letter-spacing="2" fill="#049756">HR</text>
 </svg>

@@ -158,7 +158,7 @@ export function AdminBilling() {
 
           {/* Info note */}
           <p className="text-xs text-muted-foreground font-mono text-center">
-            Receipts are emailed automatically to your account address when a payment is verified by Zawadi HR support.
+            Receipts are emailed automatically to your account address when a payment is verified by zawadiHR support.
             Contact us if you have a payment query.
           </p>
         </>

@@ -144,7 +144,7 @@ export function Register() {
             <img src="/branding/zawadi-mark.svg" alt="" className="w-7 h-7" />
           </div>
           <h1 className="text-2xl font-mono font-bold tracking-tight">
-             ZAWADI<span className="text-primary"> HR</span>
+             zawadi<span className="text-primary">HR</span>
           </h1>
           <p className="text-muted-foreground text-sm">Set up your company in 2 minutes</p>
         </div>

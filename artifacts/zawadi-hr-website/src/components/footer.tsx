@@ -8,7 +8,7 @@ export function Footer() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           <div className="md:col-span-1">
-            <img src={logoSvg} alt="Zawadi HR" className="h-8 w-auto mb-6" />
+            <img src={logoSvg} alt="zawadiHR" className="h-8 w-auto mb-6" />
             <p className="text-muted-foreground text-sm leading-relaxed mb-6">
               Independent, secure payroll and people management built specifically for modern Kenyan businesses.
             </p>
@@ -48,7 +48,7 @@ export function Footer() {
         </div>
         
         <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <p>© {currentYear} Zawadi HR. All rights reserved.</p>
+          <p>© {currentYear} zawadiHR. All rights reserved.</p>
           <div className="flex items-center gap-6">
             <a href="https://app.zawadihr.com/login" className="hover:text-primary transition-colors font-medium">Sign In to Dashboard</a>
           </div>
