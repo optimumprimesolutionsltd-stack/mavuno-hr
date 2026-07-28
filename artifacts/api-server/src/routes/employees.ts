@@ -52,6 +52,13 @@ const employeeBaseSchema = z.object({
   worksOnHolidays: z.boolean().default(false),
   hireDate: isoDate,
   leaveBalance: z.number().int().min(0).max(3650).optional(),
+  dateOfBirth: isoDate.optional(),
+  region: z.string().max(100).optional(),
+  educationLevel: z.enum(["none","primary","secondary","certificate","diploma","bachelor","master","phd","other"]).optional(),
+  nokName: z.string().max(120).optional(),
+  nokRelationship: z.string().max(80).optional(),
+  nokPhone: z.string().max(20).optional(),
+  nokEmail: z.string().email().max(255).optional(),
 });
 
 function toRow(body: z.infer<typeof employeeBaseSchema>) {
@@ -78,6 +85,13 @@ function toRow(body: z.infer<typeof employeeBaseSchema>) {
     helbMonthly: toCents(body.helbMonthly ?? "0"),
     saccoMonthly: toCents(body.saccoMonthly ?? "0"),
     hireDate: body.hireDate,
+    dateOfBirth: body.dateOfBirth ?? null,
+    region: body.region ?? null,
+    educationLevel: body.educationLevel ?? null,
+    nokName: body.nokName ?? null,
+    nokRelationship: body.nokRelationship ?? null,
+    nokPhone: body.nokPhone ?? null,
+    nokEmail: body.nokEmail ?? null,
   };
 }
 
@@ -222,6 +236,13 @@ router.patch("/:id", requireAuth("employee:write"), async (req, res, next) => {
     if (b.workDaysPerWeek !== undefined) updateData.workDaysPerWeek = b.workDaysPerWeek;
     if (b.worksOnHolidays !== undefined) updateData.worksOnHolidays = b.worksOnHolidays;
     if (b.leaveBalance !== undefined) updateData.leaveBalance = b.leaveBalance;
+    if (b.dateOfBirth !== undefined) updateData.dateOfBirth = b.dateOfBirth ?? null;
+    if (b.region !== undefined) updateData.region = b.region ?? null;
+    if (b.educationLevel !== undefined) updateData.educationLevel = b.educationLevel ?? null;
+    if (b.nokName !== undefined) updateData.nokName = b.nokName ?? null;
+    if (b.nokRelationship !== undefined) updateData.nokRelationship = b.nokRelationship ?? null;
+    if (b.nokPhone !== undefined) updateData.nokPhone = b.nokPhone ?? null;
+    if (b.nokEmail !== undefined) updateData.nokEmail = b.nokEmail ?? null;
 
     const [updated] = await db.update(employees).set(updateData).where(eq(employees.id, id)).returning();
 

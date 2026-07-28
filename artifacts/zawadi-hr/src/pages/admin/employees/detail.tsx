@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   ArrowLeft, User, Briefcase, Landmark, FileText, Pencil, UserX, AlertCircle, KeyRound, Loader2,
-  CalendarDays, Check, X, Copy,
+  CalendarDays, Check, X, Copy, Heart,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EditEmployeeDialog } from "./edit-dialog";
@@ -223,6 +223,14 @@ export function EmployeeDetail() {
                     <span className="text-muted-foreground block text-xs mb-0.5">National ID</span>
                     <span className="font-mono">{employee.nationalId || '-'}</span>
                   </div>
+                  <div>
+                    <span className="text-muted-foreground block text-xs mb-0.5">Date of Birth</span>
+                    <span>{(employee as any).dateOfBirth ? formatDate((employee as any).dateOfBirth) : '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-xs mb-0.5">Education</span>
+                    <span className="capitalize">{(employee as any).educationLevel?.replace('_', ' ') || '-'}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -247,6 +255,10 @@ export function EmployeeDetail() {
                   <div>
                     <span className="text-muted-foreground block text-xs mb-0.5">Hire Date</span>
                     {formatDate(employee.hireDate)}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-xs mb-0.5">Region</span>
+                    <span>{(employee as any).region || '-'}</span>
                   </div>
                 </div>
               </CardContent>
@@ -303,6 +315,61 @@ export function EmployeeDetail() {
                     <span className="font-mono">{employee.bankAccount || '-'}</span>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Next of Kin */}
+            <Card className="border-border/50 shadow-sm bg-card/30 md:col-span-2">
+              <CardHeader className="pb-3 border-b border-border/30">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-mono flex items-center text-muted-foreground">
+                    <Heart className="h-4 w-4 mr-2 text-primary" />NEXT OF KIN
+                  </CardTitle>
+                  {!isTerminated && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="font-mono text-xs h-7 gap-1"
+                      onClick={() => openEdit("nextofkin" as any)}
+                    >
+                      <Pencil className="h-3 w-3" />EDIT
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {(employee as any).nokName ? (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground block text-xs mb-0.5">Full Name</span>
+                      <span>{(employee as any).nokName}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs mb-0.5">Relationship</span>
+                      <span>{(employee as any).nokRelationship || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs mb-0.5">Phone</span>
+                      <span>{(employee as any).nokPhone || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs mb-0.5">Email</span>
+                      <span className="break-all">{(employee as any).nokEmail || '-'}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground font-mono">
+                    No next of kin recorded.{" "}
+                    {!isTerminated && (
+                      <button
+                        className="underline hover:text-foreground transition-colors"
+                        onClick={() => openEdit("nextofkin" as any)}
+                      >
+                        Add now
+                      </button>
+                    )}
+                  </p>
+                )}
               </CardContent>
             </Card>
 

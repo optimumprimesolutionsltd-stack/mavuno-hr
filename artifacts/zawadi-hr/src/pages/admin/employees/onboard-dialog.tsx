@@ -7,12 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, ChevronRight, ChevronLeft, Check, User, Briefcase, Landmark, Shield, Info as InfoIcon } from "lucide-react";
+import { Loader2, ChevronRight, ChevronLeft, Check, User, Briefcase, Landmark, Shield, Info as InfoIcon, Heart } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getListEmployeesQueryKey } from "@workspace/api-client-react";
 
 interface FormData {
-  // Step 1 — Personal
+  // Step 0 — Personal
   firstName: string;
   middleName: string;
   lastName: string;
@@ -20,35 +20,45 @@ interface FormData {
   phone: string;
   gender: string;
   nationalId: string;
-  // Step 2 — Employment
+  dateOfBirth: string;
+  educationLevel: string;
+  // Step 1 — Employment
   position: string;
   hireDate: string;
   employmentType: string;
   residentStatus: string;
+  region: string;
   basicSalary: string;
   houseAllowance: string;
   transportAllowance: string;
   workDaysPerWeek: string;
   worksOnHolidays: boolean;
-  // Step 3 — Payment
+  // Step 2 — Payment
   payMethod: string;
   bankName: string;
   bankAccount: string;
   bankBranchCode: string;
   mpesaPhone: string;
-  // Step 4 — Compliance
+  // Step 3 — Compliance
   kraPin: string;
   nssfNo: string;
   shifNo: string;
+  // Step 4 — Next of Kin
+  nokName: string;
+  nokRelationship: string;
+  nokPhone: string;
+  nokEmail: string;
 }
 
 const DEFAULTS: FormData = {
   firstName: "", middleName: "", lastName: "", email: "", phone: "", gender: "male", nationalId: "",
+  dateOfBirth: "", educationLevel: "",
   position: "", hireDate: new Date().toISOString().slice(0, 10), employmentType: "permanent",
-  residentStatus: "resident", basicSalary: "", houseAllowance: "0", transportAllowance: "0",
+  residentStatus: "resident", region: "", basicSalary: "", houseAllowance: "0", transportAllowance: "0",
   workDaysPerWeek: "5", worksOnHolidays: false,
   payMethod: "bank", bankName: "", bankAccount: "", bankBranchCode: "", mpesaPhone: "",
   kraPin: "", nssfNo: "", shifNo: "",
+  nokName: "", nokRelationship: "", nokPhone: "", nokEmail: "",
 };
 
 const STEPS = [
@@ -56,6 +66,19 @@ const STEPS = [
   { label: "Employment", icon: Briefcase },
   { label: "Payment", icon: Landmark },
   { label: "Compliance", icon: Shield },
+  { label: "Next of Kin", icon: Heart },
+];
+
+const EDUCATION_OPTIONS = [
+  { value: "none", label: "None" },
+  { value: "primary", label: "Primary" },
+  { value: "secondary", label: "Secondary" },
+  { value: "certificate", label: "Certificate" },
+  { value: "diploma", label: "Diploma" },
+  { value: "bachelor", label: "Bachelor's" },
+  { value: "master", label: "Master's" },
+  { value: "phd", label: "PhD" },
+  { value: "other", label: "Other" },
 ];
 
 interface Props {
@@ -115,6 +138,8 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
         phone: form.phone || undefined,
         gender: form.gender,
         nationalId: form.nationalId || undefined,
+        dateOfBirth: form.dateOfBirth || undefined,
+        educationLevel: (form.educationLevel || undefined) as any,
         kraPin: form.kraPin || undefined,
         nssfNo: form.nssfNo || undefined,
         shifNo: form.shifNo || undefined,
@@ -122,6 +147,7 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
         hireDate: form.hireDate,
         employmentType: form.employmentType,
         residentStatus: form.residentStatus,
+        region: form.region || undefined,
         payMethod: form.payMethod,
         bankName: form.bankName || undefined,
         bankAccount: form.bankAccount || undefined,
@@ -134,6 +160,10 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
         workDaysPerWeek: form.workDaysPerWeek as any,
         worksOnHolidays: form.worksOnHolidays,
         disabilityExemption: false,
+        nokName: form.nokName || undefined,
+        nokRelationship: form.nokRelationship || undefined,
+        nokPhone: form.nokPhone || undefined,
+        nokEmail: form.nokEmail || undefined,
       } as any,
     }, {
       onSuccess: (emp) => {
@@ -164,9 +194,9 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
             const active = i === step;
             return (
               <div key={i} className="flex items-center flex-1">
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono transition-colors ${active ? "bg-primary text-primary-foreground" : done ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}>
+                <div className={`flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-mono transition-colors ${active ? "bg-primary text-primary-foreground" : done ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}>
                   {done ? <Check className="h-3 w-3" /> : <Icon className="h-3 w-3" />}
-                  <span>{s.label}</span>
+                  <span className="hidden sm:inline">{s.label}</span>
                 </div>
                 {i < STEPS.length - 1 && <div className={`flex-1 h-px mx-1 ${done ? "bg-primary/40" : "bg-border/50"}`} />}
               </div>
@@ -208,9 +238,22 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="col-span-2 space-y-1">
+            <div className="space-y-1">
               <Label className="text-xs font-mono text-muted-foreground">NATIONAL ID</Label>
               <Input value={form.nationalId} onChange={set("nationalId")} placeholder="National ID number" className="bg-background/50" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">DATE OF BIRTH</Label>
+              <Input type="date" value={form.dateOfBirth} onChange={set("dateOfBirth")} className="bg-background/50" />
+            </div>
+            <div className="col-span-2 space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">EDUCATION LEVEL</Label>
+              <Select value={form.educationLevel} onValueChange={setVal("educationLevel")}>
+                <SelectTrigger className="bg-background/50"><SelectValue placeholder="Select education level" /></SelectTrigger>
+                <SelectContent>
+                  {EDUCATION_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         )}
@@ -246,6 +289,10 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
                   <SelectItem value="non_resident">Non-Resident</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">REGION / COUNTY</Label>
+              <Input value={form.region} onChange={set("region")} placeholder="e.g. Nairobi, Mombasa" className="bg-background/50" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs font-mono text-muted-foreground">BASIC SALARY (KES) *</Label>
@@ -364,6 +411,31 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
             </div>
             <div className="col-span-2 p-3 rounded-lg bg-muted/30 border border-border/30 text-xs text-muted-foreground font-mono mt-2">
               Compliance numbers can be added later via the employee profile. They are required for payroll processing.
+            </div>
+          </div>
+        )}
+
+        {/* Step 4 — Next of Kin */}
+        {step === 4 && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2 p-3 rounded-lg bg-muted/30 border border-border/30 text-xs text-muted-foreground font-mono">
+              Emergency contact for insurance and HR records. All fields are optional.
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">FULL NAME</Label>
+              <Input value={form.nokName} onChange={set("nokName")} placeholder="Jane Doe" className="bg-background/50" autoFocus />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">RELATIONSHIP</Label>
+              <Input value={form.nokRelationship} onChange={set("nokRelationship")} placeholder="Spouse, Parent, Sibling…" className="bg-background/50" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">PHONE</Label>
+              <Input value={form.nokPhone} onChange={set("nokPhone")} placeholder="+254 7XX XXX XXX" className="bg-background/50" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">EMAIL</Label>
+              <Input type="email" value={form.nokEmail} onChange={set("nokEmail")} placeholder="contact@example.com" className="bg-background/50" />
             </div>
           </div>
         )}

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, User, Briefcase, Landmark, Shield, AlertTriangle, Info as InfoIcon } from "lucide-react";
+import { Loader2, User, Briefcase, Landmark, Shield, AlertTriangle, Info as InfoIcon, Heart } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Employee {
@@ -49,19 +49,38 @@ interface Employee {
   departmentId?: number | null;
   workDaysPerWeek?: number | null;
   worksOnHolidays?: boolean | null;
+  dateOfBirth?: string | null;
+  region?: string | null;
+  educationLevel?: string | null;
+  nokName?: string | null;
+  nokRelationship?: string | null;
+  nokPhone?: string | null;
+  nokEmail?: string | null;
 }
 
 interface Props {
   employee: Employee | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  defaultTab?: "personal" | "employment" | "payment" | "compliance";
+  defaultTab?: "personal" | "employment" | "payment" | "compliance" | "nextofkin";
 }
 
 function centsToStr(cents: number | null | undefined): string {
   if (!cents) return "0";
   return (Number(cents) / 100).toFixed(2);
 }
+
+const EDUCATION_OPTIONS = [
+  { value: "none", label: "None" },
+  { value: "primary", label: "Primary" },
+  { value: "secondary", label: "Secondary" },
+  { value: "certificate", label: "Certificate" },
+  { value: "diploma", label: "Diploma" },
+  { value: "bachelor", label: "Bachelor's" },
+  { value: "master", label: "Master's" },
+  { value: "phd", label: "PhD" },
+  { value: "other", label: "Other" },
+];
 
 export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = "personal" }: Props) {
   const { toast } = useToast();
@@ -76,6 +95,8 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
     payMethod: "bank", bankName: "", bankAccount: "", bankBranchCode: "", mpesaPhone: "",
     kraPin: "", nssfNo: "", shifNo: "",
     workDaysPerWeek: "5", worksOnHolidays: "no",
+    dateOfBirth: "", region: "", educationLevel: "",
+    nokName: "", nokRelationship: "", nokPhone: "", nokEmail: "",
   });
 
   // Populate form when employee changes
@@ -114,6 +135,13 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
       shifNo: employee.shifNo ?? "",
       workDaysPerWeek: String(employee.workDaysPerWeek ?? 5),
       worksOnHolidays: employee.worksOnHolidays ? "yes" : "no",
+      dateOfBirth: employee.dateOfBirth ?? "",
+      region: employee.region ?? "",
+      educationLevel: employee.educationLevel ?? "",
+      nokName: employee.nokName ?? "",
+      nokRelationship: employee.nokRelationship ?? "",
+      nokPhone: employee.nokPhone ?? "",
+      nokEmail: employee.nokEmail ?? "",
     });
   }, [employee]);
 
@@ -154,6 +182,13 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
       if (form.bankAccount) payload.bankAccount = form.bankAccount;
       if (form.bankBranchCode) payload.bankBranchCode = form.bankBranchCode;
       if (form.mpesaPhone) payload.mpesaPhone = form.mpesaPhone;
+      if (form.dateOfBirth) payload.dateOfBirth = form.dateOfBirth;
+      if (form.region) payload.region = form.region;
+      if (form.educationLevel) payload.educationLevel = form.educationLevel;
+      if (form.nokName) payload.nokName = form.nokName;
+      if (form.nokRelationship) payload.nokRelationship = form.nokRelationship;
+      if (form.nokPhone) payload.nokPhone = form.nokPhone;
+      if (form.nokEmail) payload.nokEmail = form.nokEmail;
 
       return customFetch(`/api/employees/${employee.id}`, {
         method: "PATCH",
@@ -236,18 +271,21 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
         </DialogHeader>
 
         <Tabs defaultValue={defaultTab} className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid grid-cols-4 bg-card border border-border/50">
-            <TabsTrigger value="personal" className="font-mono text-xs gap-1.5">
+          <TabsList className="grid grid-cols-5 bg-card border border-border/50">
+            <TabsTrigger value="personal" className="font-mono text-xs gap-1">
               <User className="h-3.5 w-3.5" />PERSONAL
             </TabsTrigger>
-            <TabsTrigger value="employment" className="font-mono text-xs gap-1.5">
+            <TabsTrigger value="employment" className="font-mono text-xs gap-1">
               <Briefcase className="h-3.5 w-3.5" />EMPLOYMENT
             </TabsTrigger>
-            <TabsTrigger value="payment" className="font-mono text-xs gap-1.5">
+            <TabsTrigger value="payment" className="font-mono text-xs gap-1">
               <Landmark className="h-3.5 w-3.5" />PAYMENT
             </TabsTrigger>
-            <TabsTrigger value="compliance" className="font-mono text-xs gap-1.5">
+            <TabsTrigger value="compliance" className="font-mono text-xs gap-1">
               <Shield className="h-3.5 w-3.5" />COMPLIANCE
+            </TabsTrigger>
+            <TabsTrigger value="nextofkin" className="font-mono text-xs gap-1">
+              <Heart className="h-3.5 w-3.5" />NOK
             </TabsTrigger>
           </TabsList>
 
@@ -270,6 +308,10 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
                 { value: "female", label: "Female" },
                 { value: "other", label: "Other" },
               ])}
+              <div className="grid grid-cols-2 gap-4">
+                {textField("DATE OF BIRTH", "dateOfBirth", "date")}
+                {selectField("EDUCATION LEVEL", "educationLevel", EDUCATION_OPTIONS)}
+              </div>
             </TabsContent>
 
             {/* ── Employment ── */}
@@ -283,6 +325,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
                   { value: "casual", label: "Casual" },
                 ])}
               </div>
+              {textField("REGION / COUNTY", "region", "text", "e.g. Nairobi, Mombasa")}
               <div className="pt-2 border-t border-border/50">
                 <p className="text-xs font-mono text-muted-foreground mb-3">WORK SCHEDULE</p>
                 <div className="grid grid-cols-2 gap-4">
@@ -409,6 +452,21 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
                 { value: "resident", label: "Resident" },
                 { value: "non_resident", label: "Non-Resident" },
               ])}
+            </TabsContent>
+
+            {/* ── Next of Kin ── */}
+            <TabsContent value="nextofkin" className="mt-0 space-y-4">
+              <p className="text-xs text-muted-foreground font-mono">
+                Emergency contact for insurance and HR records. All fields are optional.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                {textField("FULL NAME", "nokName", "text", "Jane Doe")}
+                {textField("RELATIONSHIP", "nokRelationship", "text", "Spouse, Parent, Sibling…")}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {textField("PHONE", "nokPhone", "text", "+254 7xx xxx xxx")}
+                {textField("EMAIL", "nokEmail", "email", "contact@example.com")}
+              </div>
             </TabsContent>
 
           </div>
