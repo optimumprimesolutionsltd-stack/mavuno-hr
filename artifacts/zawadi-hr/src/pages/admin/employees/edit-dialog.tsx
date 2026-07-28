@@ -217,7 +217,14 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
       onOpenChange(false);
     },
     onError: (e: any) => {
-      const msg = (e?.data as any)?.error ?? e?.message ?? "Update failed";
+      const data = e?.data as any;
+      const fieldErrors = data?.issues?.fieldErrors;
+      const details = fieldErrors
+        ? Object.entries(fieldErrors)
+            .flatMap(([field, messages]) => (Array.isArray(messages) ? messages.map((message) => `${field}: ${message}`) : []))
+            .join(", ")
+        : "";
+      const msg = details || data?.error || e?.message || "Update failed";
       toast({ variant: "destructive", title: "Update failed", description: msg });
     },
   });

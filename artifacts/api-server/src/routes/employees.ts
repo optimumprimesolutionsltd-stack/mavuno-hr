@@ -33,7 +33,9 @@ const employeeBaseSchema = z.object({
   bankBranchName: z.string().max(120).optional(),
   bankAccount: z.string().max(34).optional(),
   mpesaPhone: z.string().max(20).optional(),
-  departmentId: z.number().int().positive().optional(),
+  // The edit form sends null when an employee is not assigned to a department.
+  // Keep this nullable for both create and partial-update payloads.
+  departmentId: z.number().int().positive().nullable().optional(),
   position: z.string().min(1).max(120),
   employmentType: z.enum(["permanent","contract","casual"]).default("permanent"),
   residentStatus: z.enum(["resident","non_resident"]).default("resident"),
