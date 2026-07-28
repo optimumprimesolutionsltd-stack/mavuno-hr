@@ -109,12 +109,13 @@ router.get("/", requireAuth("report:read"), async (req, res, next) => {
     const tier2ProviderName = snap?.socialSecurity?.tier2ProviderName ?? "Private Pension Fund";
 
     const rows = await db
-      .select({ p: payslips, e: employees })
+      .select({ p: payslips, e: employees, d: departments })
       .from(payslips)
       .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .leftJoin(departments, eq(employees.departmentId, departments.id))
       .where(and(eq(payslips.runId, runId), eq(payslips.orgId, p.orgId)));
 
-    const name = (r: (typeof rows)[number]) => `${r.e.firstName} ${r.e.lastName}`;
+    const name = (r: (typeof rows)[number]) => fullName(r.e);
 
     let columns: string[] = [];
     let data: (string | number)[][] = [];
@@ -249,6 +250,33 @@ router.get("/", requireAuth("report:read"), async (req, res, next) => {
         ]);
         break;
 
+      // ── Advanced Payroll Analysis — decision-ready payroll cost view ───────────
+      case "advanced": {
+        title = `Advanced Payroll Analysis — ${run.name}`;
+        columns = [
+          "Emp No", "Employee", "Department", "Salary Basis",
+          "Basic Salary", "Allowances", "Gross Pay",
+          "PAYE", "NSSF", "SHIF", "AHL", "Other Deductions",
+          "Total Deductions", "Net Pay", "Employer Cost", "Net %",
+        ];
+        moneyCols = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+        data = rows.map((r) => {
+          const gross = r.p.gross || 0;
+          const net = r.p.netPay || 0;
+          const statutory = (r.p.paye || 0) + (r.p.nssfEmployee || 0) + (r.p.shif || 0) + (r.p.housingLevyEmployee || 0);
+          const other = Math.max(0, (r.p.totalDeductions || 0) - statutory);
+          const netPercent = gross > 0 ? Math.round((net / gross) * 10000) / 100 : 0;
+          return [
+            r.e.empNo, name(r), r.d?.name || "Unassigned",
+            r.e.salaryBasis === "net" ? "Net / grossed-up" : "Gross",
+            r.p.basic, r.p.allowances, gross, r.p.paye, r.p.nssfEmployee,
+            r.p.shif, r.p.housingLevyEmployee, other, r.p.totalDeductions,
+            net, r.p.employerCost, netPercent,
+          ];
+        });
+        break;
+      }
+
       // ── GL Journal ────────────────────────────────────────────────────────────
       case "gl":
         title = `GL Journal — ${run.name}`;
@@ -305,6 +333,11 @@ router.get("/", requireAuth("report:read"), async (req, res, next) => {
       if (!moneyCols.includes(ci)) return "";
       return data.reduce((sum, row) => sum + (Number(row[ci]) || 0), 0);
     });
+    if (type === "advanced" && data.length > 0) {
+      const grossTotal = data.reduce((sum, row) => sum + (Number(row[6]) || 0), 0);
+      const netTotal = data.reduce((sum, row) => sum + (Number(row[13]) || 0), 0);
+      totals[15] = grossTotal > 0 ? Math.round((netTotal / grossTotal) * 10000) / 100 : 0;
+    }
 
     res.json({ title, run, columns, rows: data, totals, tier2Provider, tier2ProviderName });
   } catch (err) { next(err); }

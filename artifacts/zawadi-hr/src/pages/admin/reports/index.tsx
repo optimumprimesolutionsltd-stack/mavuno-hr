@@ -10,18 +10,19 @@ import { downloadP9Csv, centsToKes } from "@/lib/itax-csv";
 import { formatMoney } from "@/lib/utils";
 
 const BASE_REPORT_TYPES = [
-  { id: "muster",   label: "📋  Muster Roll (Full Payroll)" },
-  { id: "paye",     label: "🏛️  P10 — PAYE Return (KRA)" },
-  { id: "p10-pdf",  label: "🏛️  P10 Tax Cards (PDF)" },
-  { id: "nssf",     label: "🏛️  NSSF Contribution Return" },
-  { id: "shif",     label: "🏛️  SHIF Contribution Return" },
-  { id: "housing",  label: "🏛️  Affordable Housing Levy" },
-  { id: "pension",  label: "🦺  Pension Fund Return (Tier II)" },
-  { id: "bank",     label: "🏦  Bank Payment Schedule" },
-  { id: "mpesa",    label: "📱  M-Pesa Bulk Disbursement" },
-  { id: "cash",     label: "💵  Cash / Cheque List" },
-  { id: "gl",       label: "📊  General Ledger Journal" },
-  { id: "p9",       label: "📄  P9 Annual Tax Certificate" },
+  { id: "advanced", label: "Advanced Payroll Analysis" },
+  { id: "muster",   label: "Muster Roll (Full Payroll)" },
+  { id: "paye",     label: "P10 — PAYE Return (KRA)" },
+  { id: "p10-pdf",  label: "P10 Tax Cards (PDF)" },
+  { id: "nssf",     label: "NSSF Contribution Return" },
+  { id: "shif",     label: "SHIF Contribution Return" },
+  { id: "housing",  label: "Affordable Housing Levy" },
+  { id: "pension",  label: "Pension Fund Return (Tier II)" },
+  { id: "bank",     label: "Bank Payment Schedule" },
+  { id: "mpesa",    label: "M-Pesa Bulk Disbursement" },
+  { id: "cash",     label: "Cash / Cheque List" },
+  { id: "gl",       label: "General Ledger Journal" },
+  { id: "p9",       label: "P9 Annual Tax Certificate" },
 ];
 
 export function Reports() {
@@ -138,7 +139,7 @@ export function Reports() {
   };
 
   const isMoneyCellIndex = (colIdx: number) =>
-    typeof report?.rows?.[0]?.[colIdx] === "number";
+    typeof report?.rows?.[0]?.[colIdx] === "number" && !(reportType === "advanced" && colIdx === 15);
 
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto flex flex-col h-[calc(100vh-100px)]">
@@ -278,7 +279,9 @@ export function Reports() {
               {report?.title ? report.title.toUpperCase() : "REPORT VIEWER"}
             </CardTitle>
             <CardDescription className="font-mono text-xs mt-1">
-              {reportType === "muster"
+              {reportType === "advanced"
+                ? "Payroll cost, deductions, take-home pay and employer cost per employee"
+                : reportType === "muster"
                 ? "All earnings and individual deduction line items per employee"
                 : reportType === "nssf" && tier2Provider === "private"
                   ? `Tier I only — Tier II remitted to ${tier2ProviderName}`
@@ -332,7 +335,11 @@ export function Reports() {
                           typeof cell === "number" && cell === 0 ? "text-muted-foreground/40" : ""
                         }`}
                       >
-                        {typeof cell === "number" ? formatMoney(cell) : cell}
+                        {typeof cell === "number"
+                          ? reportType === "advanced" && j === 15
+                            ? `${Number(cell).toFixed(2)}%`
+                            : formatMoney(cell)
+                          : cell}
                       </TableCell>
                     ))}
                   </TableRow>
@@ -348,7 +355,13 @@ export function Reports() {
                           typeof cell === "number" ? "text-right tabular-nums text-primary" : ""
                         }`}
                       >
-                        {i === 0 && !cell ? "TOTAL" : typeof cell === "number" ? formatMoney(cell) : cell}
+                        {i === 0 && !cell
+                          ? "TOTAL"
+                          : typeof cell === "number"
+                            ? reportType === "advanced" && i === 15
+                              ? `${Number(cell).toFixed(2)}%`
+                              : formatMoney(cell)
+                            : cell}
                       </TableCell>
                     ))}
                   </TableRow>
