@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, UserPlus, MoreHorizontal, FileSpreadsheet, Building2, Download, X, SlidersHorizontal } from "lucide-react";
+import { Search, UserPlus, MoreHorizontal, FileSpreadsheet, Building2, Download, X, SlidersHorizontal, ChevronDown } from "lucide-react";
 import { downloadEmployeesXlsx } from "@/lib/itax-csv";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { OnboardDialog } from "./onboard-dialog";
 import { ImportDialog } from "./import-dialog";
 import { EditEmployeeDialog } from "./edit-dialog";
@@ -45,6 +45,7 @@ export function EmployeeList() {
   const [onboarding, setOnboarding] = useState(false);
   const [importing, setImporting] = useState(false);
   const [editEmployee, setEditEmployee] = useState<any | null>(null);
+  const [exportingAll, setExportingAll] = useState(false);
 
   // Derive unique non-empty regions from the loaded list
   const regionOptions = useMemo(() => {
@@ -89,19 +90,46 @@ export function EmployeeList() {
           <p className="text-muted-foreground text-sm">Manage staff roster and payroll details</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            className="font-mono"
-            disabled={!employees || employees.length === 0}
-            onClick={() => {
-              if (!employees) return;
-              const today = new Date().toISOString().slice(0, 10);
-              downloadEmployeesXlsx(employees as any[], `employees_${today}.xlsx`);
-            }}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            EXPORT
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="font-mono"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                EXPORT
+                <ChevronDown className="h-3.5 w-3.5 ml-1.5 opacity-70" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="font-mono text-xs">
+              <DropdownMenuItem
+                disabled={!employees || employees.length === 0}
+                onSelect={() => {
+                  if (!employees) return;
+                  const today = new Date().toISOString().slice(0, 10);
+                  downloadEmployeesXlsx(employees as any[], `employees_active_${today}.xlsx`);
+                }}
+              >
+                Export Active
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={exportingAll}
+                onSelect={async () => {
+                  setExportingAll(true);
+                  try {
+                    const all = await customFetch("/api/employees?includeTerminated=true") as any[];
+                    const today = new Date().toISOString().slice(0, 10);
+                    await downloadEmployeesXlsx(all, `employees_all_${today}.xlsx`);
+                  } finally {
+                    setExportingAll(false);
+                  }
+                }}
+              >
+                {exportingAll ? "Exporting…" : "Export All (incl. terminated)"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" className="font-mono" onClick={() => setImporting(true)}>
             <FileSpreadsheet className="h-4 w-4 mr-2" />
             IMPORT

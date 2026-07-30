@@ -112,12 +112,19 @@ async function nextEmpNo(orgId: number): Promise<string> {
 router.get("/", requireAuth("employee:read"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
-    const { region, educationLevel } = req.query as { region?: string; educationLevel?: string };
+    const { region, educationLevel, includeTerminated } = req.query as {
+      region?: string;
+      educationLevel?: string;
+      includeTerminated?: string;
+    };
 
     const conditions: SQL[] = [
       eq(employees.orgId, p.orgId),
-      ne(employees.status, "terminated"),
     ];
+    // Exclude terminated employees unless the caller explicitly opts in
+    if (includeTerminated !== "true") {
+      conditions.push(ne(employees.status, "terminated"));
+    }
     if (region) conditions.push(eq(employees.region, region));
     if (educationLevel) conditions.push(eq(employees.educationLevel, educationLevel as any));
 
