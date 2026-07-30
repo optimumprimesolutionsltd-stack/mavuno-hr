@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, UserPlus, MoreHorizontal, FileSpreadsheet, Building2, Download, X, SlidersHorizontal } from "lucide-react";
-import { downloadEmployeesCsv } from "@/lib/itax-csv";
+import { downloadEmployeesXlsx } from "@/lib/itax-csv";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { OnboardDialog } from "./onboard-dialog";
 import { ImportDialog } from "./import-dialog";
@@ -96,7 +96,7 @@ export function EmployeeList() {
             onClick={() => {
               if (!employees) return;
               const today = new Date().toISOString().slice(0, 10);
-              downloadEmployeesCsv(employees as any[], `employees_${today}.csv`);
+              downloadEmployeesXlsx(employees as any[], `employees_${today}.xlsx`);
             }}
           >
             <Download className="h-4 w-4 mr-2" />

@@ -2,6 +2,7 @@
  * KRA iTax CSV export utilities.
  * All money values coming in are integer cents; we divide by 100 and format to 2 d.p.
  */
+import ExcelJS from "exceljs";
 
 export const P10_HEADERS = [
   "Employee's PIN",
@@ -319,6 +320,11 @@ function cents(v: number | null | undefined): string {
   return (v / 100).toFixed(2);
 }
 
+function centsNum(v: number | null | undefined): number | null {
+  if (v == null) return null;
+  return v / 100;
+}
+
 function str(v: string | null | undefined): string {
   return v ?? "";
 }
@@ -385,4 +391,125 @@ export function downloadEmployeesCsv(
 
   const csv = buildCsv(EMPLOYEE_EXPORT_HEADERS, csvRows);
   downloadCsv(filename, csv);
+}
+
+// Indices of money columns in EMPLOYEE_EXPORT_HEADERS (0-based)
+const MONEY_COL_INDICES = new Set([21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]);
+
+/**
+ * Build and immediately download the employee roster as a formatted .xlsx file.
+ * Headers are bold with a teal fill, columns are auto-sized, and money columns
+ * are formatted as numbers so Excel/Sheets totals work natively.
+ */
+export async function downloadEmployeesXlsx(
+  rows: Array<{ employee: Record<string, any>; department: Record<string, any> | null | undefined }>,
+  filename = "employees.xlsx",
+): Promise<void> {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Zawadi HR";
+  workbook.created = new Date();
+
+  const sheet = workbook.addWorksheet("Employees", {
+    views: [{ state: "frozen", ySplit: 1 }],
+  });
+
+  // ── Headers ────────────────────────────────────────────────────────────────
+  const headerRow = sheet.addRow(Array.from(EMPLOYEE_EXPORT_HEADERS));
+  headerRow.eachCell((cell, colIndex) => {
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF0D9488" }, // emerald-600 — matches Zawadi brand
+    };
+    cell.alignment = { vertical: "middle", horizontal: "center", wrapText: false };
+    cell.border = {
+      bottom: { style: "thin", color: { argb: "FF0F766E" } },
+    };
+    void colIndex; // suppress unused-variable
+  });
+
+  // ── Data rows ──────────────────────────────────────────────────────────────
+  for (const r of rows) {
+    const e = r.employee;
+    const dept = r.department;
+    const dataRow = sheet.addRow([
+      str(e.empNo),
+      str(e.firstName),
+      str(e.middleName),
+      str(e.lastName),
+      str(e.email),
+      str(e.phone),
+      str(e.gender),
+      str(e.nationalId),
+      str(e.kraPin),
+      str(e.nssfNo),
+      str(e.shifNo),
+      str(dept?.name),
+      str(e.position),
+      str(e.employmentType),
+      str(e.residentStatus),
+      str(e.salaryBasis),
+      str(e.payMethod),
+      str(e.bankName),
+      str(e.bankBranchName),
+      str(e.bankAccount),
+      str(e.mpesaPhone),
+      centsNum(e.basicSalary),
+      centsNum(e.houseAllowance),
+      centsNum(e.transportAllowance),
+      centsNum(e.otherAllowance),
+      centsNum(e.nonCashBenefit),
+      centsNum(e.insurancePremium),
+      centsNum(e.pensionEmployee),
+      centsNum(e.pensionEmployer),
+      centsNum(e.mortgageInterest),
+      centsNum(e.helbMonthly),
+      centsNum(e.saccoMonthly),
+      e.disabilityExemption ? "Yes" : "No",
+      str(e.workDaysPerWeek),
+      e.worksOnHolidays ? "Yes" : "No",
+      str(e.hireDate),
+      str(e.status),
+      str(e.dateOfBirth),
+      str(e.region),
+      str(e.educationLevel),
+      str(e.nokName),
+      str(e.nokRelationship),
+      str(e.nokPhone),
+      str(e.nokEmail),
+    ]);
+
+    // Apply number format to money columns
+    dataRow.eachCell((cell, colIndex) => {
+      if (MONEY_COL_INDICES.has(colIndex - 1)) {
+        cell.numFmt = '#,##0.00';
+      }
+    });
+  }
+
+  // ── Auto-fit column widths ─────────────────────────────────────────────────
+  sheet.columns.forEach((col, idx) => {
+    const header = EMPLOYEE_EXPORT_HEADERS[idx] ?? "";
+    let maxLen = header.length;
+    col.eachCell?.({ includeEmpty: false }, (cell) => {
+      const val = cell.value == null ? "" : String(cell.value);
+      if (val.length > maxLen) maxLen = val.length;
+    });
+    col.width = Math.min(Math.max(maxLen + 2, 10), 40);
+  });
+
+  // ── Download ───────────────────────────────────────────────────────────────
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(url);
+  document.body.removeChild(a);
 }
