@@ -26,3 +26,19 @@ channel = "stable-25_05"
 
 [userenv.shared]
 SUPER_ADMIN_EMAILS = "optimumprimesolutionsltd@gmail.com"
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 20208
+externalPort = 3000
+
+[[ports]]
+localPort = 21357
+externalPort = 80

@@ -2,3 +2,4 @@
 - [Wouter 3 routing patterns](wouter-routing.md) — regexparam 3 breaks `/admin*` prefix matching; use two routes: `/admin` + `/admin/*`
 - [Tier II and net pay](tier2-and-net-pay.md) — preserve the Tier II provider in payroll snapshots and gross up employees contracted on net salary
 - [Zawadi brand identity](zawadi-brand.md) — use Zawadi HR as the full product name with the emerald-and-navy logo lockup
+- [Email delivery safety](email-delivery-safety.md) — normalize Gmail app-password input and keep provider authentication details out of browser responses
