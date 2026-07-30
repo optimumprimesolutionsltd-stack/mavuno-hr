@@ -83,6 +83,7 @@ export * from './portalProfile';
 export * from './portalProfilePayslipsItem';
 export * from './principal';
 export * from './reportData';
+export * from './reportDataLedger';
 export * from './reportDataRun';
 export * from './statutoryFiling';
 export * from './timesheet';

@@ -48,6 +48,7 @@ export function Reports() {
 
   const tier2Provider = (report as any)?.tier2Provider ?? "nssf";
   const tier2ProviderName = (report as any)?.tier2ProviderName ?? "Private Pension Fund";
+  const ledger = (report as any)?.ledger;
 
   const downloadPdf = async (url: string, filename: string, setLoading: (v: boolean) => void) => {
     setLoading(true);
@@ -267,6 +268,26 @@ export function Reports() {
               To use a private pension provider for Tier II, update your statutory configuration.
             </span>
           )}
+        </div>
+      )}
+
+      {reportType === "gl" && report && ledger && (
+        <div className={`flex items-center justify-between gap-4 rounded-lg border px-4 py-3 text-xs shrink-0 ${
+          ledger.balanced
+            ? "border-emerald-500/40 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400"
+            : "border-red-500/40 bg-red-500/5 text-red-700 dark:text-red-400"
+        }`}>
+          <div className="font-mono">
+            <strong>{ledger.balanced ? "BALANCED JOURNAL" : "UNBALANCED JOURNAL"}</strong>
+            {!ledger.balanced && (
+              <span className="ml-2">
+                Difference: {formatMoney(Math.abs(ledger.difference))}
+              </span>
+            )}
+          </div>
+          <div className="font-mono whitespace-nowrap">
+            DR {formatMoney(ledger.debitTotal)} &nbsp;|&nbsp; CR {formatMoney(ledger.creditTotal)}
+          </div>
         </div>
       )}
 

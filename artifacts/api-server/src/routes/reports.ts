@@ -278,19 +278,71 @@ router.get("/", requireAuth("report:read"), async (req, res, next) => {
       }
 
       // ── GL Journal ────────────────────────────────────────────────────────────
-      case "gl":
+      case "gl": {
         title = `GL Journal — ${run.name}`;
         columns = ["Account", "Description", "Debit", "Credit"];
         moneyCols = [2, 3];
+        const sum = (selector: (p: (typeof rows)[number]["p"]) => number) =>
+          rows.reduce((total, row) => total + selector(row.p), 0);
+
+        // Build the journal from the payslips, rather than only from the
+        // payroll-run summary columns. The summary does not contain all
+        // employee deductions, and using gross pay as the only debit leaves
+        // the journal out of balance whenever any of those deductions exist.
+        const gross = sum((p) => p.gross);
+        const cashGross = sum((p) => p.cashGross);
+        const nonCashBenefits = sum((p) => p.nonCashBenefit);
+        // cashGross includes non-taxable cash adjustments while gross does
+        // not. This derived line keeps those adjustments in payroll expense.
+        const nonTaxableCashEarnings = cashGross - gross + nonCashBenefits;
+        const nssfEmployee = sum((p) => p.nssfEmployee);
+        const nssfEmployer = sum((p) => p.nssfEmployer);
+        const ahlEmployee = sum((p) => p.housingLevyEmployee);
+        const ahlEmployer = sum((p) => p.housingLevyEmployer);
+        const pensionEmployee = sum((p) => p.pension);
+        const pensionEmployer = sum((p) => p.pensionEmployer);
+        const paye = sum((p) => p.paye);
+        const shif = sum((p) => p.shif);
+        const helb = sum((p) => p.helb);
+        const sacco = sum((p) => p.sacco);
+        const loanRecoveries = sum((p) => p.loanDeduction);
+        const otherDeductions = sum((p) => p.adjustmentDeductions);
+        const netPay = sum((p) => p.netPay);
+
         data = [
-          ["5000", "Salaries & Wages",          run.grossTotal,            0],
-          ["2101", "PAYE Payable",               0,                         run.payeTotal],
-          ["2102", "NSSF Payable",               0,                         run.nssfEmployeeTotal],
-          ["2103", "SHIF Payable",               0,                         run.shifTotal],
-          ["2104", "AHL Payable",                0,                         run.housingLevyEmployeeTotal],
-          ["1001", "Bank / Cash",                0,                         run.netTotal],
+          ["5000", "Salaries & Wages", gross, 0],
+          ["5001", "Non-taxable Cash Earnings", nonTaxableCashEarnings, 0],
+          ["5101", "Employer NSSF Expense", nssfEmployer, 0],
+          ["5102", "Employer AHL Expense", ahlEmployer, 0],
+          ["5103", "Employer Pension Expense", pensionEmployer, 0],
+          ["2101", "PAYE Payable", 0, paye],
+          ["2102", "NSSF Payable (Employee + Employer)", 0, nssfEmployee + nssfEmployer],
+          ["2103", "SHIF Payable", 0, shif],
+          ["2104", "AHL Payable (Employee + Employer)", 0, ahlEmployee + ahlEmployer],
+          ["2105", "Pension Payable (Employee + Employer)", 0, pensionEmployee + pensionEmployer],
+          ["2106", "HELB Payable", 0, helb],
+          ["2107", "SACCO Remittances", 0, sacco],
+          ["2108", "Loan Recoveries", 0, loanRecoveries],
+          ["2109", "Other Payroll Deductions", 0, otherDeductions],
+          ["2110", "Non-cash Benefits Clearing", 0, nonCashBenefits],
+          [
+            run.status === "paid" ? "1001" : "2111",
+            run.status === "paid" ? "Bank / Cash — Net Payroll" : "Net Salaries Payable",
+            0,
+            netPay,
+          ],
         ];
+
+        const debitTotal = data.reduce((total, row) => total + (Number(row[2]) || 0), 0);
+        const creditTotal = data.reduce((total, row) => total + (Number(row[3]) || 0), 0);
+        res.locals.ledgerControl = {
+          debitTotal,
+          creditTotal,
+          difference: debitTotal - creditTotal,
+          balanced: debitTotal === creditTotal,
+        };
         break;
+      }
 
       // ── M-Pesa Bulk Disbursement ──────────────────────────────────────────────
       case "mpesa": {
@@ -339,7 +391,16 @@ router.get("/", requireAuth("report:read"), async (req, res, next) => {
       totals[15] = grossTotal > 0 ? Math.round((netTotal / grossTotal) * 10000) / 100 : 0;
     }
 
-    res.json({ title, run, columns, rows: data, totals, tier2Provider, tier2ProviderName });
+    res.json({
+      title,
+      run,
+      columns,
+      rows: data,
+      totals,
+      tier2Provider,
+      tier2ProviderName,
+      ...(type === "gl" ? { ledger: res.locals.ledgerControl } : {}),
+    });
   } catch (err) { next(err); }
 });
 

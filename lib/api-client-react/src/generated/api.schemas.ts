@@ -664,12 +664,20 @@ export interface LoanDecisionInput {
 
 export type ReportDataRun = { [key: string]: unknown };
 
+export type ReportDataLedger = {
+  debitTotal?: number;
+  creditTotal?: number;
+  difference?: number;
+  balanced?: boolean;
+};
+
 export interface ReportData {
   title: string;
   run?: ReportDataRun;
   columns: string[];
   rows: ((string | number)[])[];
-  totals: string[];
+  totals: (string | number)[];
+  ledger?: ReportDataLedger;
 }
 
 export interface NetToGrossInput {

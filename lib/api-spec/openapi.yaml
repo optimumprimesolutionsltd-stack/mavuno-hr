@@ -1718,7 +1718,18 @@ components:
         totals:
           type: array
           items:
-            type: string
+            type: ["string", "number"]
+        ledger:
+          type: object
+          properties:
+            debitTotal:
+              type: number
+            creditTotal:
+              type: number
+            difference:
+              type: number
+            balanced:
+              type: boolean
 
     NetToGrossInput:
       type: object

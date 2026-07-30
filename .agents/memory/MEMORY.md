@@ -4,3 +4,4 @@
 - [Zawadi brand identity](zawadi-brand.md) — use Zawadi HR as the full product name with the emerald-and-navy logo lockup
 - [Email delivery safety](email-delivery-safety.md) — normalize Gmail app-password input and keep provider authentication details out of browser responses
 - [Google identity bridge](clerk-google-bridge.md) — Clerk verifies Google identity, while local Zawadi users remain the source of roles and organization access
+- [Payroll journal balancing](payroll-journal-balancing.md) — GL payroll postings must include every employee deduction, employer contribution, and non-cash clearing line

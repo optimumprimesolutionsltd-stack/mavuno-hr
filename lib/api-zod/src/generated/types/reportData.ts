@@ -5,6 +5,7 @@
  * Zawadi HR & Payroll API
  * OpenAPI spec version: 0.1.0
  */
+import type { ReportDataLedger } from './reportDataLedger';
 import type { ReportDataRun } from './reportDataRun';
 
 export interface ReportData {
@@ -12,5 +13,6 @@ export interface ReportData {
   run?: ReportDataRun;
   columns: string[];
   rows: ((string | number)[])[];
-  totals: string[];
+  totals: (string | number)[];
+  ledger?: ReportDataLedger;
 }

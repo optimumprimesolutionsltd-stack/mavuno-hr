@@ -1187,7 +1187,13 @@ export const GetReportResponse = zod.object({
   "run": zod.record(zod.string(), zod.unknown()).optional(),
   "columns": zod.array(zod.string()),
   "rows": zod.array(zod.array(zod.union([zod.string(),zod.number()]))),
-  "totals": zod.array(zod.string())
+  "totals": zod.array(zod.union([zod.string(),zod.number()])),
+  "ledger": zod.object({
+  "debitTotal": zod.number().optional(),
+  "creditTotal": zod.number().optional(),
+  "difference": zod.number().optional(),
+  "balanced": zod.boolean().optional()
+}).optional()
 })
 
 
