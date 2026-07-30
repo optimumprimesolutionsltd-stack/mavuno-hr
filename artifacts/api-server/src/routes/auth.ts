@@ -10,6 +10,7 @@ import { requireAuth, getIp, type AuthRequest } from "../middlewares/require-aut
 import { writeAudit } from "../lib/audit.js";
 import { HttpError } from "../lib/http-error.js";
 import { sendPasswordResetEmail } from "../lib/mailer.js";
+import { getAuth } from "@clerk/express";
 
 const router = Router();
 
@@ -100,6 +101,77 @@ router.post("/login", async (req, res, next) => {
       employeeId: user.employeeId, mustChangePassword: user.mustChangePassword,
       orgSlug: org.slug, countryCode: org.countryCode, currencyCode: org.currencyCode,
       // Also return raw token so clients in cross-site iframe contexts can use Bearer auth
+      sessionToken,
+    });
+  } catch (err) { next(err); }
+});
+
+/**
+ * Exchange a verified Clerk session for a normal Zawadi session.
+ * Google identity alone never creates an organization, role, or employee link.
+ * An administrator must first create the local account with the same email.
+ */
+router.post("/clerk/session", async (req, res, next) => {
+  try {
+    const origin = req.headers.origin;
+    if (!origin) {
+      res.status(403).json({ error: "Authentication origin is required." });
+      return;
+    }
+    const originUrl = new URL(origin);
+    const forwardedHost = String(req.headers["x-forwarded-host"] ?? req.headers.host ?? "").split(",")[0].trim();
+    if (originUrl.host !== forwardedHost || !["http:", "https:"].includes(originUrl.protocol)) {
+      res.status(403).json({ error: "Invalid authentication origin." });
+      return;
+    }
+    const auth = getAuth(req);
+    const clerkUserId = auth.userId;
+    const email = String(auth.sessionClaims?.email ?? "").trim().toLowerCase();
+    if (!clerkUserId || !email) {
+      res.status(401).json({ error: "Google sign-in could not be verified." });
+      return;
+    }
+
+    const rows = await db
+      .select({ u: users, o: organizations })
+      .from(users)
+      .innerJoin(organizations, eq(users.orgId, organizations.id))
+      .where(eq(users.email, email));
+    const row = rows.length === 1 ? rows[0] : undefined;
+
+    // Do not reveal whether an email exists in a different organization.
+    if (!row || row.u.disabledAt || row.o.status === "suspended") {
+      res.status(403).json({
+        error: "This Google account is not authorized for a Zawadi HR organization. Ask your administrator to create or enable your user account.",
+      });
+      return;
+    }
+
+    // Google verifies identity, but it must not be used to bypass a local
+    // account lockout. The existing password login can clear a lockout only
+    // through its established policy; OAuth leaves the failure counters intact.
+    if (row.u.lockedUntil && row.u.lockedUntil > new Date()) {
+      res.status(429).json({ error: "Account temporarily locked. Try again later." });
+      return;
+    }
+
+    await db.update(users).set({ lastLoginAt: new Date() })
+      .where(eq(users.id, row.u.id));
+
+    const ip = getIp(req);
+    const sessionToken = await createSession(res, row.u.id, row.o.id, ip, req.headers["user-agent"] ?? null);
+    await db.transaction(async (tx) => {
+      await writeAudit(tx as any, {
+        orgId: row.o.id, action: "LOGIN_GOOGLE", entity: "users", entityId: row.u.id,
+        actorUserId: row.u.id, actorEmail: row.u.email, actorIp: ip,
+        after: { provider: "google", clerkUserId },
+      });
+    });
+
+    res.json({
+      id: row.u.id, email: row.u.email, name: row.u.name, role: row.u.role,
+      employeeId: row.u.employeeId, mustChangePassword: row.u.mustChangePassword,
+      orgSlug: row.o.slug, countryCode: row.o.countryCode, currencyCode: row.o.currencyCode,
       sessionToken,
     });
   } catch (err) { next(err); }

@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, User } from "lucide-react";
+import { Link as RouterLink } from "wouter";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -98,6 +99,13 @@ export function PortalLogin() {
               </Button>
             </form>
           </Form>
+            <div className="relative my-5">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+              <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-card px-2 text-muted-foreground">or</span></div>
+            </div>
+            <RouterLink href="/sign-in?redirect=/portal" className="flex h-10 w-full items-center justify-center rounded-md border border-border bg-background/50 text-sm font-medium transition-colors hover:bg-accent">
+              Continue with Google
+            </RouterLink>
         </CardContent>
       </Card>
     </div>

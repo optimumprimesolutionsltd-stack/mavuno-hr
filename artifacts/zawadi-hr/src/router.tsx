@@ -32,6 +32,7 @@ import { SuperAdminBilling } from "@/pages/super/billing";
 import { AdminBilling } from "@/pages/admin/billing";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
+import { GoogleSignIn } from "@/pages/auth/google-sign-in";
 
 function RootRedirect() {
   const { isLoading, isAuthenticated, isAdmin, isEmployee } = useAuth();
@@ -51,6 +52,10 @@ export function Router() {
       {/* ── Public auth pages ── */}
       <Route path="/register" component={Register} />
       <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/sign-in/*?" component={GoogleSignIn} />
+      <Route path="/sign-up/*?">
+        <Redirect to="/register" />
+      </Route>
       <Route path="/admin/forgot-password" component={ForgotPassword} />
       <Route path="/admin/reset-password" component={ResetPassword} />
 

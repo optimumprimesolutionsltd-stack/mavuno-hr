@@ -2,6 +2,7 @@ import { ReactNode, useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useLogout, customFetch } from "@workspace/api-client-react";
+import { useClerk } from "@clerk/react";
 import { clearToken } from "@/lib/session";
 import {
   Building2,
@@ -243,14 +244,16 @@ export function AdminGuard({ children }: { children: ReactNode }) {
 export function AdminLayout({ children }: AdminLayoutProps) {
   const [location] = useLocation();
   const logout = useLogout();
+  const { signOut } = useClerk();
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = () => {
     logout.mutate(undefined, {
-      onSuccess: () => {
+      onSuccess: async () => {
         clearToken();
+        await signOut();
         setLocation("/admin/login");
       },
     });

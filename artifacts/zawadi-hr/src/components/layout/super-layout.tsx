@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useLogout } from "@workspace/api-client-react";
+import { useClerk } from "@clerk/react";
 import { clearToken } from "@/lib/session";
 import { Building2, LayoutGrid, LogOut, Loader2, ShieldCheck, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,13 +30,15 @@ export function SuperAdminGuard({ children }: { children: ReactNode }) {
 export function SuperAdminLayout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const logout = useLogout();
+  const { signOut } = useClerk();
   const [, setLocation] = useLocation();
   const { user } = useAuth();
 
   const handleLogout = () => {
     logout.mutate(undefined, {
-      onSuccess: () => {
+      onSuccess: async () => {
         clearToken();
+        await signOut();
         setLocation("/admin/login");
       },
     });

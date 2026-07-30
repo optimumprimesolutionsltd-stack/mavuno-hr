@@ -2,6 +2,7 @@ import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useLogout } from "@workspace/api-client-react";
+import { useClerk } from "@clerk/react";
 import {
   Building2,
   User,
@@ -57,6 +58,7 @@ export function PortalGuard({ children }: { children: ReactNode }) {
 export function PortalLayout({ children }: PortalLayoutProps) {
   const [location] = useLocation();
   const logout = useLogout();
+  const { signOut } = useClerk();
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -67,7 +69,10 @@ export function PortalLayout({ children }: PortalLayoutProps) {
 
   const handleLogout = () => {
     logout.mutate(undefined, {
-      onSuccess: () => setLocation("/portal/login"),
+      onSuccess: async () => {
+        await signOut();
+        setLocation("/portal/login");
+      },
     });
   };
 

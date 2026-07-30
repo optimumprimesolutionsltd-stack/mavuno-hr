@@ -11,6 +11,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@clerk/express": "^2.1.47",
+    "@clerk/shared": "^4.25.8",
     "@node-rs/argon2": "^2.0.2",
     "@types/pdfkit": "^0.17.6",
     "@workspace/api-zod": "workspace:*",
@@ -19,6 +21,7 @@
     "cors": "^2.8.6",
     "drizzle-orm": "catalog:",
     "express": "^5.2.1",
+    "http-proxy-middleware": "^4.2.0",
     "nodemailer": "^9.0.3",
     "pdf-lib": "^1.17.1",
     "pdfkit": "^0.19.1",

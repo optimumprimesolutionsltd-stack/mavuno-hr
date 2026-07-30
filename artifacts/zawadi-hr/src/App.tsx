@@ -5,6 +5,8 @@ import { Router as WouterRouter } from 'wouter';
 import { Router } from '@/router';
 import { setAuthTokenGetter } from '@workspace/api-client-react';
 import { getToken } from '@/lib/session';
+import { ClerkProvider } from "@clerk/react";
+import { publishableKeyFromHost } from "@clerk/react/internal";
 
 // Wire up Bearer token auth — used when cookies are blocked (e.g. cross-site iframe preview)
 setAuthTokenGetter(getToken);
@@ -20,12 +22,33 @@ const queryClient = new QueryClient({
   },
 });
 
+const clerkPubKey = publishableKeyFromHost(
+  window.location.hostname,
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+);
+const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-          <Router />
+          <ClerkProvider
+            publishableKey={clerkPubKey}
+            proxyUrl={clerkProxyUrl}
+            signInUrl={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/sign-in`}
+            signUpUrl={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/register`}
+            localization={{
+              signIn: {
+                start: {
+                  title: "Sign in to Zawadi HR",
+                  subtitle: "Welcome back. Please sign in to continue.",
+                },
+              },
+            }}
+          >
+            <Router />
+          </ClerkProvider>
         </WouterRouter>
         <Toaster />
       </TooltipProvider>
