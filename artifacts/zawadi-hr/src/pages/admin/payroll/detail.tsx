@@ -47,6 +47,8 @@ export function PayrollDetail() {
   const queryClient = useQueryClient();
   const [editTarget, setEditTarget] = useState<{ slip: any; emp: any } | null>(null);
   const [emailSending, setEmailSending] = useState(false);
+  const [emailIssues, setEmailIssues] = useState<string[]>([]);
+  const [emailIssuesOpen, setEmailIssuesOpen] = useState(false);
   const [bulkPdfLoading, setBulkPdfLoading] = useState(false);
   const [varianceOpen, setVarianceOpen] = useState(false);
   const [payConfirmOpen, setPayConfirmOpen] = useState(false);
@@ -102,13 +104,17 @@ export function PayrollDetail() {
     try {
       const result = await customFetch(`/api/payroll/${id}/email-payslips`, { method: "POST" }) as any;
       const allOk = result.sent === result.total;
-      const errorDetail = result.errors?.length
-        ? ` Failed: ${result.errors.join("; ")}`
-        : "";
+      const errors = Array.isArray(result.errors) ? result.errors : [];
+      if (errors.length) {
+        setEmailIssues(errors);
+        setEmailIssuesOpen(true);
+      }
       toast({
         variant: allOk ? "default" : "destructive",
         title: allOk ? `📧 Payslips Emailed` : `📧 Email Issues`,
-        description: `Sent ${result.sent}/${result.total} payslip${result.total !== 1 ? "s" : ""} successfully.${errorDetail}`,
+        description: allOk
+          ? `Sent all ${result.total} payslip${result.total !== 1 ? "s" : ""} successfully.`
+          : `Sent ${result.sent}/${result.total} payslip${result.total !== 1 ? "s" : ""}. See the email issue details.`,
       });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Email Failed", description: err?.message || "Could not send payslips." });
@@ -613,6 +619,30 @@ export function PayrollDetail() {
                 DOWNLOAD P10 CSV
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={emailIssuesOpen} onOpenChange={setEmailIssuesOpen}>
+        <DialogContent className="max-w-xl border-border/50 bg-card/95 backdrop-blur-sm">
+          <DialogHeader>
+            <DialogTitle className="font-mono flex items-center gap-2 text-red-400">
+              <Mail className="h-4 w-4" />
+              EMAIL DELIVERY ISSUES
+            </DialogTitle>
+            <DialogDescription className="font-mono text-xs">
+              Payslip emails could not be delivered. The payroll run and PDF downloads are unaffected.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[50vh] overflow-y-auto space-y-2 pr-1">
+            {emailIssues.map((issue, index) => (
+              <div key={`${issue}-${index}`} className="rounded-md border border-red-500/25 bg-red-500/5 px-3 py-2 text-xs text-red-300">
+                {issue}
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailIssuesOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
