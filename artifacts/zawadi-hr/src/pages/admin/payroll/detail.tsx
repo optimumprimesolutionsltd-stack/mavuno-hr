@@ -103,7 +103,7 @@ export function PayrollDetail() {
       const result = await customFetch(`/api/payroll/${id}/email-payslips`, { method: "POST" }) as any;
       const allOk = result.sent === result.total;
       const errorDetail = result.errors?.length
-        ? `\nFailed: ${result.errors.join("; ")}`
+        ? ` Failed: ${result.errors.join("; ")}`
         : "";
       toast({
         variant: allOk ? "default" : "destructive",

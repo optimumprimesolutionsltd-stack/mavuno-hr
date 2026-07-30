@@ -10,7 +10,7 @@ import { computePayslip } from "../lib/payroll.js";
 import { resolveConfig } from "../lib/statutory-resolve.js";
 import { canApproveRun, can } from "../lib/rbac.js";
 import { HttpError } from "../lib/http-error.js";
-import { sendStatutoryRemittanceEmail } from "../lib/mailer.js";
+import { getSafeMailError, sendPayslipEmail, sendStatutoryRemittanceEmail } from "../lib/mailer.js";
 import { logger } from "../lib/logger.js";
 import { createHash } from "crypto";
 import { fullName } from "../lib/employee-name.js";
@@ -669,8 +669,6 @@ router.post("/:id/email-payslips", requireAuth("payroll:read"), async (req, res,
       .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
 
     const { generatePayslipPdf } = await import("../lib/pdf-payslip.js");
-    const { sendPayslipEmail } = await import("../lib/mailer.js");
-
     let sent = 0;
     const errors: string[] = [];
 
@@ -704,7 +702,8 @@ router.post("/:id/email-payslips", requireAuth("payroll:read"), async (req, res,
         await sendPayslipEmail({ to: email, empName: fullName(emp), period: run.period, orgName: org.name, pdfBuffer });
         sent++;
       } catch (e: any) {
-        errors.push(`${emp.empNo}: ${e?.message ?? "failed"}`);
+        logger.warn({ err: e, employeeNo: emp.empNo }, "payslip: failed to send email");
+        errors.push(`${emp.empNo}: ${getSafeMailError(e)}`);
       }
     }
 
@@ -875,7 +874,7 @@ router.get("/:id/itax/nssf", requireAuth("payroll:read"), async (req, res, next)
       });
       emailSent = true;
     } catch (mailErr: any) {
-      emailError = mailErr?.message ?? "Unknown mail error";
+      emailError = getSafeMailError(mailErr);
       logger.warn({ err: mailErr }, "nssf: failed to send remittance confirmation email");
     }
 
@@ -971,7 +970,7 @@ router.get("/:id/itax/shif", requireAuth("payroll:read"), async (req, res, next)
       });
       emailSent = true;
     } catch (mailErr: any) {
-      emailError = mailErr?.message ?? "Unknown mail error";
+      emailError = getSafeMailError(mailErr);
       logger.warn({ err: mailErr }, "shif: failed to send remittance confirmation email");
     }
 
@@ -1070,7 +1069,7 @@ router.get("/:id/itax/ahl", requireAuth("payroll:read"), async (req, res, next) 
       });
       emailSent = true;
     } catch (mailErr: any) {
-      emailError = mailErr?.message ?? "Unknown mail error";
+      emailError = getSafeMailError(mailErr);
       logger.warn({ err: mailErr }, "ahl: failed to send remittance confirmation email");
     }
 

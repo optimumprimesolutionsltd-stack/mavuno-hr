@@ -1,15 +1,51 @@
 import nodemailer from "nodemailer";
 import { logger } from "./logger.js";
 
+// Gmail app passwords are often copied with spaces between groups of
+// characters. Gmail ignores those spaces, but nodemailer does not.
+const gmailUser = process.env.GMAIL_USER?.trim() ?? "";
+const gmailAppPassword = process.env.GMAIL_APP_PASSWORD?.replace(/\s/g, "") ?? "";
+
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
+    user: gmailUser,
+    pass: gmailAppPassword,
   },
 });
 
-const FROM = () => `"Zawadi HR" <${process.env.GMAIL_USER}>`;
+const FROM = () => `"Zawadi HR" <${gmailUser}>`;
+
+/**
+ * SMTP providers return detailed authentication and connection errors. Those
+ * details are useful in server logs but should not be shown in the browser.
+ */
+export function getSafeMailError(error: unknown): string {
+  const err = error as {
+    code?: string;
+    responseCode?: number;
+    message?: string;
+  } | null;
+  const message = err?.message ?? "";
+
+  if (!gmailUser || !gmailAppPassword) {
+    return "Email delivery is not configured. Set the sender Gmail address and App Password, then try again.";
+  }
+
+  if (
+    err?.code === "EAUTH" ||
+    err?.responseCode === 535 ||
+    /invalid login|badcredentials|username and password not accepted/i.test(message)
+  ) {
+    return "Gmail rejected the sender credentials. Update the sender Gmail address and create a fresh Gmail App Password, then try again.";
+  }
+
+  if (err?.code === "ETIMEDOUT" || err?.code === "ECONNECTION" || err?.code === "ESOCKET") {
+    return "The email service could not be reached. Check the sender account settings and try again.";
+  }
+
+  return "The email service could not deliver this message. Check the sender account settings and try again.";
+}
 
 // ── Payment receipt ───────────────────────────────────────────────────────────
 
