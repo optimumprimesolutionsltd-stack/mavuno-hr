@@ -35,6 +35,7 @@ export * from './getFilings200';
 export * from './getPortalP9Params';
 export * from './getReportParams';
 export * from './healthStatus';
+export * from './insuranceCorrectionResult';
 export * from './leaveDecisionInput';
 export * from './leaveDecisionInputAction';
 export * from './leaveInput';

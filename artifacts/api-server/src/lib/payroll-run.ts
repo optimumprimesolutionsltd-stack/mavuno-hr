@@ -196,6 +196,8 @@ export async function calculateRun(
       daysPayable: pin.daysPayable,
       breakdown: {
         bands: r.bands,
+        insurancePremium: r.insurancePremium,
+        insurancePremiumDeducted: true,
         nssfTier1: r.nssfTier1,
         nssfTier2: r.nssfTier2,
         nssfTier1Employer: r.nssfTier1Employer,
@@ -365,6 +367,8 @@ export async function recalculateRun(
       daysPayable: pin.daysPayable,
       breakdown: {
         bands: r.bands,
+        insurancePremium: r.insurancePremium,
+        insurancePremiumDeducted: true,
         nssfTier1: r.nssfTier1,
         nssfTier2: r.nssfTier2,
         nssfTier1Employer: r.nssfTier1Employer,

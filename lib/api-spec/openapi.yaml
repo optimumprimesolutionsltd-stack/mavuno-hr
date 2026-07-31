@@ -376,6 +376,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/OkResult"
 
+  /payroll/{id}/apply-insurance-deductions:
+    post:
+      operationId: applyInsuranceDeductions
+      tags: [payroll]
+      summary: Apply missing insurance premium deductions to an approved or paid run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Insurance correction result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsuranceCorrectionResult"
+
   /payroll/{id}/payouts:
     get:
       operationId: getPayoutBatches
@@ -1425,6 +1444,19 @@ components:
           type: string
           enum: [submit, approve, reject, pay, reverse]
         note:
+          type: string
+
+    InsuranceCorrectionResult:
+      type: object
+      required: [appliedCount, appliedAmount, alreadyAppliedCount, message]
+      properties:
+        appliedCount:
+          type: integer
+        appliedAmount:
+          type: integer
+        alreadyAppliedCount:
+          type: integer
+        message:
           type: string
 
     PayoutBatch:

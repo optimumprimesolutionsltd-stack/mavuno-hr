@@ -46,6 +46,7 @@ export interface PayslipPdfData {
   helb: number;
   sacco: number;
   loanDeduction: number;
+  insurancePremium: number;
   adjustmentDeductions: number;
   // Summary
   totalDeductions: number;
@@ -220,13 +221,14 @@ export function generatePayslipPdf(data: PayslipPdfData): Promise<Buffer> {
     y += 8;
 
     // ── OTHER DEDUCTIONS (only if any) ─────────────────────────────────
-    const otherDed = data.pension + data.helb + data.sacco + data.loanDeduction + data.adjustmentDeductions;
+    const otherDed = data.pension + data.helb + data.sacco + data.loanDeduction + data.insurancePremium + data.adjustmentDeductions;
     if (otherDed > 0) {
       sectionHeader("OTHER DEDUCTIONS");
       dataRow("Pension (Employee)",   data.pension);
       dataRow("HELB Repayment",       data.helb);
       dataRow("SACCO",                data.sacco);
       dataRow("Loan Repayment",       data.loanDeduction);
+      dataRow("Insurance Premium",    data.insurancePremium);
       dataRow("Other Deductions",     data.adjustmentDeductions);
       y += 8;
     }

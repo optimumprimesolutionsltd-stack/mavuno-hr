@@ -198,6 +198,88 @@ router.post("/:id/recalculate", requireAuth("payroll:calculate"), async (req, re
   } catch (err) { next(err); }
 });
 
+// ── POST /:id/apply-insurance-deductions — repair paid historical runs ───────
+// Insurance premiums are employee deductions, but older runs were calculated
+// before that line was included. This correction only changes total deductions
+// and net pay, preserving the already-filed statutory amounts.
+router.post("/:id/apply-insurance-deductions", requireAuth("payroll:calculate"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const runId = Number(req.params.id);
+
+    const result = await db.transaction(async (tx) => {
+      const [run] = await tx.select().from(payrollRuns)
+        .where(and(eq(payrollRuns.id, runId), eq(payrollRuns.orgId, p.orgId)));
+      if (!run) throw new HttpError(404, "Payroll run not found");
+      if (!["approved", "paid"].includes(run.status)) {
+        throw new HttpError(409, `Insurance correction is only available for approved or paid runs (current status: '${run.status}')`);
+      }
+
+      const rows = await tx.select({ slip: payslips, emp: employees })
+        .from(payslips)
+        .innerJoin(employees, eq(payslips.employeeId, employees.id))
+        .where(and(eq(payslips.runId, runId), eq(payslips.orgId, p.orgId)));
+
+      let appliedCount = 0;
+      let appliedAmount = 0;
+      let alreadyAppliedCount = 0;
+
+      for (const { slip, emp } of rows) {
+        const premium = emp.insurancePremium;
+        const breakdown = (slip.breakdown ?? {}) as Record<string, any>;
+        if (breakdown.insurancePremiumCorrectionApplied === true || breakdown.insurancePremiumDeducted === true) {
+          alreadyAppliedCount++;
+          continue;
+        }
+        if (premium <= 0) continue;
+
+        const updatedBreakdown = {
+          ...breakdown,
+          insurancePremium: premium,
+          insurancePremiumDeducted: true,
+          insurancePremiumCorrectionApplied: true,
+          insurancePremiumCorrectionNote: "Applied to historical run",
+        };
+        await tx.update(payslips).set({
+          totalDeductions: slip.totalDeductions + premium,
+          netPay: slip.netPay - premium,
+          breakdown: updatedBreakdown,
+        }).where(eq(payslips.id, slip.id));
+
+        appliedCount++;
+        appliedAmount += premium;
+      }
+
+      if (appliedCount > 0) {
+        await tx.update(payrollRuns).set({
+          netTotal: run.netTotal - appliedAmount,
+        }).where(eq(payrollRuns.id, runId));
+      }
+
+      await writeAudit(tx as any, {
+        orgId: p.orgId,
+        action: "PAYROLL_INSURANCE_DEDUCTIONS_APPLIED",
+        entity: "payroll_runs",
+        entityId: runId,
+        detail: `Applied ${appliedCount} insurance premium deduction${appliedCount === 1 ? "" : "s"} totalling ${appliedAmount / 100} to ${run.name}`,
+        actorUserId: p.userId,
+        actorEmail: p.email,
+        actorIp: getIp(req),
+        after: { runId, appliedCount, appliedAmount, alreadyAppliedCount },
+      });
+
+      return { appliedCount, appliedAmount, alreadyAppliedCount };
+    });
+
+    res.json({
+      ...result,
+      message: result.appliedCount > 0
+        ? `Applied ${result.appliedAmount / 100} in insurance premium deductions.`
+        : "No unapplied insurance premiums were found for this run.",
+    });
+  } catch (err) { next(err); }
+});
+
 // ── PATCH /:runId/payslips/:slipId — edit one payslip then refresh run totals ──
 const editSlipSchema = z.object({
   overtimeHours: z.number().min(0).max(744).optional(),
@@ -307,6 +389,8 @@ router.patch("/:runId/payslips/:slipId", requireAuth("payroll:calculate"), async
         tier2Provider: config.socialSecurity.tier2Provider ?? "nssf",
         tier2ProviderName: config.socialSecurity.tier2ProviderName ?? "NSSF",
         warnings: r.warnings, overrides: merged,
+        insurancePremium: r.insurancePremium,
+        insurancePremiumDeducted: true,
       };
 
       const [updatedSlip] = await tx.update(payslips).set({
@@ -436,7 +520,7 @@ router.get("/:id/payslips/:slipId/pdf", requireAuth("payroll:read"), async (req,
       .innerJoin(payrollRuns, eq(payslips.runId, payrollRuns.id))
       .where(and(eq(payslips.id, slipId), eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
 
-    const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number; tier2Provider?: string; tier2ProviderName?: string; nssfTier1Employer?: number; nssfTier2Employer?: number };
+    const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number; tier2Provider?: string; tier2ProviderName?: string; nssfTier1Employer?: number; nssfTier2Employer?: number; insurancePremium?: number };
     const { generatePayslipPdf } = await import("../lib/pdf-payslip.js");
 
     const pdfBuffer = await generatePayslipPdf({
@@ -476,6 +560,7 @@ router.get("/:id/payslips/:slipId/pdf", requireAuth("payroll:read"), async (req,
       helb: slip.helb,
       sacco: slip.sacco,
       loanDeduction: slip.loanDeduction,
+      insurancePremium: bd.insurancePremium ?? 0,
       adjustmentDeductions: slip.adjustmentDeductions,
       totalDeductions: slip.totalDeductions,
       netPay: slip.netPay,
@@ -611,7 +696,7 @@ router.get("/:id/payslips/bulk-pdf", requireAuth("payroll:read"), async (req, re
     const merged = await PDFDocument.create();
 
     for (const { slip, emp } of rows) {
-      const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number; tier2Provider?: string; tier2ProviderName?: string };
+      const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number; tier2Provider?: string; tier2ProviderName?: string; insurancePremium?: number };
       const pdfBuffer = await generatePayslipPdf({
         orgName: org.name, orgKraPin: org.kraPin ?? undefined, orgNssfNo: org.nssfEmployerNo ?? undefined,
         period: run.period, runName: run.name,
@@ -631,6 +716,7 @@ router.get("/:id/payslips/bulk-pdf", requireAuth("payroll:read"), async (req, re
         shif: slip.shif, housingLevyEmployee: slip.housingLevyEmployee,
         pension: slip.pension, helb: slip.helb, sacco: slip.sacco,
         loanDeduction: slip.loanDeduction, adjustmentDeductions: slip.adjustmentDeductions,
+         insurancePremium: bd.insurancePremium ?? 0,
         totalDeductions: slip.totalDeductions, netPay: slip.netPay,
         nssfEmployer: slip.nssfEmployer, housingLevyEmployer: slip.housingLevyEmployer,
         pensionEmployer: slip.pensionEmployer,
@@ -676,7 +762,7 @@ router.post("/:id/email-payslips", requireAuth("payroll:read"), async (req, res,
       const email = emp.email;
       if (!email) { errors.push(`${emp.empNo}: no email`); continue; }
       try {
-        const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number };
+        const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number; insurancePremium?: number };
         const pdfBuffer = await generatePayslipPdf({
           orgName: org.name, orgKraPin: org.kraPin ?? undefined, orgNssfNo: org.nssfEmployerNo ?? undefined,
           period: run.period, runName: run.name,
@@ -695,6 +781,7 @@ router.post("/:id/email-payslips", requireAuth("payroll:read"), async (req, res,
           shif: slip.shif, housingLevyEmployee: slip.housingLevyEmployee,
           pension: slip.pension, helb: slip.helb, sacco: slip.sacco,
           loanDeduction: slip.loanDeduction, adjustmentDeductions: slip.adjustmentDeductions,
+           insurancePremium: bd.insurancePremium ?? 0,
           totalDeductions: slip.totalDeductions, netPay: slip.netPay,
           nssfEmployer: slip.nssfEmployer, housingLevyEmployer: slip.housingLevyEmployer,
           pensionEmployer: slip.pensionEmployer,

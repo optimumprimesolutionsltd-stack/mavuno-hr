@@ -28,6 +28,26 @@ function fullMonth(overrides: Partial<PayInput>): PayInput {
   };
 }
 
+describe("computePayslip – insurance premium is an employee deduction", () => {
+  it("adds the premium to total deductions and reduces net pay", () => {
+    const withoutPremium = computePayslip(
+      fullMonth({ basicSalary: K(50_000), insurancePremium: K(0) }),
+      KE_2025,
+    );
+    const withPremium = computePayslip(
+      fullMonth({ basicSalary: K(50_000), insurancePremium: K(5_000) }),
+      KE_2025,
+    );
+
+    expect(withPremium.insurancePremium).toBe(K(5_000));
+    // The premium is a KES 5,000 deduction, while its 15% insurance relief
+    // reduces PAYE by KES 750, so the net-pay movement is KES 4,250.
+    expect(withPremium.totalDeductions - withoutPremium.totalDeductions).toBe(K(4_250));
+    expect(withPremium.netPay - withoutPremium.netPay).toBe(-K(4_250));
+    expect(withPremium.netPay).toBe(withPremium.cashGross - withPremium.totalDeductions);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // 1. Basic KE_2025 statutory amounts for a mid-range salary
 // ---------------------------------------------------------------------------

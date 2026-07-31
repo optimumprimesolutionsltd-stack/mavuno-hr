@@ -42,6 +42,8 @@ export interface PayResult {
   nssfEmployer: Cents;
   nssfTier1: Cents;
   nssfTier2: Cents;
+  nssfTier1Employer: Cents;
+  nssfTier2Employer: Cents;
   shif: Cents;
   housingLevyEmployee: Cents;
   housingLevyEmployer: Cents;
@@ -57,6 +59,7 @@ export interface PayResult {
   sacco: Cents;
   loanDeduction: Cents;
   adjustmentDeductions: Cents;
+  insurancePremium: Cents;
   totalDeductions: Cents;
   netPay: Cents;
   employerCost: Cents;
@@ -130,7 +133,10 @@ export function computePayslip(e: PayInput, cfg: StatutoryConfig): PayResult {
   const cashGross = (earned + overtime + adjustmentEarnings) as Cents;
 
   const ss = isCasual
-    ? { tier1: 0 as Cents, tier2: 0 as Cents, employee: 0 as Cents, employer: 0 as Cents }
+    ? {
+        tier1: 0 as Cents, tier2: 0 as Cents, employee: 0 as Cents,
+        tier1Employer: 0 as Cents, tier2Employer: 0 as Cents, employer: 0 as Cents,
+      }
     : computeSocialSecurity(gross, cfg);
 
   let health: Cents = 0;
@@ -195,7 +201,8 @@ export function computePayslip(e: PayInput, cfg: StatutoryConfig): PayResult {
   }
 
   const totalDeductions = (paye + ss.employee + health + levyEmployee + pension +
-    e.helbMonthly + e.saccoMonthly + e.loanInstallment + e.adjustmentDeductions) as Cents;
+    e.helbMonthly + e.saccoMonthly + e.loanInstallment + e.adjustmentDeductions +
+    e.insurancePremium) as Cents;
 
   let netPay = (cashGross - totalDeductions) as Cents;
   if (netPay < 0) {
@@ -216,6 +223,7 @@ export function computePayslip(e: PayInput, cfg: StatutoryConfig): PayResult {
     taxableIncome, payeBeforeRelief, personalRelief, insuranceRelief, paye,
     helb: e.helbMonthly, sacco: e.saccoMonthly,
     loanDeduction: e.loanInstallment, adjustmentDeductions: e.adjustmentDeductions,
+    insurancePremium: e.insurancePremium,
     totalDeductions, netPay, employerCost,
     bands, warnings,
   };

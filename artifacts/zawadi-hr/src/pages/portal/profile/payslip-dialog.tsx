@@ -37,6 +37,7 @@ export function PayslipDialog({ slip, open, onOpenChange, employeeName }: Props)
     (slip.helb || 0) +
     (slip.sacco || 0) +
     (slip.loanDeduction || 0) +
+    (slip.insurancePremium || slip.breakdown?.insurancePremium || 0) +
     (slip.pension || 0) +
     (slip.adjustmentDeductions || 0);
 
@@ -85,7 +86,7 @@ export function PayslipDialog({ slip, open, onOpenChange, employeeName }: Props)
           </div>
 
           {/* Non-Statutory Deductions — only shown if any exist */}
-          {((slip.helb || 0) + (slip.sacco || 0) + (slip.loanDeduction || 0) + (slip.pension || 0) + (slip.adjustmentDeductions || 0)) > 0 && (
+          {((slip.helb || 0) + (slip.sacco || 0) + (slip.loanDeduction || 0) + (slip.insurancePremium || slip.breakdown?.insurancePremium || 0) + (slip.pension || 0) + (slip.adjustmentDeductions || 0)) > 0 && (
             <>
               <Separator />
               <div>
@@ -102,6 +103,7 @@ export function PayslipDialog({ slip, open, onOpenChange, employeeName }: Props)
                     <span className="font-mono text-destructive">{formatMoney(slip.loanDeduction)}</span>
                   </div>
                 )}
+                <Row label="Insurance Premium" amount={slip.insurancePremium || slip.breakdown?.insurancePremium || 0} negative />
                 <Row label="Other Deductions" amount={slip.adjustmentDeductions || 0} negative />
               </div>
             </>

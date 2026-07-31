@@ -418,7 +418,7 @@ router.get("/payslip/:slipId/pdf", requireAuth("self:read"), async (req, res, ne
     // Employees can only download their own payslip
     if (emp.id !== p.employeeId) throw new HttpError(403, "Access denied");
 
-    const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number; tier2Provider?: string; tier2ProviderName?: string };
+    const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number; tier2Provider?: string; tier2ProviderName?: string; insurancePremium?: number };
     const { generatePayslipPdf } = await import("../lib/pdf-payslip.js");
 
     const pdfBuffer = await generatePayslipPdf({
@@ -440,6 +440,7 @@ router.get("/payslip/:slipId/pdf", requireAuth("self:read"), async (req, res, ne
       shif: slip.shif, housingLevyEmployee: slip.housingLevyEmployee,
       pension: slip.pension, helb: slip.helb, sacco: slip.sacco,
       loanDeduction: slip.loanDeduction, adjustmentDeductions: slip.adjustmentDeductions,
+      insurancePremium: bd.insurancePremium ?? 0,
       totalDeductions: slip.totalDeductions, netPay: slip.netPay,
       nssfEmployer: slip.nssfEmployer, housingLevyEmployer: slip.housingLevyEmployer,
       pensionEmployer: slip.pensionEmployer,

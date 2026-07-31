@@ -737,6 +737,21 @@ export const DeletePayrollRunResponse = zod.object({
 
 
 /**
+ * @summary Apply missing insurance premium deductions to an approved or paid run
+ */
+export const ApplyInsuranceDeductionsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ApplyInsuranceDeductionsResponse = zod.object({
+  "appliedCount": zod.number(),
+  "appliedAmount": zod.number(),
+  "alreadyAppliedCount": zod.number(),
+  "message": zod.string()
+})
+
+
+/**
  * @summary Get payout batches for run
  */
 export const GetPayoutBatchesParams = zod.object({

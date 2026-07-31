@@ -120,7 +120,8 @@ export function PortalProfile() {
                   const totalDeductions =
                     (slip.paye || 0) + (slip.nssfEmployee || 0) + (slip.shif || 0) +
                     (slip.housingLevyEmployee || 0) + (slip.helb || 0) + (slip.sacco || 0) +
-                    (slip.loanDeduction || 0) + (slip.pension || 0) + (slip.adjustmentDeductions || 0);
+                    (slip.loanDeduction || 0) + (slip.insurancePremium || slip.breakdown?.insurancePremium || 0) +
+                    (slip.pension || 0) + (slip.adjustmentDeductions || 0);
                   return (
                     <TableRow
                       key={i}

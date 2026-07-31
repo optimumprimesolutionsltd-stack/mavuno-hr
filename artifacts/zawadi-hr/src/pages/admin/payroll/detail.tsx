@@ -63,6 +63,7 @@ export function PayrollDetail() {
   const [nssfEmailFailed, setNssfEmailFailed] = useState<string | null>(null);
   const [shifEmailFailed, setShifEmailFailed] = useState<string | null>(null);
   const [ahlEmailFailed, setAhlEmailFailed] = useState<string | null>(null);
+  const [insuranceCorrectionPending, setInsuranceCorrectionPending] = useState(false);
   const [slipFilter, setSlipFilter] = useState("");
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -98,6 +99,24 @@ export function PayrollDetail() {
       toast({ variant: "destructive", title: "Recalculate Failed", description: msg });
     },
   });
+
+  const handleInsuranceCorrection = async () => {
+    setInsuranceCorrectionPending(true);
+    try {
+      const result = await customFetch(`/api/payroll/${id}/apply-insurance-deductions`, { method: "POST" }) as any;
+      queryClient.invalidateQueries({ queryKey: getGetPayrollRunQueryKey(id) });
+      queryClient.invalidateQueries({ queryKey: getListPayrollRunsQueryKey() });
+      toast({
+        title: "Insurance deductions applied",
+        description: result?.message ?? "The historical insurance deductions were applied.",
+      });
+    } catch (err: any) {
+      const message = err?.data?.error ?? err?.message ?? "Insurance correction failed";
+      toast({ variant: "destructive", title: "Insurance correction failed", description: message });
+    } finally {
+      setInsuranceCorrectionPending(false);
+    }
+  };
 
   const handleEmailPayslips = async () => {
     setEmailSending(true);
@@ -356,6 +375,15 @@ export function PayrollDetail() {
           )}
           {run?.status === "paid" && (
             <>
+              <Button
+                size="sm" variant="outline"
+                onClick={handleInsuranceCorrection}
+                disabled={insuranceCorrectionPending}
+                className="font-mono gap-1.5 border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${insuranceCorrectionPending ? "animate-spin" : ""}`} />
+                {insuranceCorrectionPending ? "APPLYING..." : "APPLY INSURANCE DEDUCTIONS"}
+              </Button>
               <Button
                 size="sm" variant="outline"
                 onClick={handleItaxExport}

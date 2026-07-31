@@ -33,6 +33,7 @@ import type {
   GetPortalP9Params,
   GetReportParams,
   HealthStatus,
+  InsuranceCorrectionResult,
   LeaveDecisionInput,
   LeaveInput,
   LeaveRequest,
@@ -1574,6 +1575,77 @@ export const useDeletePayrollRun = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeletePayrollRunMutationOptions(options));
+    }
+
+export const getApplyInsuranceDeductionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/payroll/${id}/apply-insurance-deductions`
+}
+
+/**
+ * @summary Apply missing insurance premium deductions to an approved or paid run
+ */
+export const applyInsuranceDeductions = async (id: number, options?: RequestInit): Promise<InsuranceCorrectionResult> => {
+
+  return customFetch<InsuranceCorrectionResult>(getApplyInsuranceDeductionsUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApplyInsuranceDeductionsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyInsuranceDeductions>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof applyInsuranceDeductions>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['applyInsuranceDeductions'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applyInsuranceDeductions>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  applyInsuranceDeductions(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplyInsuranceDeductionsMutationResult = NonNullable<Awaited<ReturnType<typeof applyInsuranceDeductions>>>
+
+    export type ApplyInsuranceDeductionsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Apply missing insurance premium deductions to an approved or paid run
+ */
+export const useApplyInsuranceDeductions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyInsuranceDeductions>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof applyInsuranceDeductions>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getApplyInsuranceDeductionsMutationOptions(options));
     }
 
 export const getGetPayoutBatchesUrl = (id: number,) => {

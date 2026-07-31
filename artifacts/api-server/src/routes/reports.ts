@@ -306,6 +306,7 @@ router.get("/", requireAuth("report:read"), async (req, res, next) => {
         const helb = sum((p) => p.helb);
         const sacco = sum((p) => p.sacco);
         const loanRecoveries = sum((p) => p.loanDeduction);
+        const insurancePremiums = rows.reduce((total, row) => total + Number((row.p.breakdown as any)?.insurancePremium ?? 0), 0);
         const otherDeductions = sum((p) => p.adjustmentDeductions);
         const netPay = sum((p) => p.netPay);
 
@@ -323,10 +324,11 @@ router.get("/", requireAuth("report:read"), async (req, res, next) => {
           ["2106", "HELB Payable", 0, helb],
           ["2107", "SACCO Remittances", 0, sacco],
           ["2108", "Loan Recoveries", 0, loanRecoveries],
-          ["2109", "Other Payroll Deductions", 0, otherDeductions],
-          ["2110", "Non-cash Benefits Clearing", 0, nonCashBenefits],
+          ["2109", "Insurance Premiums Payable", 0, insurancePremiums],
+          ["2110", "Other Payroll Deductions", 0, otherDeductions],
+          ["2111", "Non-cash Benefits Clearing", 0, nonCashBenefits],
           [
-            run.status === "paid" ? "1001" : "2111",
+            run.status === "paid" ? "1001" : "2112",
             run.status === "paid" ? "Bank / Cash — Net Payroll" : "Net Salaries Payable",
             0,
             netPay,

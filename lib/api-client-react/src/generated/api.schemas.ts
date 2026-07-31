@@ -439,6 +439,13 @@ export interface PayrollActionInput {
   note?: string;
 }
 
+export interface InsuranceCorrectionResult {
+  appliedCount: number;
+  appliedAmount: number;
+  alreadyAppliedCount: number;
+  message: string;
+}
+
 export interface PayoutBatch {
   id: number;
   orgId: number;
