@@ -144,7 +144,7 @@ export function PayrollDetail() {
 
   const handleDownloadPayslip = (slipId: number, empName: string, period: string) => {
     const token = sessionStorage.getItem("zawadi_session_token");
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
     fetch(`/api/payroll/${id}/payslips/${slipId}/pdf`, { headers })
       .then((r) => r.blob())
       .then((blob) => {

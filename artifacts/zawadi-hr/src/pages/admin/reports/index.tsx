@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useGetReport, useListPayrollRuns } from "@workspace/api-client-react";
+import { useGetReport, useListPayrollRuns, getGetReportQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -43,7 +43,7 @@ export function Reports() {
 
   const { data: report, isLoading } = useGetReport(
     { type: reportType, runId: runId },
-    { query: { enabled: !!runId && !!reportType } },
+    { query: { queryKey: getGetReportQueryKey({ type: reportType, runId: runId }), enabled: !!runId && !!reportType } },
   );
 
   const tier2Provider = (report as any)?.tier2Provider ?? "nssf";

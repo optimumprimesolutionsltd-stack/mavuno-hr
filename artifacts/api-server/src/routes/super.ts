@@ -96,7 +96,7 @@ const patchOrgSchema = z.object({
 
 router.patch("/orgs/:id", ...requireSuperAdmin(), async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     if (isNaN(id)) throw new HttpError(400, "Invalid org id");
 
     const parsed = patchOrgSchema.safeParse(req.body);
@@ -135,7 +135,7 @@ router.patch("/orgs/:id", ...requireSuperAdmin(), async (req, res, next) => {
 // ── POST /api/super/orgs/:id/suspend ─────────────────────────────────────────
 router.post("/orgs/:id/suspend", ...requireSuperAdmin(), async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     if (isNaN(id)) throw new HttpError(400, "Invalid org id");
     const [updated] = await db
       .update(organizations)
@@ -152,7 +152,7 @@ router.post("/orgs/:id/suspend", ...requireSuperAdmin(), async (req, res, next) 
 // ── POST /api/super/orgs/:id/activate ────────────────────────────────────────
 router.post("/orgs/:id/activate", ...requireSuperAdmin(), async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     if (isNaN(id)) throw new HttpError(400, "Invalid org id");
     const [updated] = await db
       .update(organizations)

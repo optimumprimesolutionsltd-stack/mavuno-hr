@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useListEmployees, customFetch, getListLoanRequestsQueryKey } from "@workspace/api-client-react";
+import { useListEmployees, customFetch, getListLoanRequestsQueryKey, LoanRequestInputType } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { fullName } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -18,7 +18,7 @@ interface Props {
 
 const DEFAULTS = {
   employeeId: "",
-  type: "company" as const,
+  type: "company" as LoanRequestInputType,
   amount: "",
   months: "12",
   interestRateBps: "0",

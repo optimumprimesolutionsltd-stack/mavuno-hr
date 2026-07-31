@@ -36,7 +36,7 @@ export function PortalLogin() {
       {
         onSuccess: (data) => {
           if (data.role === "employee" || data.role === "admin" || data.role === "hr") {
-            if ((data as any).sessionToken) storeToken((data as any).sessionToken);
+            if (data.sessionToken) storeToken(data.sessionToken);
             toast({ title: "Welcome", description: `Logged in as ${data.name}` });
             setLocation("/portal");
           } else {

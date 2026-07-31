@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useGetFilings, useConfirmFiling } from "@workspace/api-client-react";
+import { useMutation } from "@tanstack/react-query";
+import { useGetFilings, customFetch } from "@workspace/api-client-react";
 import { formatMoney } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -127,7 +128,9 @@ interface DetailState {
 
 export function FilingsPage() {
   const { data, isLoading, refetch } = useGetFilings();
-  const confirmMutation = useConfirmFiling();
+  const confirmMutation = useMutation({
+    mutationFn: (id: number) => customFetch(`/api/filings/${id}/confirm`, { method: "PATCH" }),
+  });
   const [detail, setDetail] = useState<DetailState | null>(null);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
 

@@ -95,7 +95,8 @@ router.patch("/:id", requireAuth(), async (req, res, next) => {
     };
     const requiredPerm = actionPerm[action];
     if (!can(p.role, requiredPerm as any)) {
-      return res.status(403).json({ error: `Your role (${p.role}) is not permitted to perform action '${action}'` });
+      res.status(403).json({ error: `Your role (${p.role}) is not permitted to perform action '${action}'` });
+      return;
     }
 
     const [run] = await db.select().from(payrollRuns)
@@ -175,7 +176,7 @@ router.get("/:id/readiness", requireAuth("payroll:read"), async (req, res, next)
       .map(({ emp }) => ({
         id: emp.id,
         name: fullName(emp),
-        employeeNo: emp.employeeNo,
+        employeeNo: emp.empNo,
         missingFields: [
           ...(!emp.nssfNo ? ["NSSF No"] : []),
           ...(!emp.shifNo ? ["SHIF No"] : []),
@@ -596,7 +597,8 @@ router.get("/:id/compare", requireAuth("payroll:read"), async (req, res, next) =
     const previousRun = allRuns.find((r) => r.period < run.period && r.id !== run.id) ?? null;
 
     if (!previousRun) {
-      return res.json({ current: run, previous: null, rows: [], totals: { currentGross: 0, previousGross: 0, currentNet: 0, previousNet: 0, currentPaye: 0, previousPaye: 0 } });
+      res.json({ current: run, previous: null, rows: [], totals: { currentGross: 0, previousGross: 0, currentNet: 0, previousNet: 0, currentPaye: 0, previousPaye: 0 } });
+      return;
     }
 
     // Fetch payslips for both runs

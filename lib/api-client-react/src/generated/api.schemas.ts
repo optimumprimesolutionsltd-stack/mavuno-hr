@@ -33,25 +33,18 @@ export interface Principal {
   countryCode: string;
   currencyCode: string;
 }
-
-export type LoginResultUser = {
+export interface LoginResult {
   id: number;
-  name: string;
   email: string;
-  role: string;
-  mustChangePassword: boolean;
-};
-
-export type LoginResultOrg = {
-  slug: string;
   name: string;
+  role: string;
+  /** @nullable */
+  employeeId?: number | null;
+  mustChangePassword: boolean;
+  orgSlug: string;
   countryCode: string;
   currencyCode: string;
-};
-
-export interface LoginResult {
-  user: LoginResultUser;
-  org: LoginResultOrg;
+  sessionToken: string;
 }
 
 export interface ChangePasswordInput {
@@ -155,6 +148,10 @@ export interface Employee {
   /** @nullable */
   middleName?: string | null;
   email: string;
+  /** @nullable */
+  region?: string | null;
+  /** @nullable */
+  educationLevel?: string | null;
   /** @nullable */
   phone?: string | null;
   gender?: string;
@@ -623,6 +620,7 @@ export interface LoanRequest {
   /** @nullable */
   reason?: string | null;
   status: string;
+  interestRateBps?: number;
   /** @nullable */
   reviewNote?: string | null;
   /** @nullable */
@@ -773,4 +771,3 @@ limit?: number;
 export type GetPortalP9Params = {
 year?: number;
 };
-

@@ -199,7 +199,7 @@ export function LeaveAdmin() {
 
   const handleDecision = (id: number, action: 'approve' | 'reject') => {
     decideLeave.mutate(
-      { id, data: { action } },
+      { data: { id, action } },
       {
         onSuccess: () => {
           toast({ title: "Decision recorded", description: `Leave request ${action}d successfully.` });

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRoute, Link, useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
-import { useGetEmployee, customFetch } from "@workspace/api-client-react";
+import { useGetEmployee, getGetEmployeeQueryKey, customFetch } from "@workspace/api-client-react";
 import { formatMoney, formatDate, fullName } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -70,7 +70,7 @@ export function EmployeeDetail() {
   });
 
   const { data, isLoading, error, refetch } = useGetEmployee(id, {
-    query: { enabled: !!id },
+    query: { queryKey: getGetEmployeeQueryKey(id), enabled: !!id },
   });
 
   // Sync edit field when data arrives
@@ -287,7 +287,7 @@ export function EmployeeDetail() {
                   </div>
                   <div>
                     <span className="text-muted-foreground block text-xs mb-0.5">Resident Status</span>
-                    <span className="capitalize">{employee.residentStatus.replace('_', ' ')}</span>
+                    <span className="capitalize">{(employee.residentStatus ?? '').replace('_', ' ')}</span>
                   </div>
                 </div>
               </CardContent>

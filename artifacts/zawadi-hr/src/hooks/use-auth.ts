@@ -1,8 +1,9 @@
-import { useGetMe } from "@workspace/api-client-react";
+import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 
 export function useAuth() {
   const { data: user, isLoading, error, isError } = useGetMe({
     query: {
+      queryKey: getGetMeQueryKey(),
       retry: false,
       staleTime: 30_000,
     }
