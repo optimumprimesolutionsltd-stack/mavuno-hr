@@ -104,7 +104,7 @@ export function Reports() {
 
   const handleP9PdfDownload = async () => {
     const orgPin = "ORG";
-    await downloadPdf(`/api/reports/p9-pdf?year=${p9Year}`, `P9_${p9Year}_${orgPin}.pdf`, setP9PdfLoading);
+    await downloadPdf(`/api/reports/p9-pdf?year=${p9Year}`, `P9_${p9Year}_${orgPin}.zip`, setP9PdfLoading);
   };
 
   const handleP10PdfDownload = async () => {
@@ -218,7 +218,7 @@ export function Reports() {
                     disabled={p9PdfLoading}
                   >
                     {p9PdfLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-                    {p9PdfLoading ? "GENERATING..." : "P9 FORM PDF"}
+                    {p9PdfLoading ? "GENERATING..." : "P9 FORMS ZIP"}
                   </Button>
                 </>
               )}

@@ -9,6 +9,7 @@ import type { StatutoryConfig } from "../lib/statutory-types.js";
 import { generateP10Pdf, type P10CardData } from "../lib/pdf-p10.js";
 import { generateP9Pdf } from "../lib/pdf-p9.js";
 import { fullName } from "../lib/employee-name.js";
+import { createZip } from "../lib/zip.js";
 
 const router = Router();
 
@@ -24,22 +25,17 @@ router.get("/departments", requireAuth("payroll:read"), async (req, res, next) =
     if (!run) throw new HttpError(404, "Run not found");
 
     // Fetch all payslips with employee and department for this run
-    const rows = Array.from(byEmp.values()).map(({ emp, ...totals }) => ({
-      empNo: emp.empNo,
-      kraPin: emp.kraPin ?? "",
-      name: fullName(emp),
-      annualGross: totals.gross,
-      benefits: totals.benefits,
-      quarters: 0,
-      annualTotalGross: totals.gross,
-      annualMortgageInterest: totals.mortgageInterest,
-      annualDefinedContribution: totals.definedContribution,
-      annualChargeablePay: totals.chargeablePay,
-      annualTaxChargeable: totals.taxChargeable,
-      annualPersonalRelief: totals.personalRelief,
-      annualInsuranceRelief: totals.insuranceRelief,
-      annualNetPaye: totals.netPaye,
-    }));
+    const rows = await db
+      .select({
+        departmentId: employees.departmentId,
+        gross: payslips.gross,
+        paye: payslips.paye,
+        nssfEmployee: payslips.nssfEmployee,
+        netPay: payslips.netPay,
+      })
+      .from(payslips)
+      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .where(and(eq(payslips.runId, runId), eq(payslips.orgId, p.orgId)));
 
     // Load departments for name lookup
     const deptList = await db.select().from(departments)
@@ -62,7 +58,7 @@ router.get("/departments", requireAuth("payroll:read"), async (req, res, next) =
       const dept = row.departmentId != null ? deptMap.get(row.departmentId) : undefined;
       const deptName = dept?.name ?? "Unassigned";
 
-      const existing = byEmp.get(emp.id);
+      const existing = aggMap.get(key);
       if (existing) {
         existing.employeeCount += 1;
         existing.grossTotal += row.gross ?? 0;
@@ -112,23 +108,14 @@ router.get("/", requireAuth("report:read"), async (req, res, next) => {
     const snap = (run.statutorySnapshot ?? {}) as StatutoryConfig;
     const tier2Provider: "nssf" | "private" = snap?.socialSecurity?.tier2Provider ?? "nssf";
     const tier2ProviderName = snap?.socialSecurity?.tier2ProviderName ?? "Private Pension Fund";
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, p.orgId));
 
-    const rows = Array.from(byEmp.values()).map(({ emp, ...totals }) => ({
-      empNo: emp.empNo,
-      kraPin: emp.kraPin ?? "",
-      name: fullName(emp),
-      annualGross: totals.gross,
-      benefits: totals.benefits,
-      quarters: 0,
-      annualTotalGross: totals.gross,
-      annualMortgageInterest: totals.mortgageInterest,
-      annualDefinedContribution: totals.definedContribution,
-      annualChargeablePay: totals.chargeablePay,
-      annualTaxChargeable: totals.taxChargeable,
-      annualPersonalRelief: totals.personalRelief,
-      annualInsuranceRelief: totals.insuranceRelief,
-      annualNetPaye: totals.netPaye,
-    }));
+    const rows = await db
+      .select({ p: payslips, e: employees, d: departments })
+      .from(payslips)
+      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .leftJoin(departments, eq(employees.departmentId, departments.id))
+      .where(and(eq(payslips.runId, runId), eq(payslips.orgId, p.orgId)));
 
     const name = (r: (typeof rows)[number]) => fullName(r.e);
 
@@ -152,13 +139,17 @@ router.get("/", requireAuth("report:read"), async (req, res, next) => {
       // ── NSSF Return ──────────────────────────────────────────────────────────
       case "nssf": {
         const bd = (r: (typeof rows)[number]) =>
-          (r.p.breakdown || {}) as { nssfTier2?: Cents; nssfTier2Employer?: Cents };
+          (r.p.breakdown || {}) as {
+            nssfTier1?: Cents; nssfTier2?: Cents;
+            nssfTier1Employer?: Cents; nssfTier2Employer?: Cents;
+          };
 
-        title = `${tier2ProviderName} — Pension Contribution Return — ${run.name}`;
-        columns = ["Employee", "KRA PIN", "Pensionable Pay", "Employee Contribution", "Employer Contribution", "Total"];
-        moneyCols = [2, 3, 4, 5];
-        data = rows.map((r) => {
-          const b = bd(r);
+        if (tier2Provider === "private") {
+          title = `NSSF Contribution Return (Tier I) — ${run.name}`;
+          columns = ["NSSF No", "Employee", "Pensionable Pay", "Tier I — Employee", "Tier I — Employer", "Combined Tier I"];
+          moneyCols = [2, 3, 4, 5];
+          data = rows.map((r) => {
+            const b = bd(r);
             const t1Emp = b.nssfTier1 ?? 0;
             const t1Emr = b.nssfTier1Employer ?? 0;
             return [r.e.nssfNo || "-", name(r), r.p.gross, t1Emp, t1Emr, t1Emp + t1Emr];
@@ -169,7 +160,7 @@ router.get("/", requireAuth("report:read"), async (req, res, next) => {
           columns = ["NSSF No", "Employee", "Pensionable Pay", "Tier I", "Tier II", "Employee Total", "Employer Total", "Combined"];
           moneyCols = [2, 3, 4, 5, 6, 7];
           data = rows.map((r) => {
-          const b = bd(r);
+            const b = bd(r);
             return [
               r.e.nssfNo || "-", name(r), r.p.gross,
               b.nssfTier1 ?? 0, b.nssfTier2 ?? 0,
@@ -199,12 +190,22 @@ router.get("/", requireAuth("report:read"), async (req, res, next) => {
       }
 
       // ── SHIF Return ───────────────────────────────────────────────────────────
-      case "shif":
+      case "shif": {
         title = `SHIF Contribution Return — ${run.name}`;
-        columns = ["SHIF No", "Employee", "National ID", "Gross Pay", "SHIF"];
-        moneyCols = [3, 4];
-        data = rows.map((r) => [r.e.shifNo || "-", name(r), r.e.nationalId || "-", r.p.gross, r.p.shif]);
+        const rate = `${((snap.health?.bps ?? 0) / 100).toFixed(2)}%`;
+        columns = ["Employer SHIF No", "SHIF No", "Employee", "National ID", "Gross Pay", "Rate", "Employee Contribution"];
+        moneyCols = [4, 6];
+        data = rows.map((r) => [
+          org.shifEmployerNo || "-",
+          r.e.shifNo || "-",
+          name(r),
+          r.e.nationalId || "-",
+          r.p.gross,
+          rate,
+          r.p.shif,
+        ]);
         break;
+      }
 
       // ── Affordable Housing Levy ───────────────────────────────────────────────
       case "housing":
@@ -271,7 +272,7 @@ router.get("/", requireAuth("report:read"), async (req, res, next) => {
         ];
         moneyCols = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
         data = rows.map((r) => {
-        const gross = sum((p) => p.gross);
+          const gross = r.p.gross;
           const net = r.p.netPay || 0;
           const statutory = (r.p.paye || 0) + (r.p.nssfEmployee || 0) + (r.p.shif || 0) + (r.p.housingLevyEmployee || 0);
           const other = Math.max(0, (r.p.totalDeductions || 0) - statutory);
@@ -542,13 +543,7 @@ router.get("/p10-pdf", requireAuth("report:read"), async (req, res, next) => {
       }>;
     };
 
-    const byEmp = new Map<number, {
-      emp: typeof allSlips[0]["emp"];
-      gross: number; benefits: number; mortgageInterest: number;
-      definedContribution: number; chargeablePay: number;
-      taxChargeable: number; personalRelief: number;
-      insuranceRelief: number; netPaye: number;
-    }>();
+    const byEmp = new Map<number, SlipAgg>();
     for (const { slip, emp } of allSlips) {
       const period = runPeriodMap.get(slip.runId) ?? `${year}-01`;
       const month = period.slice(5, 7);
@@ -661,15 +656,7 @@ router.get("/p10-pdf", requireAuth("report:read"), async (req, res, next) => {
       status: "downloaded", filedAt: new Date(),
     });
 
-    const pdfBuffer = await generateP9Pdf({
-      orgName: org?.name ?? "",
-      orgKraPin: org?.kraPin ?? undefined,
-      year,
-      rows,
-      totalPaye,
-      totalGross,
-      totalChargeablePay,
-    });
+    const pdfBuffer = await generateP10Pdf(cards);
     const orgPin = (org?.kraPin ?? "ORG").replace(/[^A-Z0-9]/gi, "");
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="P10_${year}_${orgPin}.pdf"`);
@@ -761,21 +748,30 @@ router.get("/p9-pdf", requireAuth("report:read"), async (req, res, next) => {
       status: "downloaded", filedAt: new Date(),
     });
 
-    const pdfBuffer = await generateP9Pdf({
-      orgName: org?.name ?? "",
-      orgKraPin: org?.kraPin ?? undefined,
-      year,
-      rows,
-      totalPaye,
-      totalGross,
-      totalChargeablePay,
-    });
+    const files = [];
+    for (const row of rows) {
+      const safeEmployeeId = `${row.empNo}_${row.name}`
+        .replace(/[^a-z0-9_-]+/gi, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 100) || "employee";
+      const pdfBuffer = await generateP9Pdf({
+        orgName: org?.name ?? "",
+        orgKraPin: org?.kraPin ?? undefined,
+        year,
+        rows: [row],
+        totalPaye: row.annualNetPaye,
+        totalGross: row.annualGross,
+        totalChargeablePay: row.annualChargeablePay,
+      });
+      files.push({ name: `P9_${year}_${safeEmployeeId}.pdf`, data: pdfBuffer });
+    }
+    const zipBuffer = createZip(files);
 
     const orgPin = (org?.kraPin ?? "ORG").replace(/[^A-Z0-9]/gi, "");
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="P9_${year}_${orgPin}.pdf"`);
-    res.setHeader("Content-Length", pdfBuffer.length);
-    res.send(pdfBuffer);
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="P9_${year}_${orgPin}.zip"`);
+    res.setHeader("Content-Length", zipBuffer.length);
+    res.send(zipBuffer);
   } catch (err) { next(err); }
 });
 

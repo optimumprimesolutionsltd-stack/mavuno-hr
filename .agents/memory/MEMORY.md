@@ -6,3 +6,4 @@
 - [Google identity bridge](clerk-google-bridge.md) — Clerk verifies Google identity, while local Zawadi users remain the source of roles and organization access
 - [Payroll journal balancing](payroll-journal-balancing.md) — GL payroll postings must include every employee deduction, employer contribution, and non-cash clearing line
 - [Insurance premium deductions](insurance-premium-deductions.md) — insurance premiums are employee deductions and also affect PAYE through insurance relief
+- [Report export safety](report-export-safety.md) — package employee-by-employee documents in one ZIP with explicit regulator report columns
