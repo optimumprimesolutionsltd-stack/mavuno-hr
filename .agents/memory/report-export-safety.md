@@ -12,3 +12,7 @@ When a report contains one document per employee, return a ZIP archive with sepa
 For SHIF uploads, use the supplied Excel workbook contract exactly: visible `Sheet1`, hidden `Sheet2`, the nine headers in the uploaded order, and the identity-type lookup validation.
 
 **Why:** The SHA upload template is an operational import contract, so adding report columns or changing the order can make an otherwise valid payroll file unusable.
+
+For simplified P10A uploads, use a headerless 25-column positional CSV and quote every field; format monetary values with two decimals and thousands separators. For NSSF reference workbooks, use visible `Sheet1`, merged `A1:I1`, metadata rows 2–4, headers in row 5, and two-decimal monetary cells.
+
+**Why:** KRA and NSSF imports depend on positional fields and workbook geometry, not just equivalent values.

@@ -42,6 +42,14 @@ export function centsToKes(cents: number): string {
   return (cents / 100).toFixed(2);
 }
 
+/** KRA's simplified P10A CSV renders monetary values with thousands separators. */
+function centsToP10aKes(cents: number): string {
+  return (cents / 100).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 /** Build a properly-quoted CSV string from headers + rows (cents converted automatically) */
 export function buildCsv(headers: readonly string[], rows: (string | number)[][]): string {
   const escape = (cell: string | number): string => {
@@ -79,17 +87,29 @@ export function downloadP10Csv(data: {
   rows: Array<{
     kraPin: string;
     name: string;
+    residentStatus?: string;
+    employeeType?: string;
+    pwd?: string;
+    exemptionCertificateNumber?: string;
+    totalCashPay?: number;
+    carBenefit?: number;
+    mealsBenefit?: number;
+    nonCashBenefits?: number;
+    housingType?: string;
+    housingBenefit?: number;
+    otherBenefits?: number;
     gross: number;
-    benefits: number;
-    quarters: number;
-    totalGross: number;
+    shif?: number;
+    nssf?: number;
+    otherPension?: number;
+    postRetirementMedical?: number;
     mortgageInterest: number;
-    definedContribution: number;
-    chargeablePay: number;
-    taxChargeable: number;
+    affordableHousingLevy?: number;
+    taxablePay?: number;
     personalRelief: number;
     insuranceRelief: number;
-    netPaye: number;
+    paye?: number;
+    selfAssessedPaye?: number;
   }>;
   period: string;
   orgKraPin: string;
@@ -97,22 +117,39 @@ export function downloadP10Csv(data: {
   const csvRows = data.rows.map((r) => [
     r.kraPin,
     r.name,
+    r.residentStatus ?? "Resident",
+    r.employeeType ?? "Primary Employee",
+    r.pwd ?? "No",
+    r.exemptionCertificateNumber ?? "",
+    r.totalCashPay ?? r.gross,
+    r.carBenefit ?? 0,
+    r.mealsBenefit ?? 0,
+    r.nonCashBenefits ?? 0,
+    r.housingType ?? "Benefit not given",
+    r.housingBenefit ?? 0,
+    r.otherBenefits ?? 0,
     r.gross,
-    r.benefits,
-    r.quarters,
-    r.totalGross,
+    r.shif ?? 0,
+    r.nssf ?? 0,
+    r.otherPension ?? 0,
+    r.postRetirementMedical ?? 0,
     r.mortgageInterest,
-    r.definedContribution,
-    r.chargeablePay,
-    r.taxChargeable,
+    r.affordableHousingLevy ?? 0,
+    r.taxablePay ?? 0,
     r.personalRelief,
     r.insuranceRelief,
-    r.netPaye,
+    r.paye ?? 0,
+    r.selfAssessedPaye ?? 0,
   ] as (string | number)[]);
 
-  const csv = buildCsv(P10_HEADERS, csvRows);
+  // KRA's simplified P10A upload is a headerless, positional CSV.
+  // Keep the trailing newline and empty fields exactly as the reference export.
+  const csv = csvRows.map((row) => row.map((cell) => {
+    if (typeof cell === "number") return `"${centsToP10aKes(cell)}"`;
+    return `"${String(cell ?? "").replace(/"/g, '""')}"`;
+  }).join(",")).join("\r\n") + "\r\n";
   const orgPin = data.orgKraPin.replace(/[^A-Z0-9]/gi, "") || "ORG";
-  downloadCsv(`P10_${data.period}_${orgPin}.csv`, csv);
+  downloadCsv(`P10A_${data.period}_${orgPin}.csv`, csv);
 }
 
 // ── NSSF eCitizen bulk-upload format ────────────────────────────────────────
@@ -157,6 +194,100 @@ export function downloadNssfCsv(data: {
   const csv = buildCsv(NSSF_HEADERS, csvRows);
   const empNo = data.orgNssfEmployerNo.replace(/[^A-Z0-9]/gi, "") || "ORG";
   downloadCsv(`NSSF_${data.period}_${empNo}.csv`, csv);
+}
+
+type NssfWorkbookData = {
+  rows: Array<{
+    empNo: string;
+    firstName?: string;
+    lastName?: string;
+    name: string;
+    nationalId?: string;
+    nssfNo: string;
+    tier1Employee: number;
+    tier2Employee: number;
+    total: number;
+  }>;
+  period: string;
+  orgName?: string;
+  orgNssfEmployerNo: string;
+};
+
+/** Build the nine-column NSSF XLSX schedule shown in the uploaded reference. */
+export async function buildNssfWorkbook(data: NssfWorkbookData): Promise<Uint8Array> {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Zawadi HR";
+  const sheet = workbook.addWorksheet("Sheet1");
+  const title = `NSSF_${data.period}_${data.orgNssfEmployerNo || "ORG"}`;
+  sheet.mergeCells("A1:I1");
+  sheet.getCell("A1").value = title;
+  sheet.getCell("B2").value = "EMPLOYER NUMBER";
+  sheet.getCell("C2").value = data.orgNssfEmployerNo;
+  sheet.getCell("B3").value = "EMPLOYER NAME";
+  sheet.getCell("C3").value = data.orgName ?? "";
+  sheet.getCell("B4").value = "MONTH OF CONTRIBUTION";
+  sheet.getCell("C4").value = formatContributionMonth(data.period);
+
+  const headers = [
+    "PAYROLL NO",
+    "EMPLOYEE'S NAME",
+    "ID NO",
+    "NSSF NO",
+    "TIER 1 AMOUNT",
+    "TIER 2 AMOUNT",
+    "VOL. AMOUNT",
+    "TOTAL AMOUNT",
+  ];
+  headers.forEach((header, index) => {
+    sheet.getCell(5, index + 2).value = header;
+  });
+
+  data.rows.forEach((row, index) => {
+    const excelRow = sheet.getRow(index + 6);
+    excelRow.getCell(1).value = index + 1;
+    excelRow.getCell(2).value = row.empNo;
+    excelRow.getCell(3).value = row.name;
+    excelRow.getCell(4).value = row.nationalId ?? "";
+    excelRow.getCell(5).value = row.nssfNo;
+    excelRow.getCell(6).value = row.tier1Employee / 100;
+    excelRow.getCell(7).value = row.tier2Employee / 100;
+    excelRow.getCell(8).value = 0;
+    excelRow.getCell(9).value = row.total / 100;
+    excelRow.getCell(1).numFmt = "0";
+    excelRow.getCell(4).numFmt = "0";
+    excelRow.getCell(5).numFmt = "0";
+    excelRow.getCell(6).numFmt = "#,##0.00";
+    excelRow.getCell(7).numFmt = "#,##0.00";
+    excelRow.getCell(8).numFmt = "0.00";
+    excelRow.getCell(9).numFmt = "#,##0.00";
+  });
+
+  [6, 28.35, 33.75, 10.8, 13.5, 17.55, 17.55, 14.85, 16.2]
+    .forEach((width, index) => { sheet.getColumn(index + 1).width = width; });
+  sheet.getRow(1).font = { bold: true };
+  sheet.getRow(5).font = { bold: true };
+  return (await workbook.xlsx.writeBuffer()) as unknown as Uint8Array;
+}
+
+function formatContributionMonth(period: string): string {
+  const [year, month] = period.split("-");
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  return date.toLocaleString("en-GB", { month: "long", year: "numeric" });
+}
+
+export async function downloadNssfWorkbook(data: NssfWorkbookData): Promise<void> {
+  const buffer = await buildNssfWorkbook(data);
+  const blob = new Blob([buffer as unknown as BlobPart], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `NSSF_${data.period}_${data.orgNssfEmployerNo || "ORG"}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(url);
+  document.body.removeChild(a);
 }
 
 // ── SHIF SHA portal Excel upload template ───────────────────────────────────

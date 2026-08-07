@@ -21,7 +21,7 @@ import { PayslipEditDialog } from "./payslip-edit-dialog";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
-import { downloadP10Csv, downloadNssfCsv, downloadShifTemplate, downloadAhlCsv } from "@/lib/itax-csv";
+import { downloadP10Csv, downloadNssfWorkbook, downloadShifTemplate, downloadAhlCsv } from "@/lib/itax-csv";
 
 // Status badge colour map
 function StatusBadge({ status }: { status: string }) {
@@ -215,7 +215,14 @@ export function PayrollDetail() {
       if (result.emailSent === false) {
         setNssfEmailFailed(result.emailError ?? "Confirmation email could not be delivered.");
       }
-      downloadNssfCsv(result);
+      await downloadNssfWorkbook({
+        ...result,
+        rows: result.rows.map((row: any) => ({
+          ...row,
+          firstName: row.firstName ?? "",
+          lastName: row.lastName ?? "",
+        })),
+      });
     } catch (err: any) {
       toast({ variant: "destructive", title: "NSSF Export Failed", description: err?.data?.error ?? err?.message });
     } finally {
@@ -391,7 +398,7 @@ export function PayrollDetail() {
                 className="font-mono gap-1.5 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10"
               >
                 <FileSpreadsheet className={`h-3.5 w-3.5 ${itaxLoading ? "animate-pulse" : ""}`} />
-                {itaxLoading ? "LOADING..." : "iTAX P10"}
+                 {itaxLoading ? "LOADING..." : "iTAX P10A"}
                 {p10Filing && !itaxLoading && (
                   <span className="ml-1 text-[10px] bg-emerald-500/20 text-emerald-300 px-1 rounded font-mono">FILED</span>
                 )}
@@ -403,7 +410,7 @@ export function PayrollDetail() {
                 className="font-mono gap-1.5 border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
               >
                 <Download className={`h-3.5 w-3.5 ${nssfLoading ? "animate-pulse" : ""}`} />
-                {nssfLoading ? "LOADING..." : "NSSF CSV"}
+                {nssfLoading ? "LOADING..." : "NSSF XLSX"}
                 {nssfFiling && !nssfLoading && (
                   <span className="ml-1 text-[10px] bg-orange-500/20 text-orange-300 px-1 rounded font-mono">FILED</span>
                 )}
@@ -560,7 +567,7 @@ export function PayrollDetail() {
           <DialogHeader className="shrink-0">
             <DialogTitle className="font-mono flex items-center gap-2">
               <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
-              iTAX P10 RETURN — {itaxData?.period ?? run?.period}
+              iTAX P10A RETURN — {itaxData?.period ?? run?.period}
             </DialogTitle>
             <DialogDescription className="font-mono text-xs">
               KRA Monthly PAYE Return • {itaxData?.orgName} • {itaxData?.orgKraPin || "⚠️ No org KRA PIN set"}
@@ -586,7 +593,7 @@ export function PayrollDetail() {
           <div className="flex-1 overflow-auto border border-border/40 rounded-lg bg-background/50">
             {itaxLoading ? (
               <div className="h-40 flex items-center justify-center text-muted-foreground font-mono text-sm">
-                LOADING P10 DATA...
+                LOADING P10A DATA...
               </div>
             ) : itaxData ? (
               <Table className="text-xs whitespace-nowrap">
@@ -594,15 +601,15 @@ export function PayrollDetail() {
                   <TableRow>
                     <TableHead className="font-mono text-[10px] px-2">PIN</TableHead>
                     <TableHead className="font-mono text-[10px] px-2">NAME</TableHead>
-                    <TableHead className="font-mono text-[10px] px-2 text-right">GROSS</TableHead>
-                    <TableHead className="font-mono text-[10px] px-2 text-right">BENEFITS</TableHead>
+                    <TableHead className="font-mono text-[10px] px-2 text-right">CASH PAY</TableHead>
+                    <TableHead className="font-mono text-[10px] px-2 text-right">SHIF</TableHead>
+                    <TableHead className="font-mono text-[10px] px-2 text-right">NSSF</TableHead>
+                    <TableHead className="font-mono text-[10px] px-2 text-right">AHL</TableHead>
                     <TableHead className="font-mono text-[10px] px-2 text-right">MORTGAGE INT.</TableHead>
-                    <TableHead className="font-mono text-[10px] px-2 text-right">DEF. CONTRIB.</TableHead>
-                    <TableHead className="font-mono text-[10px] px-2 text-right">CHARGEABLE</TableHead>
-                    <TableHead className="font-mono text-[10px] px-2 text-right">TAX CHGD</TableHead>
+                    <TableHead className="font-mono text-[10px] px-2 text-right">TAXABLE PAY</TableHead>
                     <TableHead className="font-mono text-[10px] px-2 text-right">PERS. RELIEF</TableHead>
                     <TableHead className="font-mono text-[10px] px-2 text-right">INS. RELIEF</TableHead>
-                    <TableHead className="font-mono text-[10px] px-2 text-right text-emerald-400">NET PAYE</TableHead>
+                    <TableHead className="font-mono text-[10px] px-2 text-right text-emerald-400">PAYE</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -612,15 +619,15 @@ export function PayrollDetail() {
                         {row.kraPin || <span className="text-amber-400">MISSING</span>}
                       </TableCell>
                       <TableCell className="px-2 py-1.5 max-w-[140px] truncate">{row.name}</TableCell>
-                      <TableCell className="text-right font-mono px-2 py-1.5">{formatMoney(row.gross)}</TableCell>
-                      <TableCell className="text-right font-mono px-2 py-1.5 text-muted-foreground">{formatMoney(row.benefits)}</TableCell>
+                      <TableCell className="text-right font-mono px-2 py-1.5">{formatMoney(row.totalCashPay)}</TableCell>
+                      <TableCell className="text-right font-mono px-2 py-1.5 text-muted-foreground">{formatMoney(row.shif)}</TableCell>
+                      <TableCell className="text-right font-mono px-2 py-1.5 text-muted-foreground">{formatMoney(row.nssf)}</TableCell>
+                      <TableCell className="text-right font-mono px-2 py-1.5 text-muted-foreground">{formatMoney(row.affordableHousingLevy)}</TableCell>
                       <TableCell className="text-right font-mono px-2 py-1.5 text-muted-foreground">{formatMoney(row.mortgageInterest)}</TableCell>
-                      <TableCell className="text-right font-mono px-2 py-1.5 text-muted-foreground">{formatMoney(row.definedContribution)}</TableCell>
-                      <TableCell className="text-right font-mono px-2 py-1.5">{formatMoney(row.chargeablePay)}</TableCell>
-                      <TableCell className="text-right font-mono px-2 py-1.5">{formatMoney(row.taxChargeable)}</TableCell>
+                      <TableCell className="text-right font-mono px-2 py-1.5">{formatMoney(row.taxablePay)}</TableCell>
                       <TableCell className="text-right font-mono px-2 py-1.5 text-muted-foreground">{formatMoney(row.personalRelief)}</TableCell>
                       <TableCell className="text-right font-mono px-2 py-1.5 text-muted-foreground">{formatMoney(row.insuranceRelief)}</TableCell>
-                      <TableCell className="text-right font-mono px-2 py-1.5 font-bold text-emerald-400">{formatMoney(row.netPaye)}</TableCell>
+                      <TableCell className="text-right font-mono px-2 py-1.5 font-bold text-emerald-400">{formatMoney(row.paye)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -644,7 +651,7 @@ export function PayrollDetail() {
                 onClick={() => itaxData && downloadP10Csv(itaxData)}
               >
                 <Download className="h-3.5 w-3.5" />
-                DOWNLOAD P10 CSV
+                DOWNLOAD P10A CSV
               </Button>
             </div>
           </DialogFooter>

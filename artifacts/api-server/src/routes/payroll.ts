@@ -873,17 +873,29 @@ router.get("/:id/itax/p10", requireAuth("payroll:read"), async (req, res, next) 
         empNo: emp.empNo,
         kraPin: emp.kraPin ?? "",
         name,
+        residentStatus: emp.residentStatus === "resident" ? "Resident" : "Non-Resident",
+        employeeType: emp.disabilityExemption ? "Disabled" : "Primary Employee",
+        pwd: emp.disabilityExemption ? "Yes" : "No",
+        exemptionCertificateNumber: "",
+        totalCashPay: slip.cashGross,
+        carBenefit: 0,
+        mealsBenefit: 0,
+        nonCashBenefits: slip.nonCashBenefit,
+        housingType: slip.nonCashBenefit > 0 ? "Benefit given" : "Benefit not given",
+        housingBenefit: 0,
+        otherBenefits: 0,
         gross: slip.gross,
-        benefits: slip.nonCashBenefit,
-        quarters: 0,
-        totalGross: slip.gross,
+        shif: slip.shif,
+        nssf: slip.nssfEmployee,
+        otherPension: slip.pension,
+        postRetirementMedical: 0,
         mortgageInterest: slip.mortgageInterest,
-        definedContribution: slip.nssfEmployee + slip.pension,
-        chargeablePay: slip.taxableIncome,
-        taxChargeable: slip.payeBeforeRelief,
+        affordableHousingLevy: slip.housingLevyEmployee,
+        taxablePay: slip.taxableIncome,
         personalRelief: slip.personalRelief,
         insuranceRelief: slip.insuranceRelief,
-        netPaye: slip.paye,
+        paye: slip.paye,
+        selfAssessedPaye: 0,
         missingPin: !emp.kraPin,
       };
     });
@@ -956,12 +968,19 @@ router.get("/:id/itax/nssf", requireAuth("payroll:read"), async (req, res, next)
       // Employer mirrors employee contributions for both tiers
       const tier1Employer = tier1Employee;
       const tier2Employer = tier2Employee;
-      const total = tier1Employee + tier1Employer + tier2Employee + tier2Employer;
+      // The reference NSSF workbook is the employee contribution schedule:
+      // TOTAL AMOUNT is Tier I + Tier II employee contributions. Employer
+      // mirrors are retained in the API response for the existing summary UI.
+      const total = tier1Employee + tier2Employee;
       return {
         empNo: emp.empNo,
         nssfNo: emp.nssfNo ?? "",
         name,
+        firstName: emp.firstName,
+        lastName: [emp.middleName, emp.lastName].filter(Boolean).join(" "),
+        nationalId: emp.nationalId ?? "",
         employerNo: org?.nssfEmployerNo ?? "",
+        period: run.period,
         tier1Employee,
         tier1Employer,
         tier2Employee,
