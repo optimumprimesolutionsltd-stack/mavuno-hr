@@ -1014,6 +1014,10 @@ router.get("/:id/itax/shif", requireAuth("payroll:read"), async (req, res, next)
       if (!emp.shifNo) warnings.push(`${emp.empNo} — ${name}: missing SHIF number`);
       return {
         empNo: emp.empNo,
+        firstName: emp.firstName,
+        lastName: emp.lastName,
+        phone: emp.phone ?? emp.mpesaPhone ?? "",
+        kraPin: emp.kraPin ?? "",
         shifNo: emp.shifNo ?? "",
         nationalId: emp.nationalId ?? "",
         name,

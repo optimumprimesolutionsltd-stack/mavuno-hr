@@ -3,6 +3,7 @@
  * All money values coming in are integer cents; we divide by 100 and format to 2 d.p.
  */
 import ExcelJS from "exceljs";
+import shifTemplateUrl from "@assets/Payroll_Template_1786084532401.xlsx?url";
 
 export const P10_HEADERS = [
   "Employee's PIN",
@@ -158,33 +159,91 @@ export function downloadNssfCsv(data: {
   downloadCsv(`NSSF_${data.period}_${empNo}.csv`, csv);
 }
 
-// ── SHIF SHA portal bulk-upload format ──────────────────────────────────────
+// ── SHIF SHA portal Excel upload template ───────────────────────────────────
 
 export const SHIF_HEADERS = [
-  "ID No",
-  "Employee Name",
-  "SHIF Amount",
+  "PAYROLL NUMBER",
+  "FIRSTNAME",
+  "LASTNAME",
+  "IDENTITY TYPE",
+  "ID NO",
+  "KRA PIN",
+  "SHIF NO",
+  "CONTRIBUTION AMOUNT",
+  "PHONE",
 ] as const;
 
-/** Build and immediately download a SHIF SHA portal CSV from the API response */
-export function downloadShifCsv(data: {
+const SHIF_IDENTITY_TYPES = [
+  "Refugee ID",
+  "National ID",
+  "Alien ID",
+  "Passport Number",
+] as const;
+
+type ShifTemplateData = {
   rows: Array<{
+    empNo: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    kraPin: string;
+    shifNo: string;
     nationalId: string;
-    name: string;
     shifAmount: number;
   }>;
   period: string;
   orgName: string;
-}): void {
-  const csvRows = data.rows.map((r) => [
-    r.nationalId,
-    r.name,
-    r.shifAmount,
-  ] as (string | number)[]);
+};
 
-  const csv = buildCsv(SHIF_HEADERS, csvRows);
+/** Build a SHIF workbook from the uploaded SHA template without changing its structure. */
+export async function buildShifTemplate(data: ShifTemplateData): Promise<Uint8Array> {
+  const response = await fetch(shifTemplateUrl);
+  if (!response.ok) {
+    throw new Error("The SHIF template could not be loaded.");
+  }
+
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(await response.arrayBuffer() as any);
+  const sheet = workbook.getWorksheet("Sheet1");
+  if (!sheet) throw new Error("The SHIF template is missing Sheet1.");
+
+  data.rows.forEach((row, index) => {
+    const excelRow = sheet.getRow(index + 2);
+    const values = [
+      row.empNo,
+      row.firstName,
+      row.lastName,
+      row.nationalId ? "National ID" : "",
+      row.nationalId,
+      row.kraPin,
+      row.shifNo,
+      row.shifAmount / 100,
+      row.phone,
+    ];
+    values.forEach((value, columnIndex) => {
+      const cell = excelRow.getCell(columnIndex + 1);
+      cell.value = value;
+    });
+  });
+
+  return (await workbook.xlsx.writeBuffer()) as unknown as Uint8Array;
+}
+
+/** Build and immediately download the exact uploaded SHIF Excel template. */
+export async function downloadShifTemplate(data: ShifTemplateData): Promise<void> {
+  const buffer = await buildShifTemplate(data);
+  const blob = new Blob([buffer as unknown as BlobPart], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
   const org = data.orgName.replace(/[^A-Z0-9]/gi, "").slice(0, 10) || "ORG";
-  downloadCsv(`SHIF_${data.period}_${org}.csv`, csv);
+  a.href = url;
+  a.download = `SHIF_${data.period}_${org}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(url);
+  document.body.removeChild(a);
 }
 
 // ── AHL (Affordable Housing Levy) bulk-upload format ────────────────────────

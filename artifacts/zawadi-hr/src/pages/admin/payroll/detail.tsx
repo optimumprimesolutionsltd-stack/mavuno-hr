@@ -21,7 +21,7 @@ import { PayslipEditDialog } from "./payslip-edit-dialog";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
-import { downloadP10Csv, downloadNssfCsv, downloadShifCsv, downloadAhlCsv } from "@/lib/itax-csv";
+import { downloadP10Csv, downloadNssfCsv, downloadShifTemplate, downloadAhlCsv } from "@/lib/itax-csv";
 
 // Status badge colour map
 function StatusBadge({ status }: { status: string }) {
@@ -239,7 +239,7 @@ export function PayrollDetail() {
       if (result.emailSent === false) {
         setShifEmailFailed(result.emailError ?? "Confirmation email could not be delivered.");
       }
-      downloadShifCsv(result);
+      await downloadShifTemplate(result);
     } catch (err: any) {
       toast({ variant: "destructive", title: "SHIF Export Failed", description: err?.data?.error ?? err?.message });
     } finally {
@@ -415,7 +415,7 @@ export function PayrollDetail() {
                 className="font-mono gap-1.5 border-sky-500/50 text-sky-400 hover:bg-sky-500/10"
               >
                 <Download className={`h-3.5 w-3.5 ${shifLoading ? "animate-pulse" : ""}`} />
-                {shifLoading ? "LOADING..." : "SHIF CSV"}
+                {shifLoading ? "LOADING..." : "SHIF XLSX"}
                 {shifFiling && !shifLoading && (
                   <span className="ml-1 text-[10px] bg-sky-500/20 text-sky-300 px-1 rounded font-mono">FILED</span>
                 )}
