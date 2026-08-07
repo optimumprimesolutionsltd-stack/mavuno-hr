@@ -63,7 +63,10 @@ router.get("/", requireAuth("loan:review"), async (req, res, next) => {
     const p = (req as AuthRequest).principal;
     const rows = await db.select({ loan: loans, employee: employees })
       .from(loans)
-      .innerJoin(employees, eq(loans.employeeId, employees.id))
+      .innerJoin(employees, and(
+        eq(loans.employeeId, employees.id),
+        eq(loans.orgId, employees.orgId),
+      ))
       .where(eq(loans.orgId, p.orgId))
       .orderBy(desc(loans.createdAt));
 
@@ -129,7 +132,10 @@ router.get("/requests", requireAuth("loan:review"), async (req, res, next) => {
     const p = (req as AuthRequest).principal;
     const rows = await db.select({ request: loanRequests, employee: employees })
       .from(loanRequests)
-      .innerJoin(employees, eq(loanRequests.employeeId, employees.id))
+      .innerJoin(employees, and(
+        eq(loanRequests.employeeId, employees.id),
+        eq(loanRequests.orgId, employees.orgId),
+      ))
       .where(eq(loanRequests.orgId, p.orgId))
       .orderBy(desc(loanRequests.createdAt));
     res.json(rows);
@@ -196,7 +202,9 @@ router.patch("/requests/:id/edit", requireAuth("loan:review"), async (req, res, 
     }
 
 
-    const [updated] = await db.update(loanRequests).set(updates).where(eq(loanRequests.id, id)).returning();
+    const [updated] = await db.update(loanRequests).set(updates)
+      .where(and(eq(loanRequests.id, id), eq(loanRequests.orgId, p.orgId)))
+      .returning();
 
     await db.transaction(async (tx) => {
       await writeAudit(tx as any, {
@@ -246,15 +254,16 @@ router.patch("/requests/:id", requireAuth("loan:review"), async (req, res, next)
       await db.update(loanRequests).set({
         status: "approved", loanId: loan.id, decidedByUserId: p.userId,
         reviewedAt: new Date(), reviewNote: reviewNote ?? null,
-      }).where(eq(loanRequests.id, id));
+      }).where(and(eq(loanRequests.id, id), eq(loanRequests.orgId, p.orgId)));
     } else {
       await db.update(loanRequests).set({
         status: "rejected", decidedByUserId: p.userId,
         reviewedAt: new Date(), reviewNote: reviewNote ?? null,
-      }).where(eq(loanRequests.id, id));
+      }).where(and(eq(loanRequests.id, id), eq(loanRequests.orgId, p.orgId)));
     }
 
-    const [updated] = await db.select().from(loanRequests).where(eq(loanRequests.id, id));
+    const [updated] = await db.select().from(loanRequests)
+      .where(and(eq(loanRequests.id, id), eq(loanRequests.orgId, p.orgId)));
 
     await db.transaction(async (tx) => {
       await writeAudit(tx as any, {

@@ -96,6 +96,9 @@ export async function getPrincipal(req: Request): Promise<Principal | null> {
     .innerJoin(organizations, eq(sessions.orgId, organizations.id))
     .where(and(
       eq(sessions.id, tokenHash(raw)),
+      // A session is only valid when its tenant matches the user's tenant.
+      // Do not let a corrupted or forged session row bridge organizations.
+      eq(sessions.orgId, users.orgId),
       isNull(sessions.revokedAt),
       gt(sessions.expiresAt, new Date()),
     ));

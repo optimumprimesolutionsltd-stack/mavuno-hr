@@ -250,7 +250,10 @@ router.get("/loans", requireAuth("self:read"), async (req, res, next) => {
     // Attach repayment history and FBT for each loan
     const withHistory = await Promise.all(myLoans.map(async (loan) => {
       const repayments = await db.select().from(loanRepayments)
-        .where(eq(loanRepayments.loanId, loan.id))
+        .where(and(
+          eq(loanRepayments.loanId, loan.id),
+          eq(loanRepayments.orgId, p.orgId),
+        ))
         .orderBy(desc(loanRepayments.createdAt)).limit(24);
 
       let fringeBenefit: { monthlyBenefit: number; monthlyTax: number } | null = null;
@@ -407,7 +410,10 @@ router.get("/payslip/:slipId/pdf", requireAuth("self:read"), async (req, res, ne
     const rows = await db
       .select({ slip: payslips, emp: employees, org: organizations, run: payrollRuns })
       .from(payslips)
-      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .innerJoin(employees, and(
+        eq(payslips.employeeId, employees.id),
+        eq(payslips.orgId, employees.orgId),
+      ))
       .innerJoin(organizations, eq(payslips.orgId, organizations.id))
       .innerJoin(payrollRuns, eq(payslips.runId, payrollRuns.id))
       .where(and(eq(payslips.id, slipId), eq(payslips.orgId, p.orgId)));
@@ -503,7 +509,10 @@ router.post("/timesheets", requireAuth("self:request"), async (req, res, next) =
         holidayHours: parsed.data.holidayHours,
         approvedAt: null,
         approvedBy: null,
-      }).where(eq(timesheets.id, existing.id)).returning();
+      }).where(and(
+        eq(timesheets.id, existing.id),
+        eq(timesheets.orgId, p.orgId),
+      )).returning();
       result = updated;
     } else {
       const [created] = await db.insert(timesheets).values({
@@ -523,7 +532,10 @@ router.get("/pending-leaves", requireAuth("leave:approve"), async (req, res, nex
 
     const rows = await db.select({ leave: leaveRequests, employee: employees })
       .from(leaveRequests)
-      .innerJoin(employees, eq(leaveRequests.employeeId, employees.id))
+      .innerJoin(employees, and(
+        eq(leaveRequests.employeeId, employees.id),
+        eq(leaveRequests.orgId, employees.orgId),
+      ))
       .where(eq(leaveRequests.orgId, p.orgId))
       .orderBy(desc(leaveRequests.createdAt));
 

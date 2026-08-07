@@ -120,7 +120,7 @@ router.patch("/:id/confirm", requireAuth("payroll:submit"), async (req, res, nex
     const [updated] = await db
       .update(statutoryFilings)
       .set({ status: "filed", filedAt: new Date(), confirmedByUserId: p.userId, confirmedByEmail: p.email })
-      .where(eq(statutoryFilings.id, id))
+      .where(and(eq(statutoryFilings.id, id), eq(statutoryFilings.orgId, p.orgId)))
       .returning();
 
     await db.transaction(async (tx) => {

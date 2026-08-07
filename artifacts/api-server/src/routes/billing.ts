@@ -57,7 +57,10 @@ router.get("/", ...requireSuperAdmin(), async (_req, res, next) => {
       })
       .from(billingPayments)
       .innerJoin(organizations, eq(billingPayments.orgId, organizations.id))
-      .leftJoin(users, eq(billingPayments.verifiedByUserId, users.id))
+      .leftJoin(users, and(
+        eq(billingPayments.verifiedByUserId, users.id),
+        eq(billingPayments.orgId, users.orgId),
+      ))
       .orderBy(desc(billingPayments.createdAt));
 
     res.json(rows);
@@ -236,7 +239,10 @@ router.get("/my", requireAuth("org:admin"), async (req, res, next) => {
         verifierEmail: users.email,
       })
       .from(billingPayments)
-      .leftJoin(users, eq(billingPayments.verifiedByUserId, users.id))
+      .leftJoin(users, and(
+        eq(billingPayments.verifiedByUserId, users.id),
+        eq(billingPayments.orgId, users.orgId),
+      ))
       .where(eq(billingPayments.orgId, p.orgId))
       .orderBy(desc(billingPayments.createdAt));
 

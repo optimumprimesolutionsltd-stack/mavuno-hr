@@ -74,7 +74,10 @@ router.get("/", requireAuth(), async (req, res, next) => {
         lastName: employees.lastName,
       })
       .from(leaveRequests)
-      .leftJoin(employees, eq(leaveRequests.employeeId, employees.id))
+      .leftJoin(employees, and(
+        eq(leaveRequests.employeeId, employees.id),
+        eq(leaveRequests.orgId, employees.orgId),
+      ))
       .where(and(eq(leaveRequests.orgId, orgId), eq(leaveRequests.status, "pending")))
       .orderBy(desc(leaveRequests.createdAt))
       .limit(10);
@@ -105,9 +108,15 @@ router.get("/", requireAuth(), async (req, res, next) => {
           gross: sql<string>`coalesce(sum(${payslips.gross}), 0)`,
         })
         .from(payslips)
-        .leftJoin(employees, eq(payslips.employeeId, employees.id))
-        .leftJoin(departments, eq(employees.departmentId, departments.id))
-        .where(eq(payslips.runId, latestRun.id))
+        .leftJoin(employees, and(
+          eq(payslips.employeeId, employees.id),
+          eq(payslips.orgId, employees.orgId),
+        ))
+        .leftJoin(departments, and(
+          eq(employees.departmentId, departments.id),
+          eq(employees.orgId, departments.orgId),
+        ))
+        .where(and(eq(payslips.runId, latestRun.id), eq(payslips.orgId, orgId)))
         .groupBy(departments.name);
       deptCosts = deptRows.map((r) => ({ name: r.name ?? "Unassigned", gross: Number(r.gross) }));
     }

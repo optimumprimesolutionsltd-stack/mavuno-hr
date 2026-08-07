@@ -43,7 +43,10 @@ router.get("/", requireAuth("leave:admin"), async (req, res, next) => {
 
     const rows = await db.select({ leave: leaveRequests, employee: employees })
       .from(leaveRequests)
-      .innerJoin(employees, eq(leaveRequests.employeeId, employees.id))
+      .innerJoin(employees, and(
+        eq(leaveRequests.employeeId, employees.id),
+        eq(leaveRequests.orgId, employees.orgId),
+      ))
       .where(eq(leaveRequests.orgId, p.orgId))
       .orderBy(desc(leaveRequests.createdAt));
 
@@ -174,7 +177,7 @@ router.patch("/:id/cancel", requireAuth("leave:admin"), async (req, res, next) =
 
     const [updated] = await db.update(leaveRequests).set({
       status: "cancelled", decidedByUserId: p.userId, decidedAt: new Date(),
-    }).where(eq(leaveRequests.id, id)).returning();
+    }).where(and(eq(leaveRequests.id, id), eq(leaveRequests.orgId, p.orgId))).returning();
 
     await db.transaction(async (tx) => {
       await writeAudit(tx as any, {
@@ -206,7 +209,7 @@ router.patch("/:id", requireAuth("leave:approve"), async (req, res, next) => {
 
     const [updated] = await db.update(leaveRequests).set({
       status: newStatus, decidedByUserId: p.userId, decidedAt: new Date(),
-    }).where(eq(leaveRequests.id, id)).returning();
+    }).where(and(eq(leaveRequests.id, id), eq(leaveRequests.orgId, p.orgId))).returning();
 
     // Balance is computed dynamically in portal/me from approved leave rows — no separate deduction needed here.
 

@@ -224,7 +224,7 @@ export async function calculateRun(
     shifTotal: totals.shif,
     housingLevyEmployeeTotal: totals.ahlE, housingLevyEmployerTotal: totals.ahlR,
     employerCostTotal: totals.employerCost,
-  }).where(eq(payrollRuns.id, run.id)).returning();
+  }).where(and(eq(payrollRuns.id, run.id), eq(payrollRuns.orgId, orgId))).returning();
 
   await writeAudit(tx, {
     orgId, action: "PAYROLL_CALCULATED", entity: "payroll_runs", entityId: run.id,
@@ -399,7 +399,7 @@ export async function recalculateRun(
     employerCostTotal: totals.employerCost,
     statutoryConfigId: configId,
     statutorySnapshot: config,
-  }).where(eq(payrollRuns.id, runId)).returning();
+  }).where(and(eq(payrollRuns.id, runId), eq(payrollRuns.orgId, orgId))).returning();
 
   await writeAudit(tx, {
     orgId, action: "PAYROLL_RECALCULATED", entity: "payroll_runs", entityId: runId,
@@ -441,7 +441,7 @@ export async function applyLoanRepayments(tx: Tx, orgId: number, runId: number) 
       await tx.update(loans).set({
         balance: balanceAfter,
         status: balanceAfter <= 0 ? "settled" : "active",
-      }).where(eq(loans.id, l.id));
+      }).where(and(eq(loans.id, l.id), eq(loans.orgId, orgId)));
 
       remaining -= pay;
     }

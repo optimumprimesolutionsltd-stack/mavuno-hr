@@ -131,7 +131,10 @@ router.get("/", requireAuth("employee:read"), async (req, res, next) => {
     const list = await db
       .select({ employee: employees, department: departments })
       .from(employees)
-      .leftJoin(departments, eq(employees.departmentId, departments.id))
+      .leftJoin(departments, and(
+        eq(employees.departmentId, departments.id),
+        eq(employees.orgId, departments.orgId),
+      ))
       .where(and(...conditions));
     res.json(list);
   } catch (err) { next(err); }
@@ -168,7 +171,10 @@ router.get("/:id", requireAuth("employee:read"), async (req, res, next) => {
     const [row] = await db
       .select({ employee: employees, department: departments })
       .from(employees)
-      .leftJoin(departments, eq(employees.departmentId, departments.id))
+      .leftJoin(departments, and(
+        eq(employees.departmentId, departments.id),
+        eq(employees.orgId, departments.orgId),
+      ))
       .where(and(eq(employees.id, id), eq(employees.orgId, p.orgId)));
     if (!row) { res.status(404).json({ error: "Employee not found" }); return; }
 
@@ -268,7 +274,19 @@ router.patch("/:id", requireAuth("employee:write"), async (req, res, next) => {
     if (b.nokPhone !== undefined) updateData.nokPhone = b.nokPhone ?? null;
     if (b.nokEmail !== undefined) updateData.nokEmail = b.nokEmail ?? null;
 
-    const [updated] = await db.update(employees).set(updateData).where(eq(employees.id, id)).returning();
+    if (b.departmentId !== undefined && b.departmentId !== null) {
+      const [department] = await db.select({ id: departments.id })
+        .from(departments)
+        .where(and(eq(departments.id, b.departmentId), eq(departments.orgId, p.orgId)));
+      if (!department) {
+        res.status(422).json({ error: "Department does not belong to this organization" });
+        return;
+      }
+    }
+
+    const [updated] = await db.update(employees).set(updateData)
+      .where(and(eq(employees.id, id), eq(employees.orgId, p.orgId)))
+      .returning();
 
     await db.transaction(async (tx) => {
       await writeAudit(tx as any, {
@@ -292,7 +310,7 @@ router.delete("/:id", requireAuth("employee:write"), async (req, res, next) => {
 
     const today = new Date().toISOString().slice(0, 10);
     const [updated] = await db.update(employees).set({ status: "terminated", terminationDate: today })
-      .where(eq(employees.id, id)).returning();
+      .where(and(eq(employees.id, id), eq(employees.orgId, p.orgId))).returning();
 
     await db.transaction(async (tx) => {
       await writeAudit(tx as any, {
@@ -332,7 +350,7 @@ router.post("/:id/terminate", requireAuth("employee:write"), async (req, res, ne
 
     const [updated] = await db.update(employees)
       .set({ status: "terminated", terminationDate, terminationReason: terminationReason ?? null } as any)
-      .where(eq(employees.id, id))
+      .where(and(eq(employees.id, id), eq(employees.orgId, p.orgId)))
       .returning();
 
     await db.transaction(async (tx) => {

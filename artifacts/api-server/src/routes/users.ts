@@ -38,7 +38,10 @@ router.get("/", requireAuth("user:admin"), async (req, res, next) => {
     const rows = await db
       .select({ user: users, employee: employees })
       .from(users)
-      .leftJoin(employees, eq(users.employeeId, employees.id))
+      .leftJoin(employees, and(
+        eq(users.employeeId, employees.id),
+        eq(users.orgId, employees.orgId),
+      ))
       .where(eq(users.orgId, p.orgId));
 
     res.json(rows.map(r => ({
@@ -130,7 +133,9 @@ router.patch("/:id", requireAuth("user:admin"), async (req, res, next) => {
       updates.disabledAt = parsed.data.disabled ? new Date() : null;
     }
 
-    const [updated] = await db.update(users).set(updates).where(eq(users.id, id)).returning();
+    const [updated] = await db.update(users).set(updates)
+      .where(and(eq(users.id, id), eq(users.orgId, p.orgId)))
+      .returning();
 
     await db.transaction(async (tx) => {
       await writeAudit(tx as any, {
@@ -158,7 +163,7 @@ router.post("/:id/reset-password", requireAuth("user:admin"), async (req, res, n
 
     const hash = await hashPassword(parsed.data.password);
     await db.update(users).set({ passwordHash: hash, mustChangePassword: true, failedLoginCount: 0, lockedUntil: null })
-      .where(eq(users.id, id));
+      .where(and(eq(users.id, id), eq(users.orgId, p.orgId)));
 
     await db.transaction(async (tx) => {
       await writeAudit(tx as any, {

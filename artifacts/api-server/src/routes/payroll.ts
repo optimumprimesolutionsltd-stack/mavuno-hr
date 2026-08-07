@@ -66,8 +66,14 @@ router.get("/:id", requireAuth("payroll:read"), async (req, res, next) => {
 
     const slips = await db.select({ slip: payslips, emp: employees, dept: departments })
       .from(payslips)
-      .innerJoin(employees, eq(payslips.employeeId, employees.id))
-      .leftJoin(departments, eq(employees.departmentId, departments.id))
+      .innerJoin(employees, and(
+        eq(payslips.employeeId, employees.id),
+        eq(payslips.orgId, employees.orgId),
+      ))
+      .leftJoin(departments, and(
+        eq(employees.departmentId, departments.id),
+        eq(employees.orgId, departments.orgId),
+      ))
       .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
 
     const filings = await db.select().from(statutoryFilings)
@@ -140,7 +146,9 @@ router.patch("/:id", requireAuth(), async (req, res, next) => {
       default: throw new HttpError(400, "Invalid action");
     }
 
-    const [updated] = await db.update(payrollRuns).set(update).where(eq(payrollRuns.id, id)).returning();
+    const [updated] = await db.update(payrollRuns).set(update)
+      .where(and(eq(payrollRuns.id, id), eq(payrollRuns.orgId, p.orgId)))
+      .returning();
 
     await db.transaction(async (tx) => {
       await writeAudit(tx as any, {
@@ -168,8 +176,11 @@ router.get("/:id/readiness", requireAuth("payroll:read"), async (req, res, next)
     const rows = await db
       .select({ emp: employees })
       .from(payslips)
-      .innerJoin(employees, eq(payslips.employeeId, employees.id))
-      .where(eq(payslips.runId, id));
+      .innerJoin(employees, and(
+        eq(payslips.employeeId, employees.id),
+        eq(payslips.orgId, employees.orgId),
+      ))
+      .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
 
     const missing = rows
       .filter(({ emp }) => !emp.nssfNo || !emp.shifNo)
@@ -218,7 +229,10 @@ router.post("/:id/apply-insurance-deductions", requireAuth("payroll:calculate"),
 
       const rows = await tx.select({ slip: payslips, emp: employees })
         .from(payslips)
-        .innerJoin(employees, eq(payslips.employeeId, employees.id))
+        .innerJoin(employees, and(
+          eq(payslips.employeeId, employees.id),
+          eq(payslips.orgId, employees.orgId),
+        ))
         .where(and(eq(payslips.runId, runId), eq(payslips.orgId, p.orgId)));
 
       let appliedCount = 0;
@@ -245,7 +259,7 @@ router.post("/:id/apply-insurance-deductions", requireAuth("payroll:calculate"),
           totalDeductions: slip.totalDeductions + premium,
           netPay: slip.netPay - premium,
           breakdown: updatedBreakdown,
-        }).where(eq(payslips.id, slip.id));
+        }).where(and(eq(payslips.id, slip.id), eq(payslips.orgId, p.orgId)));
 
         appliedCount++;
         appliedAmount += premium;
@@ -254,7 +268,7 @@ router.post("/:id/apply-insurance-deductions", requireAuth("payroll:calculate"),
       if (appliedCount > 0) {
         await tx.update(payrollRuns).set({
           netTotal: run.netTotal - appliedAmount,
-        }).where(eq(payrollRuns.id, runId));
+        }).where(and(eq(payrollRuns.id, runId), eq(payrollRuns.orgId, p.orgId)));
       }
 
       await writeAudit(tx as any, {
@@ -317,7 +331,10 @@ router.patch("/:runId/payslips/:slipId", requireAuth("payroll:calculate"), async
       // Load payslip + employee
       const [slipRow] = await tx.select({ slip: payslips, emp: employees })
         .from(payslips)
-        .innerJoin(employees, eq(payslips.employeeId, employees.id))
+        .innerJoin(employees, and(
+          eq(payslips.employeeId, employees.id),
+          eq(payslips.orgId, employees.orgId),
+        ))
         .where(and(eq(payslips.id, slipId), eq(payslips.runId, runId), eq(payslips.orgId, p.orgId)));
       if (!slipRow) throw new HttpError(404, "Payslip not found");
 
@@ -408,7 +425,7 @@ router.patch("/:runId/payslips/:slipId", requireAuth("payroll:calculate"), async
         netPay: r.netPay, employerCost: r.employerCost,
         daysInPeriod, daysPayable,
         breakdown: newBreakdown,
-      }).where(eq(payslips.id, slipId)).returning();
+      }).where(and(eq(payslips.id, slipId), eq(payslips.orgId, p.orgId))).returning();
 
       // Refresh run totals from all payslips
       const allSlips = await tx.select().from(payslips)
@@ -434,7 +451,7 @@ router.patch("/:runId/payslips/:slipId", requireAuth("payroll:calculate"), async
         shifTotal: totals.shif,
         housingLevyEmployeeTotal: totals.ahlE, housingLevyEmployerTotal: totals.ahlR,
         employerCostTotal: totals.employerCost,
-      }).where(eq(payrollRuns.id, runId)).returning();
+      }).where(and(eq(payrollRuns.id, runId), eq(payrollRuns.orgId, p.orgId))).returning();
 
       await writeAudit(tx as any, {
         orgId: p.orgId, action: "PAYSLIP_EDITED", entity: "payslips", entityId: slipId,
@@ -459,7 +476,8 @@ router.delete("/:id", requireAuth("payroll:calculate"), async (req, res, next) =
     if (!run) { res.status(404).json({ error: "Payroll run not found" }); return; }
     if (run.status !== "draft") throw new HttpError(409, "Only draft runs can be deleted");
 
-    await db.delete(payrollRuns).where(eq(payrollRuns.id, id));
+    await db.delete(payrollRuns)
+      .where(and(eq(payrollRuns.id, id), eq(payrollRuns.orgId, p.orgId)));
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
@@ -486,7 +504,10 @@ router.post("/:id/payouts", requireAuth("payroll:disburse"), async (req, res, ne
 
     const slips = await db.select({ slip: payslips, emp: employees })
       .from(payslips)
-      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .innerJoin(employees, and(
+        eq(payslips.employeeId, employees.id),
+        eq(payslips.orgId, employees.orgId),
+      ))
       .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
 
     const channel = req.body?.channel ?? "bank_eft";
@@ -516,7 +537,10 @@ router.get("/:id/payslips/:slipId/pdf", requireAuth("payroll:read"), async (req,
     const [{ slip, emp, org, run }] = await db
       .select({ slip: payslips, emp: employees, org: organizations, run: payrollRuns })
       .from(payslips)
-      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .innerJoin(employees, and(
+        eq(payslips.employeeId, employees.id),
+        eq(payslips.orgId, employees.orgId),
+      ))
       .innerJoin(organizations, eq(payslips.orgId, organizations.id))
       .innerJoin(payrollRuns, eq(payslips.runId, payrollRuns.id))
       .where(and(eq(payslips.id, slipId), eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
@@ -605,11 +629,17 @@ router.get("/:id/compare", requireAuth("payroll:read"), async (req, res, next) =
     const [currentSlips, previousSlips] = await Promise.all([
       db.select({ slip: payslips, emp: employees })
         .from(payslips)
-        .innerJoin(employees, eq(payslips.employeeId, employees.id))
+        .innerJoin(employees, and(
+          eq(payslips.employeeId, employees.id),
+          eq(payslips.orgId, employees.orgId),
+        ))
         .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId))),
       db.select({ slip: payslips, emp: employees })
         .from(payslips)
-        .innerJoin(employees, eq(payslips.employeeId, employees.id))
+        .innerJoin(employees, and(
+          eq(payslips.employeeId, employees.id),
+          eq(payslips.orgId, employees.orgId),
+        ))
         .where(and(eq(payslips.runId, previousRun.id), eq(payslips.orgId, p.orgId))),
     ]);
 
@@ -689,7 +719,10 @@ router.get("/:id/payslips/bulk-pdf", requireAuth("payroll:read"), async (req, re
     const rows = await db
       .select({ slip: payslips, emp: employees })
       .from(payslips)
-      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .innerJoin(employees, and(
+        eq(payslips.employeeId, employees.id),
+        eq(payslips.orgId, employees.orgId),
+      ))
       .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
 
     const { generatePayslipPdf } = await import("../lib/pdf-payslip.js");
@@ -753,7 +786,10 @@ router.post("/:id/email-payslips", requireAuth("payroll:read"), async (req, res,
     const rows = await db
       .select({ slip: payslips, emp: employees })
       .from(payslips)
-      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+        .innerJoin(employees, and(
+          eq(payslips.employeeId, employees.id),
+          eq(payslips.orgId, employees.orgId),
+        ))
       .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
 
     const { generatePayslipPdf } = await import("../lib/pdf-payslip.js");
@@ -823,7 +859,10 @@ router.get("/:id/itax/p10", requireAuth("payroll:read"), async (req, res, next) 
 
     const rows = await db.select({ slip: payslips, emp: employees })
       .from(payslips)
-      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+        .innerJoin(employees, and(
+          eq(payslips.employeeId, employees.id),
+          eq(payslips.orgId, employees.orgId),
+        ))
       .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
 
     const warnings: string[] = [];
@@ -863,7 +902,10 @@ router.get("/:id/itax/p10", requireAuth("payroll:read"), async (req, res, next) 
     if (existing) {
       await db.update(statutoryFilings)
         .set({ status: "downloaded", filedAt: now, itemCount: rows.length, totalAmount: totalPaye })
-        .where(eq(statutoryFilings.id, existing.id));
+        .where(and(
+          eq(statutoryFilings.id, existing.id),
+          eq(statutoryFilings.orgId, p.orgId),
+        ));
     } else {
       await db.insert(statutoryFilings).values({
         orgId: p.orgId, runId: id, kind: "P10", period: run.period,
@@ -898,7 +940,10 @@ router.get("/:id/itax/nssf", requireAuth("payroll:read"), async (req, res, next)
 
     const rows = await db.select({ slip: payslips, emp: employees })
       .from(payslips)
-      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+        .innerJoin(employees, and(
+          eq(payslips.employeeId, employees.id),
+          eq(payslips.orgId, employees.orgId),
+        ))
       .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
 
     const warnings: string[] = [];
@@ -940,7 +985,10 @@ router.get("/:id/itax/nssf", requireAuth("payroll:read"), async (req, res, next)
     if (existing) {
       await db.update(statutoryFilings)
         .set({ status: "downloaded", filedAt: now, itemCount: rows.length, totalAmount: totalNssf })
-        .where(eq(statutoryFilings.id, existing.id));
+        .where(and(
+          eq(statutoryFilings.id, existing.id),
+          eq(statutoryFilings.orgId, p.orgId),
+        ));
     } else {
       await db.insert(statutoryFilings).values({
         orgId: p.orgId, runId: id, kind: "NSSF", period: run.period,
@@ -1005,7 +1053,10 @@ router.get("/:id/itax/shif", requireAuth("payroll:read"), async (req, res, next)
 
     const rows = await db.select({ slip: payslips, emp: employees })
       .from(payslips)
-      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+        .innerJoin(employees, and(
+          eq(payslips.employeeId, employees.id),
+          eq(payslips.orgId, employees.orgId),
+        ))
       .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
 
     const warnings: string[] = [];
@@ -1040,7 +1091,10 @@ router.get("/:id/itax/shif", requireAuth("payroll:read"), async (req, res, next)
     if (existing) {
       await db.update(statutoryFilings)
         .set({ status: "downloaded", filedAt: now, itemCount: rows.length, totalAmount: totalShif })
-        .where(eq(statutoryFilings.id, existing.id));
+        .where(and(
+          eq(statutoryFilings.id, existing.id),
+          eq(statutoryFilings.orgId, p.orgId),
+        ));
     } else {
       await db.insert(statutoryFilings).values({
         orgId: p.orgId, runId: id, kind: "SHIF", period: run.period,
@@ -1104,7 +1158,10 @@ router.get("/:id/itax/ahl", requireAuth("payroll:read"), async (req, res, next) 
 
     const rows = await db.select({ slip: payslips, emp: employees })
       .from(payslips)
-      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+        .innerJoin(employees, and(
+          eq(payslips.employeeId, employees.id),
+          eq(payslips.orgId, employees.orgId),
+        ))
       .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
 
     const warnings: string[] = [];
@@ -1139,7 +1196,10 @@ router.get("/:id/itax/ahl", requireAuth("payroll:read"), async (req, res, next) 
     if (existing) {
       await db.update(statutoryFilings)
         .set({ status: "downloaded", filedAt: now, itemCount: rows.length, totalAmount: totalAhl })
-        .where(eq(statutoryFilings.id, existing.id));
+        .where(and(
+          eq(statutoryFilings.id, existing.id),
+          eq(statutoryFilings.orgId, p.orgId),
+        ));
     } else {
       await db.insert(statutoryFilings).values({
         orgId: p.orgId, runId: id, kind: "AHL", period: run.period,

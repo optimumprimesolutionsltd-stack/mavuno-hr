@@ -34,7 +34,10 @@ router.get("/departments", requireAuth("payroll:read"), async (req, res, next) =
         netPay: payslips.netPay,
       })
       .from(payslips)
-      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .innerJoin(employees, and(
+        eq(payslips.employeeId, employees.id),
+        eq(payslips.orgId, employees.orgId),
+      ))
       .where(and(eq(payslips.runId, runId), eq(payslips.orgId, p.orgId)));
 
     // Load departments for name lookup
@@ -113,8 +116,14 @@ router.get("/", requireAuth("report:read"), async (req, res, next) => {
     const rows = await db
       .select({ p: payslips, e: employees, d: departments })
       .from(payslips)
-      .innerJoin(employees, eq(payslips.employeeId, employees.id))
-      .leftJoin(departments, eq(employees.departmentId, departments.id))
+      .innerJoin(employees, and(
+        eq(payslips.employeeId, employees.id),
+        eq(payslips.orgId, employees.orgId),
+      ))
+      .leftJoin(departments, and(
+        eq(employees.departmentId, departments.id),
+        eq(employees.orgId, departments.orgId),
+      ))
       .where(and(eq(payslips.runId, runId), eq(payslips.orgId, p.orgId)));
 
     const name = (r: (typeof rows)[number]) => fullName(r.e);
@@ -434,7 +443,10 @@ router.get("/itax/p9", requireAuth("report:read"), async (req, res, next) => {
     const runIds = yearRuns.map((r) => r.id);
     const allSlips = await db.select({ slip: payslips, emp: employees })
       .from(payslips)
-      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .innerJoin(employees, and(
+        eq(payslips.employeeId, employees.id),
+        eq(payslips.orgId, employees.orgId),
+      ))
       .where(and(eq(payslips.orgId, p.orgId), inArray(payslips.runId, runIds)));
 
     const byEmp = new Map<number, {
@@ -529,7 +541,10 @@ router.get("/p10-pdf", requireAuth("report:read"), async (req, res, next) => {
     const runPeriodMap = new Map(yearRuns.map((r) => [r.id, r.period]));
     const allSlips = await db.select({ slip: payslips, emp: employees })
       .from(payslips)
-      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .innerJoin(employees, and(
+        eq(payslips.employeeId, employees.id),
+        eq(payslips.orgId, employees.orgId),
+      ))
       .where(and(eq(payslips.orgId, p.orgId), inArray(payslips.runId, runIds)));
 
     type SlipAgg = {
@@ -682,7 +697,10 @@ router.get("/p9-pdf", requireAuth("report:read"), async (req, res, next) => {
     const runIds = yearRuns.map((r) => r.id);
     const allSlips = await db.select({ slip: payslips, emp: employees })
       .from(payslips)
-      .innerJoin(employees, eq(payslips.employeeId, employees.id))
+      .innerJoin(employees, and(
+        eq(payslips.employeeId, employees.id),
+        eq(payslips.orgId, employees.orgId),
+      ))
       .where(and(eq(payslips.orgId, p.orgId), inArray(payslips.runId, runIds)));
 
     const byEmp = new Map<number, {

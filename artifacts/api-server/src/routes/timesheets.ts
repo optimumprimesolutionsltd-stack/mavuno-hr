@@ -26,7 +26,10 @@ router.get("/", requireAuth("employee:read"), async (req, res, next) => {
 
     const rows = await db.select({ timesheet: timesheets, employee: employees })
       .from(timesheets)
-      .innerJoin(employees, eq(timesheets.employeeId, employees.id))
+      .innerJoin(employees, and(
+        eq(timesheets.employeeId, employees.id),
+        eq(timesheets.orgId, employees.orgId),
+      ))
       .where(and(
         eq(timesheets.orgId, p.orgId),
         ...(per ? [eq(timesheets.period, per)] : []),
@@ -61,7 +64,7 @@ router.post("/", requireAuth("employee:read"), async (req, res, next) => {
         overtimeHours: parsed.data.overtimeHours,
         holidayHours: parsed.data.holidayHours,
         approvedAt: null, approvedBy: null,
-      }).where(eq(timesheets.id, existing.id)).returning();
+      }).where(and(eq(timesheets.id, existing.id), eq(timesheets.orgId, p.orgId))).returning();
       result = updated;
     } else {
       const [created] = await db.insert(timesheets).values({
@@ -86,7 +89,7 @@ router.patch("/:id/approve", requireAuth("employee:write"), async (req, res, nex
 
     const [updated] = await db.update(timesheets).set({
       approvedBy: p.userId, approvedAt: new Date(),
-    }).where(eq(timesheets.id, id)).returning();
+    }).where(and(eq(timesheets.id, id), eq(timesheets.orgId, p.orgId))).returning();
 
     res.json(updated);
   } catch (err) { next(err); }

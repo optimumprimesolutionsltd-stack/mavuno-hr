@@ -15,7 +15,10 @@ router.get("/", requireAuth(), async (req, res, next) => {
     const rows = await db
       .select()
       .from(notifications)
-      .where(eq(notifications.userId, p.userId))
+      .where(and(
+        eq(notifications.userId, p.userId),
+        eq(notifications.orgId, p.orgId),
+      ))
       .orderBy(
         // unread first, then by creation date desc
         isNull(notifications.readAt),
@@ -43,6 +46,7 @@ router.patch("/read-all", requireAuth(), async (req, res, next) => {
       .where(
         and(
           eq(notifications.userId, p.userId),
+          eq(notifications.orgId, p.orgId),
           isNull(notifications.readAt)
         )
       );
@@ -59,9 +63,9 @@ router.patch("/:id/read", requireAuth(), async (req, res, next) => {
     if (isNaN(id)) throw new HttpError(400, "Invalid notification id");
 
     const [existing] = await db
-      .select({ id: notifications.id, userId: notifications.userId })
+      .select({ id: notifications.id, userId: notifications.userId, orgId: notifications.orgId })
       .from(notifications)
-      .where(eq(notifications.id, id))
+      .where(and(eq(notifications.id, id), eq(notifications.orgId, p.orgId)))
       .limit(1);
 
     if (!existing) throw new HttpError(404, "Notification not found");
@@ -70,7 +74,11 @@ router.patch("/:id/read", requireAuth(), async (req, res, next) => {
     const [updated] = await db
       .update(notifications)
       .set({ readAt: new Date() })
-      .where(eq(notifications.id, id))
+      .where(and(
+        eq(notifications.id, id),
+        eq(notifications.userId, p.userId),
+        eq(notifications.orgId, p.orgId),
+      ))
       .returning();
 
     res.json(updated);
