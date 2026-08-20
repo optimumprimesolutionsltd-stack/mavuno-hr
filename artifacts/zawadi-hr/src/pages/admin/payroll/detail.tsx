@@ -52,6 +52,7 @@ export function PayrollDetail() {
   const [bulkPdfLoading, setBulkPdfLoading] = useState(false);
   const [p9DownloadingEmployeeId, setP9DownloadingEmployeeId] = useState<number | null>(null);
   const [p10PdfLoading, setP10PdfLoading] = useState(false);
+  const [musterRollLoading, setMusterRollLoading] = useState(false);
   const [varianceOpen, setVarianceOpen] = useState(false);
   const [payConfirmOpen, setPayConfirmOpen] = useState(false);
   const [readinessOpen, setReadinessOpen] = useState(false);
@@ -239,6 +240,32 @@ export function PayrollDetail() {
     }
   };
 
+  const handleDownloadMusterRoll = async () => {
+    setMusterRollLoading(true);
+    try {
+      const token = sessionStorage.getItem("zawadi_session_token");
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await fetch(`/api/payroll/${id}/muster-roll.csv`, { headers });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error ?? "Could not generate the muster roll.");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Muster_Roll_${run?.period ?? id}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Muster roll download failed", description: err?.message ?? "Could not generate the muster roll." });
+    } finally {
+      setMusterRollLoading(false);
+    }
+  };
+
   const handleItaxExport = async () => {
     setItaxLoading(true);
     setItaxOpen(true);
@@ -403,6 +430,18 @@ export function PayrollDetail() {
 
         <div className="ml-auto flex items-center gap-2 flex-wrap">
           <StatusBadge status={run?.status ?? "draft"} />
+          {run?.status !== "reversed" && (
+            <Button
+              size="sm" variant="outline"
+              onClick={handleDownloadMusterRoll}
+              disabled={musterRollLoading}
+              className="font-mono gap-1.5 border-primary/50 text-primary hover:bg-primary/10"
+              title="Download a payroll register with every earning and deduction"
+            >
+              <FileSpreadsheet className={`h-3.5 w-3.5 ${musterRollLoading ? "animate-pulse" : ""}`} />
+              {musterRollLoading ? "LOADING..." : "MUSTER ROLL CSV"}
+            </Button>
+          )}
 
           {canEdit && (
             <Button

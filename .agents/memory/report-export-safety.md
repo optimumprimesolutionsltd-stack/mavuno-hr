@@ -28,3 +28,9 @@ Generate annual P10 tax deduction cards on demand from paid runs in the selected
 **Why:** Downloading a tax card is not evidence that a monthly authority return was filed; the statutory-filings grid must continue to represent only the monthly submissions it tracks.
 
 **How to apply:** Restrict the annual P10 action to paid runs, aggregate only authenticated-organisation data, and retain the existing monthly P10A filing workflow separately.
+
+Muster rolls are run-specific CSV payroll registers that show every deduction separately, including insurance premiums, plus a totals row for reconciliation.
+
+**Why:** A payroll register that hides a deduction cannot reconcile to net pay or support a manager’s approval review.
+
+**How to apply:** Make the report available for active calculated runs, exclude reversed runs, use only organisation-scoped payslips, and keep monetary values in KES with two decimal places.

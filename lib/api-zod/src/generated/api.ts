@@ -758,6 +758,16 @@ export const DownloadAnnualP10Response = zod.unknown()
 
 
 /**
+ * @summary Download a payroll muster roll for a payroll run
+ */
+export const DownloadMusterRollParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DownloadMusterRollResponse = zod.unknown()
+
+
+/**
  * @summary Apply missing insurance premium deductions to an approved or paid run
  */
 export const ApplyInsuranceDeductionsParams = zod.object({

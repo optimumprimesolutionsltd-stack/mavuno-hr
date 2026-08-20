@@ -1732,6 +1732,83 @@ export function useDownloadAnnualP10<TData = Awaited<ReturnType<typeof downloadA
 
 
 
+export const getDownloadMusterRollUrl = (id: number,) => {
+
+
+
+
+  return `/api/payroll/${id}/muster-roll.csv`
+}
+
+/**
+ * @summary Download a payroll muster roll for a payroll run
+ */
+export const downloadMusterRoll = async (id: number, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadMusterRollUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadMusterRollQueryKey = (id: number,) => {
+    return [
+    `/api/payroll/${id}/muster-roll.csv`
+    ] as const;
+    }
+
+
+export const getDownloadMusterRollQueryOptions = <TData = Awaited<ReturnType<typeof downloadMusterRoll>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadMusterRoll>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadMusterRollQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadMusterRoll>>> = ({ signal }) => downloadMusterRoll(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadMusterRoll>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadMusterRollQueryResult = NonNullable<Awaited<ReturnType<typeof downloadMusterRoll>>>
+export type DownloadMusterRollQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download a payroll muster roll for a payroll run
+ */
+
+export function useDownloadMusterRoll<TData = Awaited<ReturnType<typeof downloadMusterRoll>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadMusterRoll>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadMusterRollQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getApplyInsuranceDeductionsUrl = (id: number,) => {
 
 

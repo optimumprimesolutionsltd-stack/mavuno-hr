@@ -421,6 +421,26 @@ paths:
                 type: string
                 format: binary
 
+  /payroll/{id}/muster-roll.csv:
+    get:
+      operationId: downloadMusterRoll
+      tags: [payroll]
+      summary: Download a payroll muster roll for a payroll run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Payroll muster roll CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+
   /payroll/{id}/apply-insurance-deductions:
     post:
       operationId: applyInsuranceDeductions

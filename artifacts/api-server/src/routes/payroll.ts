@@ -773,6 +773,92 @@ router.get("/:id/payslips/bulk-pdf", requireAuth("payroll:read"), async (req, re
   } catch (err) { next(err); }
 });
 
+// ── GET /:id/muster-roll.csv — payroll register for one run ─────────────────
+router.get("/:id/muster-roll.csv", requireAuth("payroll:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const runId = Number(req.params.id);
+    const [run] = await db.select().from(payrollRuns)
+      .where(and(eq(payrollRuns.id, runId), eq(payrollRuns.orgId, p.orgId)));
+    if (!run) throw new HttpError(404, "Payroll run not found");
+    if (run.status === "reversed") {
+      throw new HttpError(422, "A muster roll is not available for a reversed payroll run");
+    }
+
+    const rows = await db.select({ slip: payslips, emp: employees })
+      .from(payslips)
+      .innerJoin(employees, and(
+        eq(payslips.employeeId, employees.id),
+        eq(payslips.orgId, employees.orgId),
+      ))
+      .where(and(eq(payslips.runId, runId), eq(payslips.orgId, p.orgId)))
+      .orderBy(employees.empNo);
+    if (rows.length === 0) throw new HttpError(404, "No payslips found for this payroll run");
+
+    const headers = [
+      "Employee No", "Employee", "Position", "Days Payable",
+      "Basic Pay", "Allowances", "Gross Pay",
+      "PAYE", "NSSF", "SHIF", "Housing Levy",
+      "Pension", "HELB", "SACCO", "Loan", "Insurance Premium", "Other Deductions",
+      "Total Deductions", "Net Pay",
+    ];
+    const toKes = (cents: number) => (cents / 100).toFixed(2);
+    const escapeCsv = (value: string | number) => `"${String(value).replace(/"/g, "\"\"")}"`;
+    const extractInsurancePremium = (slip: typeof payslips.$inferSelect) =>
+      ((slip.breakdown ?? {}) as { insurancePremium?: number }).insurancePremium ?? 0;
+    const totals = rows.reduce((sum, { slip }) => {
+      const insurancePremium = extractInsurancePremium(slip);
+      return {
+        days: sum.days + slip.daysPayable,
+        basic: sum.basic + slip.basic,
+        allowances: sum.allowances + slip.allowances,
+        gross: sum.gross + slip.gross,
+        paye: sum.paye + slip.paye,
+        nssf: sum.nssf + slip.nssfEmployee,
+        shif: sum.shif + slip.shif,
+        housingLevy: sum.housingLevy + slip.housingLevyEmployee,
+        pension: sum.pension + slip.pension,
+        helb: sum.helb + slip.helb,
+        sacco: sum.sacco + slip.sacco,
+        loan: sum.loan + slip.loanDeduction,
+        insurancePremium: sum.insurancePremium + insurancePremium,
+        otherDeductions: sum.otherDeductions + slip.adjustmentDeductions,
+        totalDeductions: sum.totalDeductions + slip.totalDeductions,
+        netPay: sum.netPay + slip.netPay,
+      };
+    }, {
+      days: 0, basic: 0, allowances: 0, gross: 0, paye: 0, nssf: 0, shif: 0,
+      housingLevy: 0, pension: 0, helb: 0, sacco: 0, loan: 0, insurancePremium: 0,
+      otherDeductions: 0, totalDeductions: 0, netPay: 0,
+    });
+
+    const dataRows = rows.map(({ slip, emp }) => {
+      const insurancePremium = extractInsurancePremium(slip);
+      return [
+        emp.empNo, fullName(emp), emp.position ?? "", slip.daysPayable,
+        toKes(slip.basic), toKes(slip.allowances), toKes(slip.gross),
+        toKes(slip.paye), toKes(slip.nssfEmployee), toKes(slip.shif), toKes(slip.housingLevyEmployee),
+        toKes(slip.pension), toKes(slip.helb), toKes(slip.sacco), toKes(slip.loanDeduction),
+        toKes(insurancePremium), toKes(slip.adjustmentDeductions),
+        toKes(slip.totalDeductions), toKes(slip.netPay),
+      ];
+    });
+    dataRows.push([
+      "", `TOTAL — ${rows.length} employee${rows.length === 1 ? "" : "s"}`, "", totals.days,
+      toKes(totals.basic), toKes(totals.allowances), toKes(totals.gross),
+      toKes(totals.paye), toKes(totals.nssf), toKes(totals.shif), toKes(totals.housingLevy),
+      toKes(totals.pension), toKes(totals.helb), toKes(totals.sacco), toKes(totals.loan),
+      toKes(totals.insurancePremium), toKes(totals.otherDeductions),
+      toKes(totals.totalDeductions), toKes(totals.netPay),
+    ]);
+    const csv = [headers, ...dataRows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="Muster_Roll_${run.period}.csv"`);
+    res.send(`\ufeff${csv}`);
+  } catch (err) { next(err); }
+});
+
 // ── GET /:id/employees/:employeeId/p9-pdf — annual P9 for one employee ─────
 router.get("/:id/employees/:employeeId/p9-pdf", requireAuth("payroll:read"), async (req, res, next) => {
   try {
