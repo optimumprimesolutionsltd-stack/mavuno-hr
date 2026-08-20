@@ -51,6 +51,7 @@ export function PayrollDetail() {
   const [emailIssuesOpen, setEmailIssuesOpen] = useState(false);
   const [bulkPdfLoading, setBulkPdfLoading] = useState(false);
   const [p9DownloadingEmployeeId, setP9DownloadingEmployeeId] = useState<number | null>(null);
+  const [p9ZipLoading, setP9ZipLoading] = useState(false);
   const [p10PdfLoading, setP10PdfLoading] = useState(false);
   const [musterRollLoading, setMusterRollLoading] = useState(false);
   const [varianceOpen, setVarianceOpen] = useState(false);
@@ -211,6 +212,33 @@ export function PayrollDetail() {
       toast({ variant: "destructive", title: "P9 download failed", description: err?.message ?? "Could not generate the P9 certificate." });
     } finally {
       setP9DownloadingEmployeeId(null);
+    }
+  };
+
+  const handleDownloadP9Zip = async () => {
+    setP9ZipLoading(true);
+    try {
+      const token = sessionStorage.getItem("zawadi_session_token");
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await fetch(`/api/payroll/${id}/p9-certificates.zip`, { headers });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error ?? "Could not generate the P9 certificate ZIP.");
+      }
+      const blob = await response.blob();
+      if (blob.size === 0) throw new Error("The P9 certificate ZIP was empty.");
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `P9_Certificates_${run?.period.slice(0, 4) ?? id}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "P9 ZIP download failed", description: err?.message ?? "Could not generate the P9 certificate ZIP." });
+    } finally {
+      setP9ZipLoading(false);
     }
   };
 
@@ -496,6 +524,16 @@ export function PayrollDetail() {
                 {p10Filing && !itaxLoading && (
                   <span className="ml-1 text-[10px] bg-emerald-500/20 text-emerald-300 px-1 rounded font-mono">FILED</span>
                 )}
+              </Button>
+              <Button
+                size="sm" variant="outline"
+                onClick={handleDownloadP9Zip}
+                disabled={p9ZipLoading}
+                className="font-mono gap-1.5 border-teal-500/50 text-teal-400 hover:bg-teal-500/10"
+                title="Download one annual P9 certificate per employee in a single ZIP file"
+              >
+                <Download className={`h-3.5 w-3.5 ${p9ZipLoading ? "animate-pulse" : ""}`} />
+                {p9ZipLoading ? "PACKAGING..." : "P9 CERTIFICATES ZIP"}
               </Button>
               <Button
                 size="sm" variant="outline"

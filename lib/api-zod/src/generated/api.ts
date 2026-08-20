@@ -748,6 +748,16 @@ export const DownloadEmployeeP9Response = zod.unknown()
 
 
 /**
+ * @summary Download one annual P9 certificate per employee in a paid payroll run
+ */
+export const DownloadP9CertificatesZipParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DownloadP9CertificatesZipResponse = zod.unknown()
+
+
+/**
  * @summary Download annual P10 tax deduction cards for a paid payroll year
  */
 export const DownloadAnnualP10Params = zod.object({

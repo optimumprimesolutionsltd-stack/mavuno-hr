@@ -16,10 +16,79 @@ import { createHash } from "crypto";
 import { fullName } from "../lib/employee-name.js";
 import { generateP9Pdf } from "../lib/pdf-p9.js";
 import { generateP10Pdf, type P10CardData } from "../lib/pdf-p10.js";
+import { createZip } from "../lib/zip.js";
 
 const router = Router();
 
 const period = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+
+type P9AnnualTotals = {
+  gross: number;
+  benefits: number;
+  mortgageInterest: number;
+  definedContribution: number;
+  chargeablePay: number;
+  taxChargeable: number;
+  personalRelief: number;
+  insuranceRelief: number;
+  netPaye: number;
+};
+
+type P9Slip = Pick<typeof payslips.$inferSelect,
+  "gross" | "nonCashBenefit" | "mortgageInterest" | "nssfEmployee" | "pension" |
+  "taxableIncome" | "payeBeforeRelief" | "personalRelief" | "insuranceRelief" | "paye">;
+
+const emptyP9AnnualTotals = (): P9AnnualTotals => ({
+  gross: 0,
+  benefits: 0,
+  mortgageInterest: 0,
+  definedContribution: 0,
+  chargeablePay: 0,
+  taxChargeable: 0,
+  personalRelief: 0,
+  insuranceRelief: 0,
+  netPaye: 0,
+});
+
+function addP9AnnualTotals(sum: P9AnnualTotals, slip: P9Slip): P9AnnualTotals {
+  return {
+    gross: sum.gross + slip.gross,
+    benefits: sum.benefits + slip.nonCashBenefit,
+    mortgageInterest: sum.mortgageInterest + slip.mortgageInterest,
+    definedContribution: sum.definedContribution + slip.nssfEmployee + slip.pension,
+    chargeablePay: sum.chargeablePay + slip.taxableIncome,
+    taxChargeable: sum.taxChargeable + slip.payeBeforeRelief,
+    personalRelief: sum.personalRelief + slip.personalRelief,
+    insuranceRelief: sum.insuranceRelief + slip.insuranceRelief,
+    netPaye: sum.netPaye + slip.paye,
+  };
+}
+
+function getP9AnnualTotals(slips: readonly P9Slip[]): P9AnnualTotals {
+  return slips.reduce(addP9AnnualTotals, emptyP9AnnualTotals());
+}
+
+function createP9EmployeeRow(
+  employee: Pick<typeof employees.$inferSelect, "empNo" | "kraPin" | "firstName" | "middleName" | "lastName">,
+  totals: P9AnnualTotals,
+) {
+  return {
+    empNo: employee.empNo,
+    kraPin: employee.kraPin ?? "",
+    name: fullName(employee),
+    annualGross: totals.gross,
+    benefits: totals.benefits,
+    quarters: 0,
+    annualTotalGross: totals.gross,
+    annualMortgageInterest: totals.mortgageInterest,
+    annualDefinedContribution: totals.definedContribution,
+    annualChargeablePay: totals.chargeablePay,
+    annualTaxChargeable: totals.taxChargeable,
+    annualPersonalRelief: totals.personalRelief,
+    annualInsuranceRelief: totals.insuranceRelief,
+    annualNetPaye: totals.netPaye,
+  };
+}
 
 const calculateRunSchema = z.object({
   period,
@@ -910,46 +979,11 @@ router.get("/:id/employees/:employeeId/p9-pdf", requireAuth("payroll:read"), asy
       ));
     if (annualSlips.length === 0) throw new HttpError(404, `No paid payslips found for this employee in ${year}`);
 
-    const totals = annualSlips.reduce((sum, { slip }) => ({
-      gross: sum.gross + slip.gross,
-      benefits: sum.benefits + slip.nonCashBenefit,
-      mortgageInterest: sum.mortgageInterest + slip.mortgageInterest,
-      definedContribution: sum.definedContribution + slip.nssfEmployee + slip.pension,
-      chargeablePay: sum.chargeablePay + slip.taxableIncome,
-      taxChargeable: sum.taxChargeable + slip.payeBeforeRelief,
-      personalRelief: sum.personalRelief + slip.personalRelief,
-      insuranceRelief: sum.insuranceRelief + slip.insuranceRelief,
-      netPaye: sum.netPaye + slip.paye,
-    }), {
-      gross: 0,
-      benefits: 0,
-      mortgageInterest: 0,
-      definedContribution: 0,
-      chargeablePay: 0,
-      taxChargeable: 0,
-      personalRelief: 0,
-      insuranceRelief: 0,
-      netPaye: 0,
-    });
+    const totals = getP9AnnualTotals(annualSlips.map(({ slip }) => slip));
 
     const [org] = await db.select().from(organizations)
       .where(eq(organizations.id, p.orgId));
-    const employeeRow = {
-      empNo: selected.emp.empNo,
-      kraPin: selected.emp.kraPin ?? "",
-      name: fullName(selected.emp),
-      annualGross: totals.gross,
-      benefits: totals.benefits,
-      quarters: 0,
-      annualTotalGross: totals.gross,
-      annualMortgageInterest: totals.mortgageInterest,
-      annualDefinedContribution: totals.definedContribution,
-      annualChargeablePay: totals.chargeablePay,
-      annualTaxChargeable: totals.taxChargeable,
-      annualPersonalRelief: totals.personalRelief,
-      annualInsuranceRelief: totals.insuranceRelief,
-      annualNetPaye: totals.netPaye,
-    };
+    const employeeRow = createP9EmployeeRow(selected.emp, totals);
     const pdfBuffer = await generateP9Pdf({
       orgName: org?.name ?? "",
       orgKraPin: org?.kraPin ?? undefined,
@@ -968,6 +1002,80 @@ router.get("/:id/employees/:employeeId/p9-pdf", requireAuth("payroll:read"), asy
     res.setHeader("Content-Disposition", `attachment; filename="P9_${year}_${safeEmployeeName}.pdf"`);
     res.setHeader("Content-Length", pdfBuffer.length);
     res.send(pdfBuffer);
+  } catch (err) { next(err); }
+});
+
+// ── GET /:id/p9-certificates.zip — annual individual P9 certificates ─────────
+router.get("/:id/p9-certificates.zip", requireAuth("payroll:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const runId = Number(req.params.id);
+    const [run] = await db.select().from(payrollRuns)
+      .where(and(eq(payrollRuns.id, runId), eq(payrollRuns.orgId, p.orgId)));
+    if (!run) throw new HttpError(404, "Payroll run not found");
+    if (run.status !== "paid") {
+      throw new HttpError(422, "P9 certificates are available after payroll has been paid");
+    }
+
+    const year = run.period.slice(0, 4);
+    const runEmployees = await db.select({ emp: employees })
+      .from(payslips)
+      .innerJoin(employees, and(
+        eq(payslips.employeeId, employees.id),
+        eq(payslips.orgId, employees.orgId),
+      ))
+      .where(and(eq(payslips.runId, runId), eq(payslips.orgId, p.orgId)));
+    if (runEmployees.length === 0) {
+      throw new HttpError(422, "No employees are included in this payroll run");
+    }
+
+    const paidRuns = await db.select({ id: payrollRuns.id, period: payrollRuns.period })
+      .from(payrollRuns)
+      .where(and(eq(payrollRuns.orgId, p.orgId), eq(payrollRuns.status, "paid")));
+    const yearRunIds = paidRuns
+      .filter((candidate) => candidate.period.startsWith(year))
+      .map((candidate) => candidate.id);
+    const annualSlips = await db.select({ slip: payslips })
+      .from(payslips)
+      .where(and(
+        eq(payslips.orgId, p.orgId),
+        inArray(payslips.runId, yearRunIds),
+      ));
+    const totalsByEmployee = new Map<number, P9AnnualTotals>();
+    for (const { slip } of annualSlips) {
+      const prior = totalsByEmployee.get(slip.employeeId) ?? emptyP9AnnualTotals();
+      totalsByEmployee.set(slip.employeeId, addP9AnnualTotals(prior, slip));
+    }
+
+    const [org] = await db.select().from(organizations)
+      .where(eq(organizations.id, p.orgId));
+    const files = [];
+    for (const { emp } of runEmployees) {
+      const totals = totalsByEmployee.get(emp.id);
+      if (!totals) continue;
+      const employeeRow = createP9EmployeeRow(emp, totals);
+      const pdf = await generateP9Pdf({
+        orgName: org?.name ?? "",
+        orgKraPin: org?.kraPin ?? undefined,
+        year,
+        rows: [employeeRow],
+        totalPaye: employeeRow.annualNetPaye,
+        totalGross: employeeRow.annualGross,
+        totalChargeablePay: employeeRow.annualChargeablePay,
+      });
+      const safeEmployeeName = `${employeeRow.empNo}_${employeeRow.name}`
+        .replace(/[^a-z0-9_-]+/gi, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 100) || "employee";
+      files.push({ name: `P9_${year}_${safeEmployeeName}.pdf`, data: pdf });
+    }
+    if (files.length === 0) throw new HttpError(422, `No paid payslips found for ${year}`);
+
+    const archive = createZip(files);
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="P9_Certificates_${year}.zip"`);
+    res.setHeader("Content-Length", archive.length);
+    res.send(archive);
   } catch (err) { next(err); }
 });
 

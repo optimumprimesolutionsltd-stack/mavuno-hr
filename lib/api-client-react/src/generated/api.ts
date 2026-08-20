@@ -1655,6 +1655,83 @@ export function useDownloadEmployeeP9<TData = Awaited<ReturnType<typeof download
 
 
 
+export const getDownloadP9CertificatesZipUrl = (id: number,) => {
+
+
+
+
+  return `/api/payroll/${id}/p9-certificates.zip`
+}
+
+/**
+ * @summary Download one annual P9 certificate per employee in a paid payroll run
+ */
+export const downloadP9CertificatesZip = async (id: number, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadP9CertificatesZipUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadP9CertificatesZipQueryKey = (id: number,) => {
+    return [
+    `/api/payroll/${id}/p9-certificates.zip`
+    ] as const;
+    }
+
+
+export const getDownloadP9CertificatesZipQueryOptions = <TData = Awaited<ReturnType<typeof downloadP9CertificatesZip>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadP9CertificatesZip>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadP9CertificatesZipQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadP9CertificatesZip>>> = ({ signal }) => downloadP9CertificatesZip(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadP9CertificatesZip>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadP9CertificatesZipQueryResult = NonNullable<Awaited<ReturnType<typeof downloadP9CertificatesZip>>>
+export type DownloadP9CertificatesZipQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download one annual P9 certificate per employee in a paid payroll run
+ */
+
+export function useDownloadP9CertificatesZip<TData = Awaited<ReturnType<typeof downloadP9CertificatesZip>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadP9CertificatesZip>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadP9CertificatesZipQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getDownloadAnnualP10Url = (id: number,) => {
 
 

@@ -401,6 +401,26 @@ paths:
                 type: string
                 format: binary
 
+  /payroll/{id}/p9-certificates.zip:
+    get:
+      operationId: downloadP9CertificatesZip
+      tags: [payroll]
+      summary: Download one annual P9 certificate per employee in a paid payroll run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: ZIP archive containing individual P9 certificate PDFs
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+
   /payroll/{id}/p10-pdf:
     get:
       operationId: downloadAnnualP10
