@@ -213,7 +213,7 @@ type NssfWorkbookData = {
   orgNssfEmployerNo: string;
 };
 
-/** Build the nine-column NSSF XLSX schedule shown in the uploaded reference. */
+/** Build a blank NSSF workbook matching the uploaded reference template. */
 export async function buildNssfWorkbook(data: NssfWorkbookData): Promise<Uint8Array> {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Zawadi HR";
@@ -261,7 +261,6 @@ export async function buildNssfWorkbook(data: NssfWorkbookData): Promise<Uint8Ar
     excelRow.getCell(8).numFmt = "0.00";
     excelRow.getCell(9).numFmt = "#,##0.00";
   });
-
   [6, 28.35, 33.75, 10.8, 13.5, 17.55, 17.55, 14.85, 16.2]
     .forEach((width, index) => { sheet.getColumn(index + 1).width = width; });
   sheet.getRow(1).font = { bold: true };
