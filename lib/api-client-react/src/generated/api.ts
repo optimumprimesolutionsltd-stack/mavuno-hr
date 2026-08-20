@@ -1573,6 +1573,165 @@ export const useDeletePayrollRun = <TError = ErrorType<unknown>,
       return useMutation(getDeletePayrollRunMutationOptions(options));
     }
 
+export const getDownloadEmployeeP9Url = (id: number,
+    employeeId: number,) => {
+
+
+
+
+  return `/api/payroll/${id}/employees/${employeeId}/p9-pdf`
+}
+
+/**
+ * @summary Download an annual P9 certificate for one employee in a paid payroll run
+ */
+export const downloadEmployeeP9 = async (id: number,
+    employeeId: number, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadEmployeeP9Url(id,employeeId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadEmployeeP9QueryKey = (id: number,
+    employeeId: number,) => {
+    return [
+    `/api/payroll/${id}/employees/${employeeId}/p9-pdf`
+    ] as const;
+    }
+
+
+export const getDownloadEmployeeP9QueryOptions = <TData = Awaited<ReturnType<typeof downloadEmployeeP9>>, TError = ErrorType<unknown>>(id: number,
+    employeeId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadEmployeeP9>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadEmployeeP9QueryKey(id,employeeId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadEmployeeP9>>> = ({ signal }) => downloadEmployeeP9(id,employeeId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && employeeId !== null && employeeId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadEmployeeP9>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadEmployeeP9QueryResult = NonNullable<Awaited<ReturnType<typeof downloadEmployeeP9>>>
+export type DownloadEmployeeP9QueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download an annual P9 certificate for one employee in a paid payroll run
+ */
+
+export function useDownloadEmployeeP9<TData = Awaited<ReturnType<typeof downloadEmployeeP9>>, TError = ErrorType<unknown>>(
+ id: number,
+    employeeId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadEmployeeP9>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadEmployeeP9QueryOptions(id,employeeId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDownloadAnnualP10Url = (id: number,) => {
+
+
+
+
+  return `/api/payroll/${id}/p10-pdf`
+}
+
+/**
+ * @summary Download annual P10 tax deduction cards for a paid payroll year
+ */
+export const downloadAnnualP10 = async (id: number, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadAnnualP10Url(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadAnnualP10QueryKey = (id: number,) => {
+    return [
+    `/api/payroll/${id}/p10-pdf`
+    ] as const;
+    }
+
+
+export const getDownloadAnnualP10QueryOptions = <TData = Awaited<ReturnType<typeof downloadAnnualP10>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadAnnualP10>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadAnnualP10QueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadAnnualP10>>> = ({ signal }) => downloadAnnualP10(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadAnnualP10>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadAnnualP10QueryResult = NonNullable<Awaited<ReturnType<typeof downloadAnnualP10>>>
+export type DownloadAnnualP10QueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download annual P10 tax deduction cards for a paid payroll year
+ */
+
+export function useDownloadAnnualP10<TData = Awaited<ReturnType<typeof downloadAnnualP10>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadAnnualP10>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadAnnualP10QueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getApplyInsuranceDeductionsUrl = (id: number,) => {
 
 

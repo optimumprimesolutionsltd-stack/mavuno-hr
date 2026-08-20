@@ -737,6 +737,27 @@ export const DeletePayrollRunResponse = zod.object({
 
 
 /**
+ * @summary Download an annual P9 certificate for one employee in a paid payroll run
+ */
+export const DownloadEmployeeP9Params = zod.object({
+  "id": zod.coerce.number(),
+  "employeeId": zod.coerce.number()
+})
+
+export const DownloadEmployeeP9Response = zod.unknown()
+
+
+/**
+ * @summary Download annual P10 tax deduction cards for a paid payroll year
+ */
+export const DownloadAnnualP10Params = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DownloadAnnualP10Response = zod.unknown()
+
+
+/**
  * @summary Apply missing insurance premium deductions to an approved or paid run
  */
 export const ApplyInsuranceDeductionsParams = zod.object({

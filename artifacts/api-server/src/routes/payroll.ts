@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { payrollRuns, payslips, employees, loans, payoutBatches, statutoryFilings, organizations, departments } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
@@ -14,6 +14,8 @@ import { getSafeMailError, sendPayslipEmail, sendStatutoryRemittanceEmail } from
 import { logger } from "../lib/logger.js";
 import { createHash } from "crypto";
 import { fullName } from "../lib/employee-name.js";
+import { generateP9Pdf } from "../lib/pdf-p9.js";
+import { generateP10Pdf, type P10CardData } from "../lib/pdf-p10.js";
 
 const router = Router();
 
@@ -768,6 +770,260 @@ router.get("/:id/payslips/bulk-pdf", requireAuth("payroll:read"), async (req, re
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Length", mergedBytes.length);
     res.send(Buffer.from(mergedBytes));
+  } catch (err) { next(err); }
+});
+
+// ── GET /:id/employees/:employeeId/p9-pdf — annual P9 for one employee ─────
+router.get("/:id/employees/:employeeId/p9-pdf", requireAuth("payroll:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const runId = Number(req.params.id);
+    const employeeId = Number(req.params.employeeId);
+    if (!Number.isInteger(employeeId) || employeeId <= 0) {
+      throw new HttpError(422, "A valid employeeId is required");
+    }
+
+    const [run] = await db.select().from(payrollRuns)
+      .where(and(eq(payrollRuns.id, runId), eq(payrollRuns.orgId, p.orgId)));
+    if (!run) throw new HttpError(404, "Payroll run not found");
+    if (run.status !== "paid") {
+      throw new HttpError(422, "P9 certificates are available after payroll has been paid");
+    }
+
+    const year = run.period.slice(0, 4);
+
+    // Confirm the requested employee belongs to this payroll run and organisation.
+    const [selected] = await db.select({ emp: employees })
+      .from(payslips)
+      .innerJoin(employees, and(
+        eq(payslips.employeeId, employees.id),
+        eq(payslips.orgId, employees.orgId),
+      ))
+      .where(and(
+        eq(payslips.runId, runId),
+        eq(payslips.employeeId, employeeId),
+        eq(payslips.orgId, p.orgId),
+      ))
+      .limit(1);
+    if (!selected) throw new HttpError(404, "Employee is not part of this payroll run");
+
+    const paidRuns = await db.select({ id: payrollRuns.id, period: payrollRuns.period })
+      .from(payrollRuns)
+      .where(and(eq(payrollRuns.orgId, p.orgId), eq(payrollRuns.status, "paid")));
+    const yearRunIds = paidRuns
+      .filter((candidate) => candidate.period.startsWith(year))
+      .map((candidate) => candidate.id);
+    if (yearRunIds.length === 0) throw new HttpError(404, `No paid payroll runs found for ${year}`);
+
+    const annualSlips = await db.select({ slip: payslips })
+      .from(payslips)
+      .where(and(
+        eq(payslips.orgId, p.orgId),
+        eq(payslips.employeeId, employeeId),
+        inArray(payslips.runId, yearRunIds),
+      ));
+    if (annualSlips.length === 0) throw new HttpError(404, `No paid payslips found for this employee in ${year}`);
+
+    const totals = annualSlips.reduce((sum, { slip }) => ({
+      gross: sum.gross + slip.gross,
+      benefits: sum.benefits + slip.nonCashBenefit,
+      mortgageInterest: sum.mortgageInterest + slip.mortgageInterest,
+      definedContribution: sum.definedContribution + slip.nssfEmployee + slip.pension,
+      chargeablePay: sum.chargeablePay + slip.taxableIncome,
+      taxChargeable: sum.taxChargeable + slip.payeBeforeRelief,
+      personalRelief: sum.personalRelief + slip.personalRelief,
+      insuranceRelief: sum.insuranceRelief + slip.insuranceRelief,
+      netPaye: sum.netPaye + slip.paye,
+    }), {
+      gross: 0,
+      benefits: 0,
+      mortgageInterest: 0,
+      definedContribution: 0,
+      chargeablePay: 0,
+      taxChargeable: 0,
+      personalRelief: 0,
+      insuranceRelief: 0,
+      netPaye: 0,
+    });
+
+    const [org] = await db.select().from(organizations)
+      .where(eq(organizations.id, p.orgId));
+    const employeeRow = {
+      empNo: selected.emp.empNo,
+      kraPin: selected.emp.kraPin ?? "",
+      name: fullName(selected.emp),
+      annualGross: totals.gross,
+      benefits: totals.benefits,
+      quarters: 0,
+      annualTotalGross: totals.gross,
+      annualMortgageInterest: totals.mortgageInterest,
+      annualDefinedContribution: totals.definedContribution,
+      annualChargeablePay: totals.chargeablePay,
+      annualTaxChargeable: totals.taxChargeable,
+      annualPersonalRelief: totals.personalRelief,
+      annualInsuranceRelief: totals.insuranceRelief,
+      annualNetPaye: totals.netPaye,
+    };
+    const pdfBuffer = await generateP9Pdf({
+      orgName: org?.name ?? "",
+      orgKraPin: org?.kraPin ?? undefined,
+      year,
+      rows: [employeeRow],
+      totalPaye: employeeRow.annualNetPaye,
+      totalGross: employeeRow.annualGross,
+      totalChargeablePay: employeeRow.annualChargeablePay,
+    });
+    const safeEmployeeName = `${employeeRow.empNo}_${employeeRow.name}`
+      .replace(/[^a-z0-9_-]+/gi, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 100) || "employee";
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="P9_${year}_${safeEmployeeName}.pdf"`);
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (err) { next(err); }
+});
+
+// ── GET /:id/p10-pdf — annual P10 tax deduction cards for all employees ──────
+router.get("/:id/p10-pdf", requireAuth("payroll:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const runId = Number(req.params.id);
+    const [run] = await db.select().from(payrollRuns)
+      .where(and(eq(payrollRuns.id, runId), eq(payrollRuns.orgId, p.orgId)));
+    if (!run) throw new HttpError(404, "Payroll run not found");
+    if (run.status !== "paid") {
+      throw new HttpError(422, "Annual P10 cards are available after payroll has been paid");
+    }
+
+    const year = run.period.slice(0, 4);
+    const paidRuns = await db.select({ id: payrollRuns.id, period: payrollRuns.period })
+      .from(payrollRuns)
+      .where(and(eq(payrollRuns.orgId, p.orgId), eq(payrollRuns.status, "paid")));
+    const yearRuns = paidRuns.filter((candidate) => candidate.period.startsWith(year));
+    if (yearRuns.length === 0) throw new HttpError(404, `No paid payroll runs found for ${year}`);
+
+    const runPeriodMap = new Map(yearRuns.map((candidate) => [candidate.id, candidate.period]));
+    const allSlips = await db.select({ slip: payslips, emp: employees })
+      .from(payslips)
+      .innerJoin(employees, and(
+        eq(payslips.employeeId, employees.id),
+        eq(payslips.orgId, employees.orgId),
+      ))
+      .where(and(
+        eq(payslips.orgId, p.orgId),
+        inArray(payslips.runId, yearRuns.map((candidate) => candidate.id)),
+      ));
+    if (allSlips.length === 0) throw new HttpError(404, `No paid payslips found for ${year}`);
+
+    type MonthlyTotals = Omit<P10CardData["totals"], "month">;
+    type EmployeeCards = {
+      emp: typeof allSlips[number]["emp"];
+      months: Map<string, MonthlyTotals>;
+    };
+    const byEmployee = new Map<number, EmployeeCards>();
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December",
+    ];
+
+    for (const { slip, emp } of allSlips) {
+      const period = runPeriodMap.get(slip.runId);
+      const month = period ? Number(period.slice(5, 7)) : 1;
+      const monthName = monthNames[month - 1] ?? monthNames[0];
+      let employee = byEmployee.get(emp.id);
+      if (!employee) {
+        employee = { emp, months: new Map() };
+        byEmployee.set(emp.id, employee);
+      }
+      let totals = employee.months.get(monthName);
+      if (!totals) {
+        totals = {
+          basic: 0, benefits: 0, quarters: 0, grossPay: 0,
+          definedContribution: 0, affordableHousingLevy: 0, shif: 0,
+          postRetirementMedical: 0, ownerOccupiedInterest: 0, totalDeductions: 0,
+          chargeablePay: 0, taxCharged: 0, personalRelief: 0,
+          insuranceRelief: 0, payeTax: 0,
+        };
+        employee.months.set(monthName, totals);
+      }
+      totals.basic += slip.basic;
+      totals.benefits += slip.nonCashBenefit;
+      totals.grossPay += slip.gross;
+      totals.definedContribution += slip.nssfEmployee + slip.pension;
+      totals.affordableHousingLevy += slip.housingLevyEmployee;
+      totals.shif += slip.shif;
+      totals.ownerOccupiedInterest += slip.mortgageInterest;
+      totals.totalDeductions += slip.nssfEmployee + slip.pension
+        + slip.housingLevyEmployee + slip.shif + slip.mortgageInterest;
+      totals.chargeablePay += slip.taxableIncome;
+      totals.taxCharged += slip.payeBeforeRelief;
+      totals.personalRelief += slip.personalRelief;
+      totals.insuranceRelief += slip.insuranceRelief;
+      totals.payeTax += slip.paye;
+    }
+
+    const [org] = await db.select().from(organizations)
+      .where(eq(organizations.id, p.orgId));
+    const cards: P10CardData[] = Array.from(byEmployee.values()).map(({ emp, months }) => {
+      const monthlyRows = monthNames.map((month) => ({
+        month,
+        ...(months.get(month) ?? {
+          basic: 0, benefits: 0, quarters: 0, grossPay: 0,
+          definedContribution: 0, affordableHousingLevy: 0, shif: 0,
+          postRetirementMedical: 0, ownerOccupiedInterest: 0, totalDeductions: 0,
+          chargeablePay: 0, taxCharged: 0, personalRelief: 0,
+          insuranceRelief: 0, payeTax: 0,
+        }),
+      }));
+      const totals = monthlyRows.reduce<P10CardData["totals"]>((sum, row) => ({
+        month: "TOTAL",
+        basic: sum.basic + row.basic,
+        benefits: sum.benefits + row.benefits,
+        quarters: sum.quarters + row.quarters,
+        grossPay: sum.grossPay + row.grossPay,
+        definedContribution: sum.definedContribution + row.definedContribution,
+        affordableHousingLevy: sum.affordableHousingLevy + row.affordableHousingLevy,
+        shif: sum.shif + row.shif,
+        postRetirementMedical: sum.postRetirementMedical + row.postRetirementMedical,
+        ownerOccupiedInterest: sum.ownerOccupiedInterest + row.ownerOccupiedInterest,
+        totalDeductions: sum.totalDeductions + row.totalDeductions,
+        chargeablePay: sum.chargeablePay + row.chargeablePay,
+        taxCharged: sum.taxCharged + row.taxCharged,
+        personalRelief: sum.personalRelief + row.personalRelief,
+        insuranceRelief: sum.insuranceRelief + row.insuranceRelief,
+        payeTax: sum.payeTax + row.payeTax,
+      }), {
+        month: "TOTAL", basic: 0, benefits: 0, quarters: 0, grossPay: 0,
+        definedContribution: 0, affordableHousingLevy: 0, shif: 0,
+        postRetirementMedical: 0, ownerOccupiedInterest: 0, totalDeductions: 0,
+        chargeablePay: 0, taxCharged: 0, personalRelief: 0,
+        insuranceRelief: 0, payeTax: 0,
+      });
+
+      return {
+        orgName: org?.name ?? "",
+        orgKraPin: org?.kraPin ?? undefined,
+        year,
+        employee: {
+          empNo: emp.empNo,
+          firstName: emp.firstName,
+          lastName: emp.lastName,
+          otherNames: emp.middleName ?? undefined,
+          kraPin: emp.kraPin ?? undefined,
+        },
+        months: monthlyRows,
+        totals,
+      };
+    });
+
+    const pdfBuffer = await generateP10Pdf(cards);
+    const orgPin = (org?.kraPin ?? "ORG").replace(/[^A-Z0-9]/gi, "") || "ORG";
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="P10_${year}_${orgPin}.pdf"`);
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
   } catch (err) { next(err); }
 });
 

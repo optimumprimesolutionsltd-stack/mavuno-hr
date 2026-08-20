@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   ArrowLeft, CheckCircle, Send, PlayCircle, RotateCcw,
   RefreshCw, Pencil, Mail, Download, TrendingDown, TrendingUp,
-  FileSpreadsheet, AlertTriangle, ExternalLink, ChevronDown, ChevronUp,
+  FileSpreadsheet, FileText, AlertTriangle, ExternalLink, ChevronDown, ChevronUp,
   ArrowUpDown,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -50,6 +50,8 @@ export function PayrollDetail() {
   const [emailIssues, setEmailIssues] = useState<string[]>([]);
   const [emailIssuesOpen, setEmailIssuesOpen] = useState(false);
   const [bulkPdfLoading, setBulkPdfLoading] = useState(false);
+  const [p9DownloadingEmployeeId, setP9DownloadingEmployeeId] = useState<number | null>(null);
+  const [p10PdfLoading, setP10PdfLoading] = useState(false);
   const [varianceOpen, setVarianceOpen] = useState(false);
   const [payConfirmOpen, setPayConfirmOpen] = useState(false);
   const [readinessOpen, setReadinessOpen] = useState(false);
@@ -181,6 +183,59 @@ export function PayrollDetail() {
       toast({ variant: "destructive", title: "Download Failed", description: err?.message || "Could not generate bulk PDF." });
     } finally {
       setBulkPdfLoading(false);
+    }
+  };
+
+  const handleDownloadP9 = async (employeeId: number, empName: string, period: string) => {
+    setP9DownloadingEmployeeId(employeeId);
+    try {
+      const token = sessionStorage.getItem("zawadi_session_token");
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const year = period.slice(0, 4);
+      const response = await fetch(`/api/payroll/${id}/employees/${employeeId}/p9-pdf`, { headers });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error ?? "Could not generate the P9 certificate.");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `P9_${year}_${empName.replace(/[^a-z0-9_-]+/gi, "_")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "P9 download failed", description: err?.message ?? "Could not generate the P9 certificate." });
+    } finally {
+      setP9DownloadingEmployeeId(null);
+    }
+  };
+
+  const handleDownloadP10Pdf = async () => {
+    setP10PdfLoading(true);
+    try {
+      const token = sessionStorage.getItem("zawadi_session_token");
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await fetch(`/api/payroll/${id}/p10-pdf`, { headers });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error ?? "Could not generate the annual P10 cards.");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `P10_${run?.period.slice(0, 4) ?? id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "P10 download failed", description: err?.message ?? "Could not generate the annual P10 cards." });
+    } finally {
+      setP10PdfLoading(false);
     }
   };
 
@@ -402,6 +457,15 @@ export function PayrollDetail() {
                 {p10Filing && !itaxLoading && (
                   <span className="ml-1 text-[10px] bg-emerald-500/20 text-emerald-300 px-1 rounded font-mono">FILED</span>
                 )}
+              </Button>
+              <Button
+                size="sm" variant="outline"
+                onClick={handleDownloadP10Pdf}
+                disabled={p10PdfLoading}
+                className="font-mono gap-1.5 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
+              >
+                <FileText className={`h-3.5 w-3.5 ${p10PdfLoading ? "animate-pulse" : ""}`} />
+                {p10PdfLoading ? "LOADING..." : "ANNUAL P10 PDF"}
               </Button>
               <Button
                 size="sm" variant="outline"
@@ -908,7 +972,7 @@ export function PayrollDetail() {
                     </TableHead>
                   );
                 })}
-                <TableHead className="w-16" />
+                <TableHead className="w-28 text-right font-mono text-xs">DOCUMENTS</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1013,6 +1077,17 @@ export function PayrollDetail() {
                                 title="Download PDF payslip"
                               >
                                 <Download className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                              </Button>
+                            )}
+                            {emp.id && run?.status === "paid" && (
+                              <Button
+                                variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[10px] font-mono"
+                                onClick={() => handleDownloadP9(emp.id, empName, run.period)}
+                                disabled={p9DownloadingEmployeeId === emp.id}
+                                title={`Download ${run.period.slice(0, 4)} P9 certificate`}
+                              >
+                                <FileText className={`h-3.5 w-3.5 text-muted-foreground hover:text-primary ${p9DownloadingEmployeeId === emp.id ? "animate-pulse" : ""}`} />
+                                P9
                               </Button>
                             )}
                           </div>

@@ -376,6 +376,51 @@ paths:
               schema:
                 $ref: "#/components/schemas/OkResult"
 
+  /payroll/{id}/employees/{employeeId}/p9-pdf:
+    get:
+      operationId: downloadEmployeeP9
+      tags: [payroll]
+      summary: Download an annual P9 certificate for one employee in a paid payroll run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: P9 certificate PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /payroll/{id}/p10-pdf:
+    get:
+      operationId: downloadAnnualP10
+      tags: [payroll]
+      summary: Download annual P10 tax deduction cards for a paid payroll year
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Annual P10 tax deduction cards PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
   /payroll/{id}/apply-insurance-deductions:
     post:
       operationId: applyInsuranceDeductions
