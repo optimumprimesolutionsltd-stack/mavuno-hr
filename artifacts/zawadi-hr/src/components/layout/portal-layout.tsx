@@ -8,7 +8,6 @@ import {
   User,
   Calendar,
   Coins,
-  FileText,
   LogOut,
   Loader2,
   Menu,
@@ -31,7 +30,6 @@ const BASE_NAV_ITEMS = [
   { href: "/portal/leave", label: "Leave", icon: Calendar, roles: null },
   { href: "/portal/timesheet", label: "Timesheet", icon: Clock, roles: null },
   { href: "/portal/loans", label: "Loans", icon: Coins, roles: null },
-  { href: "/portal/p9", label: "P9 Tax Form", icon: FileText, roles: null },
   { href: "/portal/approvals", label: "Approvals", icon: ClipboardCheck, roles: APPROVER_ROLES },
 ];
 

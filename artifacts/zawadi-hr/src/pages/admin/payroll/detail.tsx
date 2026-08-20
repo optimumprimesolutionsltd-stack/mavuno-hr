@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  ArrowLeft, CheckCircle, Send, PlayCircle, RotateCcw, FileText,
+  ArrowLeft, CheckCircle, Send, PlayCircle, RotateCcw,
   RefreshCw, Pencil, Mail, Download, TrendingDown, TrendingUp,
   FileSpreadsheet, AlertTriangle, ExternalLink, ChevronDown, ChevronUp,
   ArrowUpDown,
@@ -713,11 +713,6 @@ export function PayrollDetail() {
                   {bulkPdfLoading ? "GENERATING..." : "DOWNLOAD ALL PDFs"}
                 </Button>
               )}
-              <Button variant="outline" size="sm" className="font-mono text-xs" asChild>
-                <a href={`/admin/reports?type=bank&runId=${id}`}>
-                  <FileText className="h-3.5 w-3.5 mr-1.5" /> BANK SCHEDULE
-                </a>
-              </Button>
             </div>
           </CardContent>
         </Card>

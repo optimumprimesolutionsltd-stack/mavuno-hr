@@ -1190,29 +1190,6 @@ export const DecideLoanRequestResponse = zod.object({
 
 
 /**
- * @summary Get a payroll report
- */
-export const GetReportQueryParams = zod.object({
-  "type": zod.coerce.string().optional().describe('paye | nssf | shif | housing | bank | p9 | muster | journal'),
-  "runId": zod.coerce.number().optional()
-})
-
-export const GetReportResponse = zod.object({
-  "title": zod.string(),
-  "run": zod.record(zod.string(), zod.unknown()).optional(),
-  "columns": zod.array(zod.string()),
-  "rows": zod.array(zod.array(zod.union([zod.string(),zod.number()]))),
-  "totals": zod.array(zod.union([zod.string(),zod.number()])),
-  "ledger": zod.object({
-  "debitTotal": zod.number().optional(),
-  "creditTotal": zod.number().optional(),
-  "difference": zod.number().optional(),
-  "balanced": zod.boolean().optional()
-}).optional()
-})
-
-
-/**
  * @summary Solve gross salary for a target net pay
  */
 export const CalculateNetToGrossBody = zod.object({
@@ -1428,62 +1405,6 @@ export const ListPortalLoansResponseItem = zod.object({
 }).optional()
 })
 export const ListPortalLoansResponse = zod.array(ListPortalLoansResponseItem)
-
-
-/**
- * @summary Employee portal – P9 annual tax summary
- */
-export const GetPortalP9QueryParams = zod.object({
-  "year": zod.coerce.number().optional()
-})
-
-export const GetPortalP9Response = zod.object({
-  "year": zod.number(),
-  "employee": zod.object({
-  "id": zod.number(),
-  "orgId": zod.number(),
-  "empNo": zod.string(),
-  "firstName": zod.string(),
-  "lastName": zod.string(),
-  "middleName": zod.string().nullish(),
-  "email": zod.string(),
-  "phone": zod.string().nullish(),
-  "gender": zod.string().optional(),
-  "nationalId": zod.string().nullish(),
-  "kraPin": zod.string().nullish(),
-  "nssfNo": zod.string().nullish(),
-  "shifNo": zod.string().nullish(),
-  "payMethod": zod.string().optional(),
-  "bankName": zod.string().nullish(),
-  "bankBranchCode": zod.string().nullish(),
-  "bankBranchName": zod.string().nullish(),
-  "bankAccount": zod.string().nullish(),
-  "departmentId": zod.number().nullish(),
-  "position": zod.string(),
-  "employmentType": zod.string(),
-  "residentStatus": zod.string().optional(),
-  "salaryBasis": zod.enum(['gross', 'net']).optional(),
-  "disabilityExemption": zod.boolean().optional(),
-  "basicSalary": zod.number(),
-  "houseAllowance": zod.number().optional(),
-  "transportAllowance": zod.number().optional(),
-  "otherAllowance": zod.number().optional(),
-  "nonCashBenefit": zod.number().optional(),
-  "insurancePremium": zod.number().optional(),
-  "pensionEmployee": zod.number().optional(),
-  "pensionEmployer": zod.number().optional(),
-  "mortgageInterest": zod.number().optional(),
-  "helbMonthly": zod.number().optional(),
-  "saccoMonthly": zod.number().optional(),
-  "hireDate": zod.string(),
-  "terminationDate": zod.string().nullish(),
-  "status": zod.string(),
-  "leaveBalance": zod.number().optional(),
-  "createdAt": zod.string().optional()
-}),
-  "months": zod.array(zod.record(zod.string(), zod.unknown())),
-  "totals": zod.record(zod.string(), zod.unknown())
-})
 
 
 /**

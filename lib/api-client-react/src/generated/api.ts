@@ -30,8 +30,6 @@ import type {
   EmployeeUpdate,
   FilingGenerateInput,
   GetFilings200,
-  GetPortalP9Params,
-  GetReportParams,
   HealthStatus,
   InsuranceCorrectionResult,
   LeaveDecisionInput,
@@ -52,7 +50,6 @@ import type {
   NetToGrossInput,
   NetToGrossResult,
   OkResult,
-  P9Data,
   PayoutBatch,
   PayoutGenerateInput,
   PayrollActionInput,
@@ -64,7 +61,6 @@ import type {
   PortalAccessResult,
   PortalProfile,
   Principal,
-  ReportData,
   StatutoryFiling,
   Timesheet,
   TimesheetApprovalInput,
@@ -2610,90 +2606,6 @@ export const useDecideLoanRequest = <TError = ErrorType<unknown>,
       return useMutation(getDecideLoanRequestMutationOptions(options));
     }
 
-export const getGetReportUrl = (params?: GetReportParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/reports?${stringifiedParams}` : `/api/reports`
-}
-
-/**
- * @summary Get a payroll report
- */
-export const getReport = async (params?: GetReportParams, options?: RequestInit): Promise<ReportData> => {
-
-  return customFetch<ReportData>(getGetReportUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetReportQueryKey = (params?: GetReportParams,) => {
-    return [
-    `/api/reports`, ...(params ? [params] : [])
-    ] as const;
-    }
-
-
-export const getGetReportQueryOptions = <TData = Awaited<ReturnType<typeof getReport>>, TError = ErrorType<unknown>>(params?: GetReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetReportQueryKey(params);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReport>>> = ({ signal }) => getReport(params, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReport>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetReportQueryResult = NonNullable<Awaited<ReturnType<typeof getReport>>>
-export type GetReportQueryError = ErrorType<unknown>
-
-
-/**
- * @summary Get a payroll report
- */
-
-export function useGetReport<TData = Awaited<ReturnType<typeof getReport>>, TError = ErrorType<unknown>>(
- params?: GetReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetReportQueryOptions(params,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
 export const getCalculateNetToGrossUrl = () => {
 
 
@@ -3139,90 +3051,6 @@ export function useListPortalLoans<TData = Awaited<ReturnType<typeof listPortalL
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListPortalLoansQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getGetPortalP9Url = (params?: GetPortalP9Params,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/portal/p9?${stringifiedParams}` : `/api/portal/p9`
-}
-
-/**
- * @summary Employee portal – P9 annual tax summary
- */
-export const getPortalP9 = async (params?: GetPortalP9Params, options?: RequestInit): Promise<P9Data> => {
-
-  return customFetch<P9Data>(getGetPortalP9Url(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetPortalP9QueryKey = (params?: GetPortalP9Params,) => {
-    return [
-    `/api/portal/p9`, ...(params ? [params] : [])
-    ] as const;
-    }
-
-
-export const getGetPortalP9QueryOptions = <TData = Awaited<ReturnType<typeof getPortalP9>>, TError = ErrorType<unknown>>(params?: GetPortalP9Params, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPortalP9>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetPortalP9QueryKey(params);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPortalP9>>> = ({ signal }) => getPortalP9(params, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPortalP9>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetPortalP9QueryResult = NonNullable<Awaited<ReturnType<typeof getPortalP9>>>
-export type GetPortalP9QueryError = ErrorType<unknown>
-
-
-/**
- * @summary Employee portal – P9 annual tax summary
- */
-
-export function useGetPortalP9<TData = Awaited<ReturnType<typeof getPortalP9>>, TError = ErrorType<unknown>>(
- params?: GetPortalP9Params, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPortalP9>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetPortalP9QueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

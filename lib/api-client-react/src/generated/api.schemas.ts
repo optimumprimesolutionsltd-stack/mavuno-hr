@@ -33,18 +33,25 @@ export interface Principal {
   countryCode: string;
   currencyCode: string;
 }
-export interface LoginResult {
+
+export type LoginResultUser = {
   id: number;
-  email: string;
   name: string;
+  email: string;
   role: string;
-  /** @nullable */
-  employeeId?: number | null;
   mustChangePassword: boolean;
-  orgSlug: string;
+};
+
+export type LoginResultOrg = {
+  slug: string;
+  name: string;
   countryCode: string;
   currencyCode: string;
-  sessionToken: string;
+};
+
+export interface LoginResult {
+  user: LoginResultUser;
+  org: LoginResultOrg;
 }
 
 export interface ChangePasswordInput {
@@ -148,10 +155,6 @@ export interface Employee {
   /** @nullable */
   middleName?: string | null;
   email: string;
-  /** @nullable */
-  region?: string | null;
-  /** @nullable */
-  educationLevel?: string | null;
   /** @nullable */
   phone?: string | null;
   gender?: string;
@@ -620,7 +623,6 @@ export interface LoanRequest {
   /** @nullable */
   reason?: string | null;
   status: string;
-  interestRateBps?: number;
   /** @nullable */
   reviewNote?: string | null;
   /** @nullable */
@@ -665,24 +667,6 @@ export const LoanDecisionInputAction = {
 export interface LoanDecisionInput {
   action: LoanDecisionInputAction;
   reviewNote?: string;
-}
-
-export type ReportDataRun = { [key: string]: unknown };
-
-export type ReportDataLedger = {
-  debitTotal?: number;
-  creditTotal?: number;
-  difference?: number;
-  balanced?: boolean;
-};
-
-export interface ReportData {
-  title: string;
-  run?: ReportDataRun;
-  columns: string[];
-  rows: ((string | number)[])[];
-  totals: (string | number)[];
-  ledger?: ReportDataLedger;
 }
 
 export interface NetToGrossInput {
@@ -736,17 +720,6 @@ export interface PortalProfile {
   leaveBalance?: number;
 }
 
-export type P9DataMonthsItem = { [key: string]: unknown };
-
-export type P9DataTotals = { [key: string]: unknown };
-
-export interface P9Data {
-  year: number;
-  employee: Employee;
-  months: P9DataMonthsItem[];
-  totals: P9DataTotals;
-}
-
 export type ListTimesheetsParams = {
 /**
  * YYYY-MM
@@ -756,18 +729,6 @@ period?: string;
 
 export type GetFilings200 = { [key: string]: unknown };
 
-export type GetReportParams = {
-/**
- * paye | nssf | shif | housing | bank | p9 | muster | journal
- */
-type?: string;
-runId?: number;
-};
-
 export type ListAuditLogsParams = {
 limit?: number;
-};
-
-export type GetPortalP9Params = {
-year?: number;
 };

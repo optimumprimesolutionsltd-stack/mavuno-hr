@@ -11,7 +11,6 @@ import { PayrollDetail } from "@/pages/admin/payroll/detail";
 import { LeaveAdmin } from "@/pages/admin/leave";
 import { TimesheetAdmin } from "@/pages/admin/timesheets";
 import { LoansAdmin } from "@/pages/admin/loans";
-import { Reports } from "@/pages/admin/reports";
 import { UsersAdmin } from "@/pages/admin/users";
 import { AuditLog } from "@/pages/admin/audit";
 import { AdminSettings } from "@/pages/admin/settings";
@@ -20,7 +19,6 @@ import { PortalLogin } from "@/pages/portal/login";
 import { PortalProfile } from "@/pages/portal/profile";
 import { PortalLeave } from "@/pages/portal/leave";
 import { PortalLoans } from "@/pages/portal/loans";
-import { PortalP9 } from "@/pages/portal/p9";
 import { PortalTimesheet } from "@/pages/portal/timesheet";
 import { PortalApprovals } from "@/pages/portal/approvals";
 
@@ -80,7 +78,6 @@ export function Router() {
               <Route path="/admin/leave" component={LeaveAdmin} />
               <Route path="/admin/timesheets" component={TimesheetAdmin} />
               <Route path="/admin/loans" component={LoansAdmin} />
-              <Route path="/admin/reports" component={Reports} />
               <Route path="/admin/users" component={UsersAdmin} />
               <Route path="/admin/audit" component={AuditLog} />
               <Route path="/admin/billing" component={AdminBilling} />
@@ -133,7 +130,6 @@ export function Router() {
               <Route path="/portal/timesheet" component={PortalTimesheet} />
               <Route path="/portal/approvals" component={PortalApprovals} />
               <Route path="/portal/loans" component={PortalLoans} />
-              <Route path="/portal/p9" component={PortalP9} />
               <Route><Redirect to="/portal" /></Route>
             </Switch>
           </PortalLayout>
