@@ -82,8 +82,7 @@ export function downloadCsv(filename: string, csv: string): void {
   document.body.removeChild(a);
 }
 
-/** Build and immediately download a P10 CSV from the API response */
-export function downloadP10Csv(data: {
+export type P10AExportData = {
   rows: Array<{
     kraPin: string;
     name: string;
@@ -113,7 +112,10 @@ export function downloadP10Csv(data: {
   }>;
   period: string;
   orgKraPin: string;
-}): void {
+};
+
+/** Build KRA's headerless, positional 25-column P10A CSV from the API response. */
+export function buildP10aCsv(data: P10AExportData): string {
   const csvRows = data.rows.map((r) => [
     r.kraPin,
     r.name,
@@ -126,28 +128,33 @@ export function downloadP10Csv(data: {
     r.mealsBenefit ?? 0,
     r.nonCashBenefits ?? 0,
     r.housingType ?? "Benefit not given",
-    r.housingBenefit ?? 0,
+    "", // P10A reference column 12 is reserved/blank
     r.otherBenefits ?? 0,
-    r.gross,
+    "", // P10A reference column 14 is reserved/blank
     r.shif ?? 0,
     r.nssf ?? 0,
     r.otherPension ?? 0,
     r.postRetirementMedical ?? 0,
     r.mortgageInterest,
     r.affordableHousingLevy ?? 0,
-    r.taxablePay ?? 0,
+    "", // P10A reference column 21 is reserved/blank
     r.personalRelief,
     r.insuranceRelief,
-    r.paye ?? 0,
-    r.selfAssessedPaye ?? 0,
+    "", // P10A reference column 24 is reserved/blank
+    r.paye ?? 0, // P10A reference column 25: net PAYE tax payable
   ] as (string | number)[]);
 
-  // KRA's simplified P10A upload is a headerless, positional CSV.
-  // Keep the trailing newline and empty fields exactly as the reference export.
-  const csv = csvRows.map((row) => row.map((cell) => {
+  // Keep every field quoted, including empty reserved fields, and retain the
+  // trailing newline exactly as the supplied KRA reference export.
+  return csvRows.map((row) => row.map((cell) => {
     if (typeof cell === "number") return `"${centsToP10aKes(cell)}"`;
     return `"${String(cell ?? "").replace(/"/g, '""')}"`;
   }).join(",")).join("\r\n") + "\r\n";
+}
+
+/** Build and immediately download a P10A CSV from the API response */
+export function downloadP10Csv(data: P10AExportData): void {
+  const csv = buildP10aCsv(data);
   const orgPin = data.orgKraPin.replace(/[^A-Z0-9]/gi, "") || "ORG";
   downloadCsv(`P10A_${data.period}_${orgPin}.csv`, csv);
 }

@@ -13,7 +13,7 @@ For SHIF uploads, use the supplied Excel workbook contract exactly: visible `She
 
 **Why:** The SHA upload template is an operational import contract, so adding report columns or changing the order can make an otherwise valid payroll file unusable.
 
-For simplified P10A uploads, use a headerless 25-column positional CSV and quote every field; format monetary values with two decimals and thousands separators. For NSSF reference workbooks, use visible `Sheet1`, merged `A1:I1`, metadata rows 2–4, headers in row 5, and two-decimal monetary cells.
+For simplified P10A uploads, use a headerless 25-column positional CSV and quote every field; format monetary values with two decimals and thousands separators. The verified template keeps columns 12, 14, 21, and 24 as quoted blanks, with net PAYE in column 25. For NSSF reference workbooks, use visible `Sheet1`, merged `A1:I1`, metadata rows 2–4, headers in row 5, and two-decimal monetary cells.
 
 **Why:** KRA and NSSF imports depend on positional fields and workbook geometry, not just equivalent values.
 
