@@ -11,6 +11,8 @@ import { PayrollDetail } from "@/pages/admin/payroll/detail";
 import { LeaveAdmin } from "@/pages/admin/leave";
 import { TimesheetAdmin } from "@/pages/admin/timesheets";
 import { LoansAdmin } from "@/pages/admin/loans";
+import { Reports } from "@/pages/admin/reports";
+import { FilingsPage } from "@/pages/admin/filings";
 import { UsersAdmin } from "@/pages/admin/users";
 import { AuditLog } from "@/pages/admin/audit";
 import { AdminSettings } from "@/pages/admin/settings";
@@ -78,6 +80,8 @@ export function Router() {
               <Route path="/admin/leave" component={LeaveAdmin} />
               <Route path="/admin/timesheets" component={TimesheetAdmin} />
               <Route path="/admin/loans" component={LoansAdmin} />
+              <Route path="/admin/reports" component={Reports} />
+              <Route path="/admin/filings" component={FilingsPage} />
               <Route path="/admin/users" component={UsersAdmin} />
               <Route path="/admin/audit" component={AuditLog} />
               <Route path="/admin/billing" component={AdminBilling} />
