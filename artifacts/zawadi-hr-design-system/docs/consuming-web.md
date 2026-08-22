@@ -1,4 +1,4 @@
-# Consuming Zawadi HR Design System in web apps
+# Consuming Mavuno HR Design System in web apps
 
 Read `artifacts/zawadi-hr-design-system/docs/AGENTS.md` first. This guide covers
 React/Vite and other shadcn/Tailwind web consumers. If the app already contains

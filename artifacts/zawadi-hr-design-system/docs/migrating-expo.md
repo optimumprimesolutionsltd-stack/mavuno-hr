@@ -1,4 +1,4 @@
-# Migrating Expo UI to Zawadi HR Design System
+# Migrating Expo UI to Mavuno HR Design System
 
 Read `artifacts/zawadi-hr-design-system/docs/AGENTS.md` and
 `artifacts/zawadi-hr-design-system/docs/consuming-expo.md` first. Use this guide

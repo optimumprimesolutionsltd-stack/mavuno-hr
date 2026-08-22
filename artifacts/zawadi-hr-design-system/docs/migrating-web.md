@@ -1,4 +1,4 @@
-# Migrating web UI to Zawadi HR Design System
+# Migrating web UI to Mavuno HR Design System
 
 Read `artifacts/zawadi-hr-design-system/docs/AGENTS.md` and
 `artifacts/zawadi-hr-design-system/docs/consuming-web.md` first. Use this guide

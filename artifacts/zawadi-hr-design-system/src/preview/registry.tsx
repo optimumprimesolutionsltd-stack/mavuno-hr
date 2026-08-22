@@ -76,7 +76,7 @@ export type NavGroup = {
 };
 
 export const DESIGN_SYSTEM = {
-  title: 'Zawadi HR Design System',
+  title: 'Mavuno HR Design System',
   description:
     'A dark, data-dense cockpit language for Kenyan payroll, people, and compliance software.',
 } as const;
@@ -95,7 +95,7 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         id: 'brand-logo',
         name: 'Logo',
-        description: 'The retained Zawadi geometric mark and its emerald-and-navy cues.',
+        description: 'The retained Mavuno geometric mark and its emerald-and-navy cues.',
         Page: BrandPage,
       },
     ],
