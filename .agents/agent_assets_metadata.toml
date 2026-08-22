@@ -1,0 +1,33 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "8EVRH0Sjd_l6dKVhOf4nD"
+uri = "file://attached_assets/branding/zawadi-mark.svg"
+type = "image"
+title = "Zawadi HR favicon — icon only"
+
+[[outputs]]
+id = "lQBK-U_390sD9HCbal-aF"
+uri = "file://attached_assets/branding/zawadi-hr-logo.svg"
+type = "image"
+title = "Zawadi HR complete logo — icon and name"
+
+[[outputs]]
+id = "ZlbIIa4lfo9tirwpH-kkU"
+uri = "file://attached_assets/branding/zawadi-mark.png"
+type = "image"
+title = "Zawadi HR favicon PNG — icon only"
+
+[[outputs]]
+id = "lNL3__4Z-jQROgw4xiS00"
+uri = "file://attached_assets/branding/zawadi-hr-logo.png"
+type = "image"
+title = "Zawadi HR complete logo PNG — icon and name"
+
+[[outputs]]
+id = "8hzhlLxxRuPPfxA8idu43"
+uri = "file://zawadi-hr-project-export.zip"
+type = "unspecified"
+title = "Zawadi HR project export"
+description = "Project source and assets packaged as a ZIP archive. Generated dependencies, build output, logs, VCS metadata, and environment files were excluded."

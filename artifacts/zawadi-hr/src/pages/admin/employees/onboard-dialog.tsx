@@ -1,0 +1,499 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { customFetch } from "@workspace/api-client-react";
+import { useCreateEmployee, useListEmployees } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, ChevronRight, ChevronLeft, Check, User, Briefcase, Landmark, Shield, Info as InfoIcon, Heart } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { getListEmployeesQueryKey } from "@workspace/api-client-react";
+
+interface FormData {
+  // Step 0 — Personal
+  firstName: string;
+  middleName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  gender: string;
+  nationalId: string;
+  dateOfBirth: string;
+  educationLevel: string;
+  // Step 1 — Employment
+  position: string;
+  departmentId: string;
+  hireDate: string;
+  employmentType: string;
+  residentStatus: string;
+  salaryBasis: "gross" | "net";
+  region: string;
+  basicSalary: string;
+  houseAllowance: string;
+  transportAllowance: string;
+  workDaysPerWeek: string;
+  worksOnHolidays: boolean;
+  // Step 2 — Payment
+  payMethod: string;
+  bankName: string;
+  bankAccount: string;
+  bankBranchCode: string;
+  bankBranchName: string;
+  mpesaPhone: string;
+  // Step 3 — Compliance
+  kraPin: string;
+  nssfNo: string;
+  shifNo: string;
+  // Step 4 — Next of Kin
+  nokName: string;
+  nokRelationship: string;
+  nokPhone: string;
+  nokEmail: string;
+}
+
+const DEFAULTS: FormData = {
+  firstName: "", middleName: "", lastName: "", email: "", phone: "", gender: "male", nationalId: "",
+  dateOfBirth: "", educationLevel: "",
+  position: "", departmentId: "", hireDate: new Date().toISOString().slice(0, 10), employmentType: "permanent",
+   residentStatus: "resident", salaryBasis: "gross", region: "", basicSalary: "", houseAllowance: "0", transportAllowance: "0",
+  workDaysPerWeek: "5", worksOnHolidays: false,
+  payMethod: "bank", bankName: "", bankAccount: "", bankBranchCode: "", bankBranchName: "", mpesaPhone: "",
+  kraPin: "", nssfNo: "", shifNo: "",
+  nokName: "", nokRelationship: "", nokPhone: "", nokEmail: "",
+};
+
+const STEPS = [
+  { label: "Personal", icon: User },
+  { label: "Employment", icon: Briefcase },
+  { label: "Payment", icon: Landmark },
+  { label: "Compliance", icon: Shield },
+  { label: "Next of Kin", icon: Heart },
+];
+
+const EDUCATION_OPTIONS = [
+  { value: "none", label: "None" },
+  { value: "primary", label: "Primary" },
+  { value: "secondary", label: "Secondary" },
+  { value: "certificate", label: "Certificate" },
+  { value: "diploma", label: "Diploma" },
+  { value: "bachelor", label: "Bachelor's" },
+  { value: "master", label: "Master's" },
+  { value: "phd", label: "PhD" },
+  { value: "other", label: "Other" },
+];
+
+interface Props {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}
+
+export function OnboardDialog({ open, onOpenChange }: Props) {
+  const [step, setStep] = useState(0);
+  const [form, setForm] = useState<FormData>(DEFAULTS);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const createEmployee = useCreateEmployee();
+  const { data: departments = [] } = useQuery<any[]>({
+    queryKey: ["/api/departments"],
+    queryFn: () => customFetch("/api/departments") as Promise<any[]>,
+  });
+
+  const set = (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(f => ({ ...f, [field]: e.target.value }));
+  const setVal = (field: keyof FormData) => (v: string) =>
+    setForm(f => ({ ...f, [field]: v }));
+
+  const close = () => { onOpenChange(false); setStep(0); setForm(DEFAULTS); };
+
+  const validateStep = (): string | null => {
+    if (step === 0) {
+      if (!form.firstName.trim()) return "First name is required";
+      if (!form.lastName.trim()) return "Last name is required";
+      if (!form.email.trim() || !form.email.includes("@")) return "Valid email is required";
+    }
+    if (step === 1) {
+      if (!form.position.trim()) return "Position is required";
+      if (!form.hireDate) return "Hire date is required";
+      if (!form.basicSalary || isNaN(Number(form.basicSalary)) || Number(form.basicSalary) <= 0)
+        return "Valid basic salary is required";
+    }
+    if (step === 2) {
+      if (form.payMethod === "bank" && !form.bankAccount.trim()) return "Bank account number is required";
+      if (form.payMethod === "mpesa" && !form.mpesaPhone.trim()) return "M-Pesa phone is required";
+    }
+    return null;
+  };
+
+  const next = () => {
+    const err = validateStep();
+    if (err) { toast({ variant: "destructive", title: "Validation", description: err }); return; }
+    setStep(s => s + 1);
+  };
+
+  const submit = () => {
+    const err = validateStep();
+    if (err) { toast({ variant: "destructive", title: "Validation", description: err }); return; }
+
+    createEmployee.mutate({
+      data: {
+        firstName: form.firstName.trim(),
+        middleName: form.middleName.trim() || undefined,
+        lastName: form.lastName.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: form.phone || undefined,
+        gender: form.gender,
+        nationalId: form.nationalId || undefined,
+        dateOfBirth: form.dateOfBirth || undefined,
+        educationLevel: (form.educationLevel || undefined) as any,
+        kraPin: form.kraPin || undefined,
+        nssfNo: form.nssfNo || undefined,
+        shifNo: form.shifNo || undefined,
+        position: form.position.trim(),
+        departmentId: form.departmentId ? Number(form.departmentId) : undefined,
+        hireDate: form.hireDate,
+        employmentType: form.employmentType,
+        residentStatus: form.residentStatus,
+        salaryBasis: form.salaryBasis,
+        region: form.region || undefined,
+        payMethod: form.payMethod,
+        bankName: form.bankName || undefined,
+        bankAccount: form.bankAccount || undefined,
+        bankBranchCode: form.bankBranchCode || undefined,
+        bankBranchName: form.bankBranchName || undefined,
+        mpesaPhone: form.mpesaPhone || undefined,
+        // Backend moneyString expects KES string, e.g. "50000" → toCents → 5000000
+        basicSalary: form.basicSalary as any,
+        houseAllowance: (form.houseAllowance || "0") as any,
+        transportAllowance: (form.transportAllowance || "0") as any,
+        workDaysPerWeek: form.workDaysPerWeek as any,
+        worksOnHolidays: form.worksOnHolidays,
+        disabilityExemption: false,
+        nokName: form.nokName || undefined,
+        nokRelationship: form.nokRelationship || undefined,
+        nokPhone: form.nokPhone || undefined,
+        nokEmail: form.nokEmail || undefined,
+      } as any,
+    }, {
+      onSuccess: (emp) => {
+        queryClient.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
+        toast({ title: "Employee onboarded", description: `${emp.firstName} ${emp.middleName ? emp.middleName + " " : ""}${emp.lastName} added successfully` });
+        close();
+      },
+      onError: (err: any) => {
+        const msg = err?.message || "Failed to create employee";
+        toast({ variant: "destructive", title: "Error", description: msg });
+      },
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={close}>
+      <DialogContent className="max-w-2xl bg-card border-border/60">
+        <DialogHeader>
+          <DialogTitle className="font-mono text-lg">ONBOARD EMPLOYEE</DialogTitle>
+          <DialogDescription>Add a new employee to the payroll roster</DialogDescription>
+        </DialogHeader>
+
+        {/* Step indicator */}
+        <div className="flex items-center gap-0 mb-6">
+          {STEPS.map((s, i) => {
+            const Icon = s.icon;
+            const done = i < step;
+            const active = i === step;
+            return (
+              <div key={i} className="flex items-center flex-1">
+                <div className={`flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-mono transition-colors ${active ? "bg-primary text-primary-foreground" : done ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}>
+                  {done ? <Check className="h-3 w-3" /> : <Icon className="h-3 w-3" />}
+                  <span className="hidden sm:inline">{s.label}</span>
+                </div>
+                {i < STEPS.length - 1 && <div className={`flex-1 h-px mx-1 ${done ? "bg-primary/40" : "bg-border/50"}`} />}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Step 0 — Personal */}
+        {step === 0 && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">FIRST NAME *</Label>
+              <Input value={form.firstName} onChange={set("firstName")} placeholder="First name" className="bg-background/50" autoFocus />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">MIDDLE NAME</Label>
+              <Input value={form.middleName} onChange={set("middleName")} placeholder="Middle name" className="bg-background/50" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">LAST NAME *</Label>
+              <Input value={form.lastName} onChange={set("lastName")} placeholder="Last name" className="bg-background/50" />
+            </div>
+            <div className="col-span-2 space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">EMAIL *</Label>
+              <Input type="email" value={form.email} onChange={set("email")} placeholder="employee@company.co.ke" className="bg-background/50" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">PHONE</Label>
+              <Input value={form.phone} onChange={set("phone")} placeholder="+254 7XX XXX XXX" className="bg-background/50" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">GENDER</Label>
+              <Select value={form.gender} onValueChange={setVal("gender")}>
+                <SelectTrigger className="bg-background/50"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">NATIONAL ID</Label>
+              <Input value={form.nationalId} onChange={set("nationalId")} placeholder="National ID number" className="bg-background/50" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">DATE OF BIRTH</Label>
+              <Input type="date" value={form.dateOfBirth} onChange={set("dateOfBirth")} className="bg-background/50" />
+            </div>
+            <div className="col-span-2 space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">EDUCATION LEVEL</Label>
+              <Select value={form.educationLevel} onValueChange={setVal("educationLevel")}>
+                <SelectTrigger className="bg-background/50"><SelectValue placeholder="Select education level" /></SelectTrigger>
+                <SelectContent>
+                  {EDUCATION_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+
+        {/* Step 1 — Employment */}
+        {step === 1 && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2 space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">JOB TITLE / POSITION *</Label>
+              <Input value={form.position} onChange={set("position")} placeholder="Software Engineer" className="bg-background/50" autoFocus />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">DEPARTMENT</Label>
+              <Select value={form.departmentId} onValueChange={setVal("departmentId")}>
+                <SelectTrigger className="bg-background/50"><SelectValue placeholder="Select department" /></SelectTrigger>
+                <SelectContent>
+                  {departments.map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name} ({d.code})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">HIRE DATE *</Label>
+              <Input type="date" value={form.hireDate} onChange={set("hireDate")} className="bg-background/50" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">EMPLOYMENT TYPE</Label>
+              <Select value={form.employmentType} onValueChange={setVal("employmentType")}>
+                <SelectTrigger className="bg-background/50"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="permanent">Permanent</SelectItem>
+                  <SelectItem value="contract">Contract</SelectItem>
+                  <SelectItem value="casual">Casual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">RESIDENT STATUS</Label>
+              <Select value={form.residentStatus} onValueChange={setVal("residentStatus")}>
+                <SelectTrigger className="bg-background/50"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="resident">Resident</SelectItem>
+                  <SelectItem value="non_resident">Non-Resident</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">REGION / COUNTY</Label>
+              <Input value={form.region} onChange={set("region")} placeholder="e.g. Nairobi, Mombasa" className="bg-background/50" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">BASIC SALARY (KES) *</Label>
+              <Input type="number" value={form.basicSalary} onChange={set("basicSalary")} placeholder="50000" className="bg-background/50" />
+              <p className="text-[11px] text-muted-foreground">
+                {form.salaryBasis === "net" ? "Enter the employee's target take-home pay." : "Enter the employee's gross basic salary."}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">SALARY BASIS</Label>
+              <Select value={form.salaryBasis} onValueChange={setVal("salaryBasis")}>
+                <SelectTrigger className="bg-background/50"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gross">Gross salary</SelectItem>
+                  <SelectItem value="net">Net salary (gross-up)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">HOUSE ALLOWANCE (KES)</Label>
+              <Input type="number" value={form.houseAllowance} onChange={set("houseAllowance")} placeholder="0" className="bg-background/50" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">TRANSPORT ALLOWANCE (KES)</Label>
+              <Input type="number" value={form.transportAllowance} onChange={set("transportAllowance")} placeholder="0" className="bg-background/50" />
+            </div>
+            {/* Work schedule */}
+            <div className="col-span-2 pt-2 border-t border-border/40">
+              <p className="text-xs font-mono text-muted-foreground mb-3">WORK SCHEDULE</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-mono text-muted-foreground">WORKING DAYS PER WEEK</Label>
+                  <Select value={form.workDaysPerWeek} onValueChange={setVal("workDaysPerWeek")}>
+                    <SelectTrigger className="bg-background/50"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5 days (Mon – Fri)</SelectItem>
+                      <SelectItem value="6">6 days (Mon – Sat)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-xs font-mono text-muted-foreground">WORKS ON PUBLIC HOLIDAYS?</Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex cursor-default text-muted-foreground hover:text-foreground">
+                            <InfoIcon className="h-3.5 w-3.5" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[260px] text-center leading-relaxed">
+                          This controls whether public holidays reduce an employee's leave balance. It does not affect salary — pay is always based on contracted days.
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <Select
+                    value={form.worksOnHolidays ? "yes" : "no"}
+                    onValueChange={(v) => setForm(f => ({ ...f, worksOnHolidays: v === "yes" }))}
+                  >
+                    <SelectTrigger className="bg-background/50"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no">No — holidays not counted as leave</SelectItem>
+                      <SelectItem value="yes">Yes — holidays count as leave days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2 — Payment */}
+        {step === 2 && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2 space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">PAYMENT METHOD</Label>
+              <Select value={form.payMethod} onValueChange={setVal("payMethod")}>
+                <SelectTrigger className="bg-background/50"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bank">Bank Transfer</SelectItem>
+                  <SelectItem value="mpesa">M-Pesa</SelectItem>
+                  <SelectItem value="cash">Cash</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {form.payMethod === "bank" && (
+              <>
+                <div className="col-span-2 space-y-1">
+                  <Label className="text-xs font-mono text-muted-foreground">BANK NAME *</Label>
+                  <Input value={form.bankName} onChange={set("bankName")} placeholder="Equity Bank" className="bg-background/50" autoFocus />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-mono text-muted-foreground">ACCOUNT NUMBER *</Label>
+                  <Input value={form.bankAccount} onChange={set("bankAccount")} placeholder="Account number" className="bg-background/50" />
+                </div>
+                <div className="space-y-1">
+                   <Label className="text-xs font-mono text-muted-foreground">BRANCH CODE</Label>
+                  <Input value={form.bankBranchCode} onChange={set("bankBranchCode")} placeholder="076" className="bg-background/50" />
+                </div>
+                 <div className="col-span-2 space-y-1">
+                   <Label className="text-xs font-mono text-muted-foreground">BANK BRANCH NAME</Label>
+                   <Input value={form.bankBranchName} onChange={set("bankBranchName")} placeholder="Westlands Branch" className="bg-background/50" />
+                 </div>
+              </>
+            )}
+            {form.payMethod === "mpesa" && (
+              <div className="col-span-2 space-y-1">
+                <Label className="text-xs font-mono text-muted-foreground">M-PESA PHONE *</Label>
+                <Input value={form.mpesaPhone} onChange={set("mpesaPhone")} placeholder="07XXXXXXXX" className="bg-background/50" autoFocus />
+              </div>
+            )}
+            {form.payMethod === "cash" && (
+              <div className="col-span-2 text-muted-foreground text-sm py-4 text-center font-mono">Cash payroll — no account details needed.</div>
+            )}
+          </div>
+        )}
+
+        {/* Step 3 — Compliance */}
+        {step === 3 && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2 space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">KRA PIN</Label>
+              <Input value={form.kraPin} onChange={set("kraPin")} placeholder="A000000000A" className="bg-background/50 font-mono" autoFocus />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">NSSF NO.</Label>
+              <Input value={form.nssfNo} onChange={set("nssfNo")} placeholder="0000000" className="bg-background/50 font-mono" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">SHIF NO.</Label>
+              <Input value={form.shifNo} onChange={set("shifNo")} placeholder="00000000" className="bg-background/50 font-mono" />
+            </div>
+            <div className="col-span-2 p-3 rounded-lg bg-muted/30 border border-border/30 text-xs text-muted-foreground font-mono mt-2">
+              Compliance numbers can be added later via the employee profile. They are required for payroll processing.
+            </div>
+          </div>
+        )}
+
+        {/* Step 4 — Next of Kin */}
+        {step === 4 && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2 p-3 rounded-lg bg-muted/30 border border-border/30 text-xs text-muted-foreground font-mono">
+              Emergency contact for insurance and HR records. All fields are optional.
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">FULL NAME</Label>
+              <Input value={form.nokName} onChange={set("nokName")} placeholder="Jane Doe" className="bg-background/50" autoFocus />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">RELATIONSHIP</Label>
+              <Input value={form.nokRelationship} onChange={set("nokRelationship")} placeholder="Spouse, Parent, Sibling…" className="bg-background/50" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">PHONE</Label>
+              <Input value={form.nokPhone} onChange={set("nokPhone")} placeholder="+254 7XX XXX XXX" className="bg-background/50" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">EMAIL</Label>
+              <Input type="email" value={form.nokEmail} onChange={set("nokEmail")} placeholder="contact@example.com" className="bg-background/50" />
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex justify-between pt-2 mt-2 border-t border-border/30">
+          <Button variant="outline" onClick={step === 0 ? close : () => setStep(s => s - 1)} className="font-mono">
+            {step === 0 ? "CANCEL" : <><ChevronLeft className="h-4 w-4 mr-1" /> BACK</>}
+          </Button>
+          {step < STEPS.length - 1 ? (
+            <Button onClick={next} className="font-mono">
+              NEXT <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          ) : (
+            <Button onClick={submit} disabled={createEmployee.isPending} className="font-mono bg-primary">
+              {createEmployee.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> SAVING...</> : <><Check className="h-4 w-4 mr-2" /> ONBOARD</>}
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -1,0 +1,18 @@
+kind = "design-system"
+previewPath = "/zawadi-hr-design-system/"
+title = "Zawadi HR Design System"
+version = "1.0.0"
+id = "artifacts/zawadi-hr-design-system"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/zawadi-hr-design-system/" ]
+localPort = 20327
+
+[services.development]
+run = "pnpm --filter @workspace/zawadi-hr-design-system run dev"
+
+[services.env]
+PORT = "20327"
+BASE_PATH = "/zawadi-hr-design-system/"

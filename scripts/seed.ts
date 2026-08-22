@@ -1,22 +1,17 @@
 /**
- * Seed / bootstrap — run ONCE, from the CLI.
+ * Seed / bootstrap — run once from the CLI.
  *
- * The previous design called ensureSeed() at the top of every API request:
- * a table scan and a conditional write in the hot path of every call, forever,
- * for a thing that needs to happen once. Worse, it made the demo data part of
- * the production schema.
- *
- *   npx tsx scripts/seed.ts --statutory-only     # ship the tax packs
+ *   npx tsx scripts/seed.ts --statutory-only
  *   npx tsx scripts/seed.ts --org "Acme Ltd" --admin admin@acme.co.ke
  */
 import { config } from "dotenv";
 config();
 
 import { eq, and, isNull } from "drizzle-orm";
-import { db } from "../src/db";
-import { organizations, users, statutoryConfigs, departments } from "../src/db/schema";
-import { ALL_PACKS } from "../src/lib/statutory/packs";
-import { hashPassword, generateTempPassword } from "../src/lib/auth/password";
+import { db } from "./lib/db.js";
+import { organizations, users, statutoryConfigs, departments } from "@workspace/db/schema";
+import { ALL_PACKS } from "./lib/statutory-packs.js";
+import { hashPassword, generateTempPassword } from "./lib/password.js";
 
 async function seedStatutory() {
   for (const pack of ALL_PACKS) {
@@ -26,7 +21,6 @@ async function seedStatutory() {
       isNull(statutoryConfigs.orgId),
     ));
     if (existing.length) { console.log(`  = ${pack.name} (already present)`); continue; }
-
     await db.insert(statutoryConfigs).values({
       countryCode: pack.countryCode,
       name: pack.name,
@@ -38,9 +32,8 @@ async function seedStatutory() {
   }
 }
 
-async function seedOrg(name: string, adminEmail: string, customPassword?: string) {
+async function seedOrg(name: string, adminEmail: string) {
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-
   const [existing] = await db.select().from(organizations).where(eq(organizations.slug, slug));
   if (existing) { console.log(`Organization "${name}" already exists (id ${existing.id})`); return; }
 
@@ -55,26 +48,20 @@ async function seedOrg(name: string, adminEmail: string, customPassword?: string
       .map(([n, c]) => ({ orgId: org.id, name: n, code: c })),
   );
 
-  const password = customPassword || generateTempPassword();
-  const mustChange = !customPassword; // only force rotation for random temp passwords
+  const tempPassword = generateTempPassword();
   await db.insert(users).values({
     orgId: org.id,
     email: adminEmail.toLowerCase(),
     name: "Administrator",
-    passwordHash: await hashPassword(password),
+    passwordHash: await hashPassword(tempPassword),
     role: "admin",
-    mustChangePassword: mustChange,
+    mustChangePassword: false,
   });
 
   console.log(`\nOrganization : ${org.name} (slug: ${org.slug})`);
   console.log(`Admin        : ${adminEmail}`);
-  if (customPassword) {
-    console.log(`Password     : (the one you specified)`);
-  } else {
-    console.log(`Temp password: ${password}`);
-    console.log(`\nThis password is shown ONCE and must be changed at first login.`);
-  }
-  console.log();
+  console.log(`Temp password: ${tempPassword}`);
+  console.log(`\nThis password is shown ONCE and must be changed at first login.\n`);
 }
 
 async function main() {
@@ -91,10 +78,9 @@ async function main() {
 
   const org = get("--org");
   const admin = get("--admin");
-  const password = get("--password");
   if (org && admin) {
     console.log(`\nCreating organization…`);
-    await seedOrg(org, admin, password);
+    await seedOrg(org, admin);
   } else if (!args.includes("--statutory-only")) {
     console.log("\nNo --org/--admin given; skipping org creation.");
     console.log('Usage: npx tsx scripts/seed.ts --org "Acme Ltd" --admin admin@acme.co.ke');

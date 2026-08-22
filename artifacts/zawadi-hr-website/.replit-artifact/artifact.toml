@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/zawadi-hr-website/"
+title = "Zawadi HR Website"
+version = "1.0.0"
+id = "artifacts/zawadi-hr-website"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/zawadi-hr-website/" ]
+localPort = 20208
+
+[services.development]
+run = "pnpm --filter @workspace/zawadi-hr-website run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/zawadi-hr-website", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/zawadi-hr-website/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20208"
+BASE_PATH = "/zawadi-hr-website/"
