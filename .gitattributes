@@ -1,1 +1,2 @@
 zawadi-hr-project-export.zip filter=lfs diff=lfs merge=lfs -text
+attached_assets/Recording_2026-07-18_230805_1784405358759.mp4 filter=lfs diff=lfs merge=lfs -text
