@@ -5,11 +5,11 @@ export function BrandPage() {
     <div className="space-y-6">
       <section className="grid gap-6 rounded-lg border bg-card p-6 text-card-foreground md:grid-cols-[180px_1fr] md:items-center">
         <div className="flex min-h-40 items-center justify-center rounded-md bg-[#0c0f12] p-8">
-          <img src={MARK_SRC} alt="Zawadi geometric mark" className="h-24 w-24" />
+          <img src={MARK_SRC} alt="Mavuno geometric mark" className="h-24 w-24" />
         </div>
         <div className="space-y-3">
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-primary">Primary mark</p>
-          <h2 className="text-2xl font-semibold">Zawadi HR</h2>
+          <h2 className="text-2xl font-semibold">Mavuno HR</h2>
           <p className="max-w-xl text-sm leading-6 text-muted-foreground">
             The geometric mark pairs emerald action energy with a navy foundation.
             Use the compact mark where space is limited; keep product naming separate

@@ -1,4 +1,4 @@
-# Consuming Zawadi HR Design System in Expo apps
+# Consuming Mavuno HR Design System in Expo apps
 
 Read `artifacts/zawadi-hr-design-system/docs/AGENTS.md` first. React Native does
 not consume the web CSS or DOM components. It imports portable tokens, native

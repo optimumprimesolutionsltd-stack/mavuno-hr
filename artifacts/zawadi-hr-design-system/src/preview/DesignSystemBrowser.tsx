@@ -143,8 +143,7 @@ export function DesignSystemBrowser() {
           <div className="flex items-center gap-2.5">
             <img
               src={`${import.meta.env.BASE_URL}zawadi-mark.svg`}
-              alt=""
-              aria-hidden="true"
+              alt="Mavuno HR mark"
               className="h-7 w-7"
             />
             <p className="text-sm font-semibold">{DESIGN_SYSTEM.title}</p>

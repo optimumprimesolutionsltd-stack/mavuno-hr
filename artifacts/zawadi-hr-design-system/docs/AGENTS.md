@@ -1,4 +1,4 @@
-# Zawadi HR Design System design system
+# Mavuno HR Design System design system
 
 This package defines the visual language for the project. Use it whenever you
 build or restyle UI so every surface looks like the same product. It is a real
@@ -16,7 +16,7 @@ on it and import its theme and components directly.
 - `public/favicon.svg` — GENERATED app icon from `tokens.json` + the title.
 - `src/components/ui/` — the shadcn component library, themed by the tokens,
   exported as `./components/*`.
-- `docs/references/logos/zawadi-mark.svg` — the retained Zawadi geometric mark,
+- `docs/references/logos/zawadi-mark.svg` — the retained Mavuno geometric mark,
   used in the preview and available as a brand reference for consumers.
 - `src/lib/` (`cn`) and `src/hooks/` — exported as `./lib/*` and `./hooks/*`.
 - `src/App.tsx` — the entry point for the living style guide.
