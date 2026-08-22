@@ -82,7 +82,7 @@ export function PortalLayout({ children }: PortalLayoutProps) {
       <div className="h-16 flex items-center px-6 border-b border-border shrink-0">
         <img src="/branding/zawadi-mark.svg" alt="" className="h-7 w-7 mr-3" />
         <span className="font-bold text-lg tracking-tight font-mono">
-           Mizani<span className="text-primary"> HR Portal</span>
+           Mavuno<span className="text-primary"> HR Portal</span>
         </span>
         {/* Close button — mobile only */}
         <button
@@ -176,7 +176,7 @@ export function PortalLayout({ children }: PortalLayoutProps) {
         </button>
         <img src="/branding/zawadi-mark.svg" alt="" className="h-6 w-6" />
         <span className="font-bold tracking-tight font-mono text-base">
-         Mizani<span className="text-primary"> HR Portal</span>
+         Mavuno<span className="text-primary"> HR Portal</span>
         </span>
       </header>
 

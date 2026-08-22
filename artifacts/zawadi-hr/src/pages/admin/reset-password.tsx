@@ -67,7 +67,7 @@ export function ResetPassword() {
             </div>
             <div className="text-center space-y-1">
               <CardTitle className="text-2xl font-mono tracking-tight">
-                Mizani<span className="text-primary"> HR</span>
+                Mavuno<span className="text-primary"> HR</span>
               </CardTitle>
               <CardDescription>
                 {done ? "Password updated" : "Choose a new password for your account"}

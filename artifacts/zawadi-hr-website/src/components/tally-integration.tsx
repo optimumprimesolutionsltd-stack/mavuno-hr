@@ -13,7 +13,7 @@ export function TallyIntegration() {
               {/* Abstract integration diagram */}
               <div className="flex items-center justify-between">
                 <div className="w-24 h-24 rounded-2xl bg-white border border-border shadow-xl flex items-center justify-center p-4 z-10 relative">
-                  <img src={markSvg} alt="Mizani HR" className="w-full h-full object-contain" />
+                  <img src={markSvg} alt="Mavuno HR" className="w-full h-full object-contain" />
                 </div>
                 
                 <div className="flex-1 flex flex-col items-center relative">
@@ -50,10 +50,10 @@ export function TallyIntegration() {
           <div className="order-1 lg:order-2">
             <h2 className="text-4xl md:text-5xl font-bold text-secondary mb-6 tracking-tight">Plays nicely with Tally.</h2>
             <p className="text-xl text-muted-foreground leading-relaxed mb-8">
-              Already using Tally for accounting? Mizani HR bridges the gap. Sync payroll data directly to Tally ERP 9 and TallyPrime. No manual journal entries, no reconciliation headaches. Just smooth, automated syncing.
+              Already using Tally for accounting? Mavuno HR bridges the gap. Sync payroll data directly to Tally ERP 9 and TallyPrime. No manual journal entries, no reconciliation headaches. Just smooth, automated syncing.
             </p>
             <p className="text-lg text-secondary font-medium mb-8">
-              Don't use Tally? No problem. Mizani HR works perfectly as a standalone, powerful HR platform.
+              Don't use Tally? No problem. Mavuno HR works perfectly as a standalone, powerful HR platform.
             </p>
             <Button variant="outline" size="lg" className="group text-secondary">
               See Integration Details

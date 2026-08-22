@@ -223,7 +223,7 @@ type NssfWorkbookData = {
 /** Build a blank NSSF workbook matching the uploaded reference template. */
 export async function buildNssfWorkbook(data: NssfWorkbookData): Promise<Uint8Array> {
   const workbook = new ExcelJS.Workbook();
-   workbook.creator = "Mizani HR";
+   workbook.creator = "Mavuno HR";
   const sheet = workbook.addWorksheet("Sheet1");
   const title = `NSSF_${data.period}_${data.orgNssfEmployerNo || "ORG"}`;
   sheet.mergeCells("A1:I1");
@@ -602,7 +602,7 @@ export async function downloadEmployeesXlsx(
   filename = "employees.xlsx",
 ): Promise<void> {
   const workbook = new ExcelJS.Workbook();
-   workbook.creator = "Mizani HR";
+   workbook.creator = "Mavuno HR";
   workbook.created = new Date();
 
   const sheet = workbook.addWorksheet("Employees", {
@@ -616,7 +616,7 @@ export async function downloadEmployeesXlsx(
     cell.fill = {
       type: "pattern",
       pattern: "solid",
-      fgColor: { argb: "FF0D9488" }, // emerald-600 — matches Mizani brand
+      fgColor: { argb: "FF0D9488" }, // emerald-600 — matches Mavuno brand
     };
     cell.alignment = { vertical: "middle", horizontal: "center", wrapText: false };
     cell.border = {

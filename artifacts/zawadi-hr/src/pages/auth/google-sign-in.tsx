@@ -79,7 +79,7 @@ export function GoogleSignIn() {
       setLocation(safeRedirect(redirect, data.role, data.employeeId));
     }).catch((error: any) => {
       if (cancelled) return;
-       setBridgeError(error?.data?.error ?? "This Google account is not authorized for Mizani HR.");
+       setBridgeError(error?.data?.error ?? "This Google account is not authorized for Mavuno HR.");
     });
 
     return () => { cancelled = true; };
@@ -96,7 +96,7 @@ export function GoogleSignIn() {
         {isSignedIn && !bridgeError ? (
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-             Verifying your Mizani HR access…
+            Verifying your Mavuno HR access…
           </div>
         ) : (
           <SignIn

@@ -52,7 +52,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
         <div className="h-16 flex items-center px-6 border-b border-border shrink-0 gap-3">
           <ShieldCheck className="h-5 w-5 text-primary" />
           <span className="font-bold text-lg tracking-tight font-mono">
-            MIZANI<span className="text-primary">.SUPER</span>
+            MAVUNO<span className="text-primary">.SUPER</span>
           </span>
         </div>
 

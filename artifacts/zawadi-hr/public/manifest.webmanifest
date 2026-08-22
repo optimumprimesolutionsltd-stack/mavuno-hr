@@ -1,6 +1,6 @@
 {
-  "name": "Mizani HR",
-  "short_name": "Mizani HR",
+  "name": "Mavuno HR",
+  "short_name": "Mavuno HR",
   "description": "Payroll, people management and statutory compliance for Kenyan businesses.",
   "lang": "en-KE",
   "dir": "ltr",
@@ -32,7 +32,7 @@
   ],
   "shortcuts": [
     {
-      "name": "Mizani HR — HR & Payroll",
+      "name": "Mavuno HR — HR & Payroll",
       "short_name": "HR",
       "description": "Open the HR and payroll login",
       "url": "/admin/login",

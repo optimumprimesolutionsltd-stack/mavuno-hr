@@ -14,7 +14,7 @@ export function Compliance() {
             </div>
             <h2 className="text-4xl md:text-5xl font-bold mb-6 tracking-tight">Never miss a compliance update.</h2>
             <p className="text-xl text-white/80 leading-relaxed mb-8">
-              Kenya's tax laws change fast. Mizani HR automatically updates with the latest KRA guidelines, ensuring your PAYE, Housing Levy, and statutory deductions are perfectly calculated every time.
+              Kenya's tax laws change fast. Mavuno HR automatically updates with the latest KRA guidelines, ensuring your PAYE, Housing Levy, and statutory deductions are perfectly calculated every time.
             </p>
             
             <ul className="space-y-4">

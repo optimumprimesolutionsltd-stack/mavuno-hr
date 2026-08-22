@@ -54,7 +54,7 @@ export function ForgotPassword() {
             </div>
             <div className="text-center space-y-1">
               <CardTitle className="text-2xl font-mono tracking-tight">
-                Mizani<span className="text-primary"> HR</span>
+                Mavuno<span className="text-primary"> HR</span>
               </CardTitle>
               <CardDescription>
                 {sent ? "Check your inbox" : "Enter your admin email to receive a reset link"}
