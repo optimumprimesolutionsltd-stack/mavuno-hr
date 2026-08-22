@@ -158,7 +158,7 @@ export function AdminBilling() {
 
           {/* Info note */}
           <p className="text-xs text-muted-foreground font-mono text-center">
-            Receipts are emailed automatically to your account address when a payment is verified by Mizani HR support.
+            Receipts are emailed automatically to your account address when a payment is verified by Mavuno HR support.
             Contact us if you have a payment query.
           </p>
         </>

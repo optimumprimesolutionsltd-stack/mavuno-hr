@@ -14,7 +14,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const FROM = () => `"Mizani HR" <${gmailUser}>`;
+const FROM = () => `"Mavuno HR" <${gmailUser}>`;
 
 /**
  * SMTP providers return detailed authentication and connection errors. Those
@@ -101,7 +101,7 @@ export async function sendReceiptEmail(opts: {
 <body>
 <div class="wrapper">
   <div class="header">
-    <div class="header-logo">MIZANI<span>.HR</span></div>
+    <div class="header-logo">MAVUNO<span>.HR</span></div>
     <div class="receipt-badge">✓ PAYMENT RECEIPT</div>
   </div>
   <div class="body">
@@ -121,23 +121,23 @@ export async function sendReceiptEmail(opts: {
     </table>
     <div class="verified-box">
       <span class="check-icon">✓</span>
-      <span class="verified-text">This is an official payment receipt from <strong>Mizani HR</strong>. Please keep this for your records.</span>
+      <span class="verified-text">This is an official payment receipt from <strong>Mavuno HR</strong>. Please keep this for your records.</span>
     </div>
   </div>
   <div class="footer">
-    <p>MIZANI HR — Cloud Payroll & HR for Africa</p>
+    <p>MAVUNO HR — Cloud Payroll & HR for Africa</p>
     <p>This email was sent automatically. Do not reply.</p>
   </div>
 </div>
 </body>
 </html>`;
 
-  const text = `MIZANI HR — PAYMENT RECEIPT\n\nReceipt No: ${receiptNo}\nCompany: ${orgName}\nPlan: ${plan}\nPeriod: ${period}\nAmount: ${amountKes}\nMethod: ${methodLabel[method] ?? method}\n${reference ? `Reference: ${reference}\n` : ""}Verified: ${verifiedAt}\n\nThank you for your payment.`;
+  const text = `MAVUNO HR — PAYMENT RECEIPT\n\nReceipt No: ${receiptNo}\nCompany: ${orgName}\nPlan: ${plan}\nPeriod: ${period}\nAmount: ${amountKes}\nMethod: ${methodLabel[method] ?? method}\n${reference ? `Reference: ${reference}\n` : ""}Verified: ${verifiedAt}\n\nThank you for your payment.`;
 
   await transporter.sendMail({
     from: FROM(),
     to,
-    subject: `[Mizani HR] Payment Receipt ${receiptNo} — ${period}`,
+    subject: `[Mavuno HR] Payment Receipt ${receiptNo} — ${period}`,
     html,
     text,
   });
@@ -154,7 +154,7 @@ export async function sendPasswordResetEmail(
   await transporter.sendMail({
     from: FROM(),
     to,
-    subject: "Reset your Mizani HR password",
+    subject: "Reset your Mavuno HR password",
     html: `
 <!DOCTYPE html>
 <html>
@@ -166,14 +166,14 @@ export async function sendPasswordResetEmail(
              style="background:#141414;border:1px solid #262626;border-radius:8px;overflow:hidden">
         <tr><td style="background:#0a0a0a;padding:28px 36px;border-bottom:1px solid #262626">
           <span style="font-size:22px;font-weight:bold;letter-spacing:2px;color:#e5e5e5">
-            MIZANI<span style="color:#22c55e">.HR</span>
+            MAVUNO<span style="color:#22c55e">.HR</span>
           </span>
         </td></tr>
         <tr><td style="padding:36px">
           <p style="margin:0 0 16px;font-size:14px;color:#a3a3a3;text-transform:uppercase;letter-spacing:1px">PASSWORD RESET REQUEST</p>
           <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#e5e5e5">
             Hi ${name},<br><br>
-            We received a request to reset the password for your Mizani HR account.
+            We received a request to reset the password for your Mavuno HR account.
             Click the button below to choose a new password.
           </p>
           <table cellpadding="0" cellspacing="0" style="margin:0 0 28px">
@@ -191,14 +191,14 @@ export async function sendPasswordResetEmail(
           <p style="margin:0;font-size:12px;color:#525252;word-break:break-all">Or copy this URL: ${resetUrl}</p>
         </td></tr>
         <tr><td style="padding:20px 36px;border-top:1px solid #262626">
-          <p style="margin:0;font-size:11px;color:#525252">Mizani HR — Kenya Payroll &amp; HR Platform</p>
+          <p style="margin:0;font-size:11px;color:#525252">Mavuno HR — Kenya Payroll &amp; HR Platform</p>
         </td></tr>
       </table>
     </td></tr>
   </table>
 </body>
 </html>`,
-    text: `Hi ${name},\n\nReset your Mizani HR password: ${resetUrl}\n\n— Mizani HR`,
+    text: `Hi ${name},\n\nReset your Mavuno HR password: ${resetUrl}\n\n— Mavuno HR`,
   });
   logger.info({ to }, "mailer: password reset email sent");
 }
@@ -232,7 +232,7 @@ export async function sendPayslipEmail(opts: {
         <!-- Header -->
         <tr><td style="background:#0f172a;padding:28px 36px">
           <span style="font-size:20px;font-weight:bold;letter-spacing:2px;color:#fff;font-family:'Courier New',monospace">
-            MIZANI<span style="color:#22c55e">.HR</span>
+            MAVUNO<span style="color:#22c55e">.HR</span>
           </span>
           <div style="margin-top:6px;font-size:11px;color:#94a3b8;letter-spacing:1px;font-family:'Courier New',monospace">
             ${orgName.toUpperCase()}
@@ -265,7 +265,7 @@ export async function sendPayslipEmail(opts: {
         <!-- Footer -->
         <tr><td style="padding:16px 36px;border-top:1px solid #f1f5f9;background:#f8fafc">
           <p style="margin:0;font-size:11px;color:#94a3b8">
-            Mizani HR — Kenya Payroll &amp; HR Platform &nbsp;|&nbsp;
+            Mavuno HR — Kenya Payroll &amp; HR Platform &nbsp;|&nbsp;
             This is an automated email, please do not reply.
           </p>
         </td></tr>
@@ -341,7 +341,7 @@ export async function sendStatutoryRemittanceEmail(opts: {
         <!-- Header -->
         <tr><td style="background:#0f172a;padding:28px 36px">
           <span style="font-size:20px;font-weight:bold;letter-spacing:2px;color:#fff;font-family:'Courier New',monospace">
-            MIZANI<span style="color:#22c55e">.HR</span>
+            MAVUNO<span style="color:#22c55e">.HR</span>
           </span>
           <div style="margin-top:6px;font-size:11px;color:#94a3b8;letter-spacing:1px;font-family:'Courier New',monospace">
             ${orgName.toUpperCase()}
@@ -361,7 +361,7 @@ export async function sendStatutoryRemittanceEmail(opts: {
 
           <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#334155">
             The <strong>${label}</strong> remittance file for <strong>${period}</strong> has been downloaded
-            from Mizani HR. Please upload this file to the ${portal} to complete the statutory filing.
+            from Mavuno HR. Please upload this file to the ${portal} to complete the statutory filing.
           </p>
 
           <!-- Summary table -->
@@ -409,7 +409,7 @@ export async function sendStatutoryRemittanceEmail(opts: {
         <!-- Footer -->
         <tr><td style="padding:16px 36px;border-top:1px solid #f1f5f9;background:#f8fafc">
           <p style="margin:0;font-size:11px;color:#94a3b8">
-            Mizani HR — Kenya Payroll &amp; HR Platform &nbsp;|&nbsp;
+            Mavuno HR — Kenya Payroll &amp; HR Platform &nbsp;|&nbsp;
             This is an automated email, please do not reply.
           </p>
         </td></tr>
@@ -420,7 +420,7 @@ export async function sendStatutoryRemittanceEmail(opts: {
 </html>`;
 
   const text = [
-    `MIZANI HR — ${kind} REMITTANCE CONFIRMATION`,
+    `MAVUNO HR — ${kind} REMITTANCE CONFIRMATION`,
     ``,
     `Organisation: ${orgName}`,
     `Filing:       ${label}`,
@@ -432,13 +432,13 @@ export async function sendStatutoryRemittanceEmail(opts: {
     `Next step: upload the CSV file to ${actionUrl}`,
     ``,
     `This email is an audit record that the remittance file was generated.`,
-    `— Mizani HR`,
+    `— Mavuno HR`,
   ].join("\n");
 
   await transporter.sendMail({
     from: FROM(),
     to,
-    subject: `[Mizani HR] ${kind} Remittance File — ${period} | ${orgName}`,
+    subject: `[Mavuno HR] ${kind} Remittance File — ${period} | ${orgName}`,
     html,
     text,
   });

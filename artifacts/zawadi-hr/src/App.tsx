@@ -41,7 +41,7 @@ function App() {
             localization={{
               signIn: {
                 start: {
-                  title: "Sign in to Mizani HR",
+                  title: "Sign in to Mavuno HR",
                   subtitle: "Welcome back. Please sign in to continue.",
                 },
               },

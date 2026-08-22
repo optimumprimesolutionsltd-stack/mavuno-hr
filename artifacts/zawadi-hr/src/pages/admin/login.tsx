@@ -59,7 +59,7 @@ export function AdminLogin() {
             </div>
             <div className="text-center space-y-1">
               <CardTitle className="text-2xl font-mono tracking-tight">
-                 Mizani<span className="text-primary"> HR</span>
+                 Mavuno<span className="text-primary"> HR</span>
               </CardTitle>
               <CardDescription>Enter your credentials to access the admin console</CardDescription>
             </div>
