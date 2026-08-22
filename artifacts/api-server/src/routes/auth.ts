@@ -142,7 +142,7 @@ router.post("/clerk/session", async (req, res, next) => {
     // Do not reveal whether an email exists in a different organization.
     if (!row || row.u.disabledAt || row.o.status === "suspended") {
       res.status(403).json({
-        error: "This Google account is not authorized for a Zawadi HR organization. Ask your administrator to create or enable your user account.",
+        error: "This Google account is not authorized for a Mizani HR organization. Ask your administrator to create or enable your user account.",
       });
       return;
     }

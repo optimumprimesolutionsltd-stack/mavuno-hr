@@ -12,7 +12,7 @@ export function Cta() {
           Ready to modernize your HR?
         </h2>
         <p className="text-xl text-muted-foreground mb-12 max-w-2xl mx-auto">
-            Join the growing number of Kenyan businesses trusting zawadiHR for accurate payroll, confident compliance, and happier employees.
+            Join the growing number of Kenyan businesses trusting Mizani HR for accurate payroll, confident compliance, and happier employees.
         </p>
 
         <form className="max-w-md mx-auto bg-white p-2 rounded-2xl shadow-xl border border-border flex flex-col sm:flex-row gap-2" onSubmit={(e) => e.preventDefault()}>

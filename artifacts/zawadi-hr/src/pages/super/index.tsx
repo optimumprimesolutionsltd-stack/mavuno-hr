@@ -270,7 +270,7 @@ export function SuperAdminCompanies() {
         </div>
         <div>
           <h1 className="text-2xl font-bold tracking-tight font-mono">COMPANIES</h1>
-          <p className="text-muted-foreground text-sm">All organisations on zawadiHR</p>
+          <p className="text-muted-foreground text-sm">All organisations on Mizani HR</p>
         </div>
       </div>
 

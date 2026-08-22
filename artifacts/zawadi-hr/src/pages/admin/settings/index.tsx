@@ -173,7 +173,7 @@ export function AdminSettings() {
               <Input
                 value={orgName}
                 onChange={(e) => setOrgName(e.target.value)}
-                placeholder="e.g. Zawadi Demo Ltd"
+                placeholder="e.g. Mizani Demo Ltd"
                 className="bg-background/50"
               />
             </div>

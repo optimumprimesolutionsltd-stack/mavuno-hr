@@ -124,7 +124,7 @@ export function Register() {
         return;
       }
       storeToken(data.sessionToken);
-      toast({ title: "Welcome to Zawadi HR!", description: `${step1Data.companyName} is ready to go.` });
+      toast({ title: "Welcome to Mizani HR!", description: `${step1Data.companyName} is ready to go.` });
       setLocation("/admin");
     } catch {
       toast({ variant: "destructive", title: "Network error", description: "Could not connect to the server." });
@@ -144,7 +144,7 @@ export function Register() {
             <img src="/branding/zawadi-mark.svg" alt="" className="w-7 h-7" />
           </div>
           <h1 className="text-2xl font-mono font-bold tracking-tight">
-             zawadi<span className="text-primary">HR</span>
+             Mizani<span className="text-primary"> HR</span>
           </h1>
           <p className="text-muted-foreground text-sm">Set up your company in 2 minutes</p>
         </div>
@@ -203,7 +203,7 @@ export function Register() {
                       <FormControl>
                         <div className="flex items-center gap-0">
                           <span className="h-9 px-3 flex items-center text-xs text-muted-foreground bg-muted border border-r-0 border-border rounded-l-md font-mono whitespace-nowrap">
-                            zawadi.hr/
+                            mizani.hr/
                           </span>
                           <Input
                             {...field}

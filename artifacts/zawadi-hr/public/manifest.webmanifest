@@ -1,6 +1,6 @@
 {
-  "name": "zawadiHR",
-  "short_name": "zawadiHR",
+  "name": "Mizani HR",
+  "short_name": "Mizani HR",
   "description": "Payroll, people management and statutory compliance for Kenyan businesses.",
   "lang": "en-KE",
   "dir": "ltr",
@@ -32,7 +32,7 @@
   ],
   "shortcuts": [
     {
-      "name": "zawadiHR — HR & Payroll",
+      "name": "Mizani HR — HR & Payroll",
       "short_name": "HR",
       "description": "Open the HR and payroll login",
       "url": "/admin/login",

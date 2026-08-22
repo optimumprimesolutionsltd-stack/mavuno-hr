@@ -16,7 +16,7 @@ export function Hero() {
             Run payroll with absolute <span className="text-primary">confidence.</span>
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground leading-relaxed mb-10 max-w-2xl font-medium">
-             zawadiHR handles complex KRA compliance, automated payroll, and leave management, so you can focus on building your team. Independent, secure, and built for modern Kenyan businesses.
+             Mizani HR handles complex KRA compliance, automated payroll, and leave management, so you can focus on building your team. Independent, secure, and built for modern Kenyan businesses.
           </p>
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
