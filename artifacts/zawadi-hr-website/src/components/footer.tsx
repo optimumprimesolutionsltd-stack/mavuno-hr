@@ -50,7 +50,7 @@ export function Footer() {
         <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
             <p>© {currentYear} Mavuno HR. All rights reserved.</p>
           <div className="flex items-center gap-6">
-            <a href="https://app.zawadihr.com/login" className="hover:text-primary transition-colors font-medium">Sign In to Dashboard</a>
+            <a href="https://app.mavunohr.co.ke/login" className="hover:text-primary transition-colors font-medium">Sign In to Dashboard</a>
           </div>
         </div>
       </div>

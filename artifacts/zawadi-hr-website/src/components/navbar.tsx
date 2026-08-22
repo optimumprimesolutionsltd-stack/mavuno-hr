@@ -18,7 +18,7 @@ export function Navbar() {
 
         <div className="flex items-center gap-4">
           <Button variant="ghost" className="hidden sm:inline-flex" asChild>
-            <a href="https://app.zawadihr.com/login" target="_blank" rel="noopener noreferrer">Log In</a>
+            <a href="https://app.mavunohr.co.ke/login" target="_blank" rel="noopener noreferrer">Log In</a>
           </Button>
           <Button asChild>
             <a href="#demo">Request Demo</a>

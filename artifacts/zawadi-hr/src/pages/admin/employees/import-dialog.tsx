@@ -57,7 +57,7 @@ async function downloadTemplate() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "zawadi_employee_import_template.xlsx";
+  a.download = "mavuno_employee_import_template.xlsx";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
