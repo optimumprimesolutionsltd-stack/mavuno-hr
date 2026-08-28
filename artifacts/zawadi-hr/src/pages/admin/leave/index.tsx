@@ -6,13 +6,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { Check, X, Search, RotateCcw, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, X, Search, RotateCcw, Loader2, ChevronLeft, ChevronRight, CalendarPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RequestLeaveForDialog } from "./request-for-dialog";
 
 const BADGE_COLORS = [
   "bg-emerald-500/20 text-emerald-400",
@@ -196,6 +197,7 @@ export function LeaveAdmin() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [requestLeaveOpen, setRequestLeaveOpen] = useState(false);
 
   const handleDecision = (id: number, action: 'approve' | 'reject') => {
     decideLeave.mutate(
@@ -237,16 +239,29 @@ export function LeaveAdmin() {
           <h1 className="text-2xl font-bold tracking-tight font-mono">LEAVE MANAGEMENT</h1>
           <p className="text-muted-foreground text-sm">Review and approve employee leave requests</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="font-mono gap-1.5 text-amber-400 border-amber-500/40 hover:bg-amber-500/10"
-          onClick={() => setResetDialogOpen(true)}
-        >
-          <RotateCcw className="h-3.5 w-3.5" />
-          RESET FOR NEW YEAR
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-primary/40 font-mono text-primary hover:bg-primary/10"
+            onClick={() => setRequestLeaveOpen(true)}
+          >
+            <CalendarPlus className="h-3.5 w-3.5" />
+            REQUEST FOR EMPLOYEE
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-amber-500/40 font-mono text-amber-400 hover:bg-amber-500/10"
+            onClick={() => setResetDialogOpen(true)}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            RESET FOR NEW YEAR
+          </Button>
+        </div>
       </div>
+
+      <RequestLeaveForDialog open={requestLeaveOpen} onOpenChange={setRequestLeaveOpen} />
 
       <Tabs defaultValue="requests">
         <TabsList className="font-mono">
