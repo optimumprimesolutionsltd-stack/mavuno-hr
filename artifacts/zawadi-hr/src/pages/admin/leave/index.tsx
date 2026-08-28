@@ -201,14 +201,16 @@ export function LeaveAdmin() {
 
   const handleDecision = (id: number, action: 'approve' | 'reject') => {
     decideLeave.mutate(
-      { data: { id, action } },
+      { id, data: { action } },
       {
         onSuccess: () => {
-          toast({ title: "Decision recorded", description: `Leave request ${action}d successfully.` });
+          const status = action === "approve" ? "approved" : "rejected";
+          toast({ title: "Decision recorded", description: `Leave request ${status} successfully.` });
           queryClient.invalidateQueries({ queryKey: getListLeavesQueryKey() });
         },
-        onError: () => {
-          toast({ variant: "destructive", title: "Error", description: "Failed to record decision." });
+        onError: (error: any) => {
+          const message = error?.data?.error ?? error?.message ?? "Failed to record decision.";
+          toast({ variant: "destructive", title: "Error", description: message });
         }
       }
     );

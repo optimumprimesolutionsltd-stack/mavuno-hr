@@ -992,8 +992,11 @@ export const CreateLeaveResponse = zod.object({
 /**
  * @summary Approve or reject leave request
  */
+export const DecideLeaveParams = zod.object({
+  "id": zod.coerce.number()
+})
+
 export const DecideLeaveBody = zod.object({
-  "id": zod.number(),
   "action": zod.enum(['approve', 'reject']),
   "note": zod.string().optional()
 })

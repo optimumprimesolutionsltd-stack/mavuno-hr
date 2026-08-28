@@ -613,10 +613,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeaveRequest"
+
+  /leaves/{id}:
     patch:
       operationId: decideLeave
       tags: [leaves]
       summary: Approve or reject leave request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
       requestBody:
         required: true
         content:
@@ -1631,10 +1639,8 @@ components:
 
     LeaveDecisionInput:
       type: object
-      required: [id, action]
+      required: [action]
       properties:
-        id:
-          type: integer
         action:
           type: string
           enum: [approve, reject]
