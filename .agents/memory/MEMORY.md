@@ -8,3 +8,4 @@
 - [Insurance premium deductions](insurance-premium-deductions.md) — insurance premiums are employee deductions and also affect PAYE through insurance relief
 - [Report export safety](report-export-safety.md) — package employee-by-employee documents in one ZIP with explicit regulator report columns
 - [Tenant isolation](tenant-isolation.md) — enforce organization scope in sessions, resource predicates, mutations, and foreign-key joins
+- [GitHub LFS publication](github-lfs-publication.md) — Replit’s GitHub API connection may not authenticate Git/LFS batch uploads; use an interactive CLI sign-in when LFS publishing is required.
