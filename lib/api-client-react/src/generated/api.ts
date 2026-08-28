@@ -2480,20 +2480,21 @@ export const useCreateLeave = <TError = ErrorType<unknown>,
       return useMutation(getCreateLeaveMutationOptions(options));
     }
 
-export const getDecideLeaveUrl = () => {
+export const getDecideLeaveUrl = (id: number,) => {
 
 
 
 
-  return `/api/leaves`
+  return `/api/leaves/${id}`
 }
 
 /**
  * @summary Approve or reject leave request
  */
-export const decideLeave = async (leaveDecisionInput: LeaveDecisionInput, options?: RequestInit): Promise<LeaveRequest> => {
+export const decideLeave = async (id: number,
+    leaveDecisionInput: LeaveDecisionInput, options?: RequestInit): Promise<LeaveRequest> => {
 
-  return customFetch<LeaveRequest>(getDecideLeaveUrl(),
+  return customFetch<LeaveRequest>(getDecideLeaveUrl(id),
   {
     ...options,
     method: 'PATCH',
@@ -2507,8 +2508,8 @@ export const decideLeave = async (leaveDecisionInput: LeaveDecisionInput, option
 
 
 export const getDecideLeaveMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideLeave>>, TError,{data: BodyType<LeaveDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof decideLeave>>, TError,{data: BodyType<LeaveDecisionInput>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideLeave>>, TError,{id: number;data: BodyType<LeaveDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideLeave>>, TError,{id: number;data: BodyType<LeaveDecisionInput>}, TContext> => {
 
 const mutationKey = ['decideLeave'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -2520,10 +2521,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideLeave>>, {data: BodyType<LeaveDecisionInput>}> = (props) => {
-          const {data} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideLeave>>, {id: number;data: BodyType<LeaveDecisionInput>}> = (props) => {
+          const {id,data} = props ?? {};
 
-          return  decideLeave(data,requestOptions)
+          return  decideLeave(id,data,requestOptions)
         }
 
 
@@ -2541,11 +2542,11 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  * @summary Approve or reject leave request
  */
 export const useDecideLeave = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideLeave>>, TError,{data: BodyType<LeaveDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideLeave>>, TError,{id: number;data: BodyType<LeaveDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof decideLeave>>,
         TError,
-        {data: BodyType<LeaveDecisionInput>},
+        {id: number;data: BodyType<LeaveDecisionInput>},
         TContext
       > => {
       return useMutation(getDecideLeaveMutationOptions(options));

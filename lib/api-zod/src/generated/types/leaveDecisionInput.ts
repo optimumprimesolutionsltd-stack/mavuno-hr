@@ -8,7 +8,6 @@
 import type { LeaveDecisionInputAction } from './leaveDecisionInputAction';
 
 export interface LeaveDecisionInput {
-  id: number;
   action: LeaveDecisionInputAction;
   note?: string;
 }

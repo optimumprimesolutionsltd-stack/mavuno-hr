@@ -561,7 +561,6 @@ export const LeaveDecisionInputAction = {
 } as const;
 
 export interface LeaveDecisionInput {
-  id: number;
   action: LeaveDecisionInputAction;
   note?: string;
 }
