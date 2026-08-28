@@ -56,8 +56,6 @@ export * from './loanRowFringeBenefit';
 export * from './loanRowRepaymentsItem';
 export * from './loginInput';
 export * from './loginResult';
-export * from './loginResultOrg';
-export * from './loginResultUser';
 export * from './netToGrossInput';
 export * from './netToGrossResult';
 export * from './okResult';

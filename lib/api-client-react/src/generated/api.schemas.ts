@@ -34,24 +34,18 @@ export interface Principal {
   currencyCode: string;
 }
 
-export type LoginResultUser = {
+export interface LoginResult {
   id: number;
-  name: string;
   email: string;
-  role: string;
-  mustChangePassword: boolean;
-};
-
-export type LoginResultOrg = {
-  slug: string;
   name: string;
+  role: string;
+  /** @nullable */
+  employeeId?: number | null;
+  mustChangePassword: boolean;
+  orgSlug: string;
   countryCode: string;
   currencyCode: string;
-};
-
-export interface LoginResult {
-  user: LoginResultUser;
-  org: LoginResultOrg;
+  sessionToken: string;
 }
 
 export interface ChangePasswordInput {
@@ -158,6 +152,10 @@ export interface Employee {
   /** @nullable */
   phone?: string | null;
   gender?: string;
+  /** @nullable */
+  region?: string | null;
+  /** @nullable */
+  educationLevel?: string | null;
   /** @nullable */
   nationalId?: string | null;
   /** @nullable */
@@ -619,6 +617,7 @@ export interface LoanRequest {
   type: string;
   amount: number;
   months: number;
+  interestRateBps: number;
   /** @nullable */
   reason?: string | null;
   status: string;
@@ -731,3 +730,4 @@ export type GetFilings200 = { [key: string]: unknown };
 export type ListAuditLogsParams = {
 limit?: number;
 };
+

@@ -13,6 +13,7 @@ export interface LoanRequest {
   type: string;
   amount: number;
   months: number;
+  interestRateBps: number;
   /** @nullable */
   reason?: string | null;
   status: string;

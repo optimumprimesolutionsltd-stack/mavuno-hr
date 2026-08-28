@@ -896,34 +896,28 @@ components:
 
     LoginResult:
       type: object
-      required: [user, org]
+      required: [id, email, name, role, mustChangePassword, orgSlug, countryCode, currencyCode, sessionToken]
       properties:
-        user:
-          type: object
-          required: [id, name, email, role, mustChangePassword]
-          properties:
-            id:
-              type: integer
-            name:
-              type: string
-            email:
-              type: string
-            role:
-              type: string
-            mustChangePassword:
-              type: boolean
-        org:
-          type: object
-          required: [slug, name, countryCode, currencyCode]
-          properties:
-            slug:
-              type: string
-            name:
-              type: string
-            countryCode:
-              type: string
-            currencyCode:
-              type: string
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        employeeId:
+          type: ["integer", "null"]
+        mustChangePassword:
+          type: boolean
+        orgSlug:
+          type: string
+        countryCode:
+          type: string
+        currencyCode:
+          type: string
+        sessionToken:
+          type: string
 
     ChangePasswordInput:
       type: object
@@ -1075,6 +1069,10 @@ components:
           type: ["string", "null"]
         gender:
           type: string
+        region:
+          type: ["string", "null"]
+        educationLevel:
+          type: ["string", "null"]
         nationalId:
           type: ["string", "null"]
         kraPin:
@@ -1716,7 +1714,7 @@ components:
 
     LoanRequest:
       type: object
-      required: [id, orgId, employeeId, type, amount, months, status, createdAt]
+      required: [id, orgId, employeeId, type, amount, months, interestRateBps, status, createdAt]
       properties:
         id:
           type: integer
@@ -1729,6 +1727,8 @@ components:
         amount:
           type: integer
         months:
+          type: integer
+        interestRateBps:
           type: integer
         reason:
           type: ["string", "null"]

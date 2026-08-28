@@ -5,10 +5,17 @@
  * Zawadi HR & Payroll API
  * OpenAPI spec version: 0.1.0
  */
-import type { LoginResultOrg } from './loginResultOrg';
-import type { LoginResultUser } from './loginResultUser';
 
 export interface LoginResult {
-  user: LoginResultUser;
-  org: LoginResultOrg;
+  id: number;
+  email: string;
+  name: string;
+  role: string;
+  /** @nullable */
+  employeeId?: number | null;
+  mustChangePassword: boolean;
+  orgSlug: string;
+  countryCode: string;
+  currencyCode: string;
+  sessionToken: string;
 }

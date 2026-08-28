@@ -20,6 +20,10 @@ export interface Employee {
   phone?: string | null;
   gender?: string;
   /** @nullable */
+  region?: string | null;
+  /** @nullable */
+  educationLevel?: string | null;
+  /** @nullable */
   nationalId?: string | null;
   /** @nullable */
   kraPin?: string | null;
