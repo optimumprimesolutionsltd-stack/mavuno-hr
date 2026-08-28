@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { loans, loanRequests, employees, organizations } from "@workspace/db/schema";
+import { loans, loanRequests, loanRepayments, employees, organizations } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { toCents } from "../lib/money.js";
@@ -79,15 +79,22 @@ router.get("/", requireAuth("loan:review"), async (req, res, next) => {
       cfg = resolved.config;
     } catch { /* no config — FBT not computable */ }
 
-    const result = rows.map(r => {
+    const result = await Promise.all(rows.map(async (r) => {
+      const repayments = await db.select().from(loanRepayments)
+        .where(and(
+          eq(loanRepayments.loanId, r.loan.id),
+          eq(loanRepayments.orgId, p.orgId),
+        ))
+        .orderBy(desc(loanRepayments.createdAt));
+
       // FBT applies to company loans only (employer-issued, below deemed rate)
       let fringeBenefit: { monthlyBenefit: number; monthlyTax: number } | null = null;
       if (r.loan.type === "company" && cfg) {
         const fbt = computeLoanFringeBenefitTax(r.loan.balance as any, r.loan.interestRateBps, cfg);
         if (fbt.monthlyTax > 0) fringeBenefit = fbt;
       }
-      return { ...r, fringeBenefit };
-    });
+      return { ...r, repayments, fringeBenefit };
+    }));
 
     res.json(result);
   } catch (err) { next(err); }
