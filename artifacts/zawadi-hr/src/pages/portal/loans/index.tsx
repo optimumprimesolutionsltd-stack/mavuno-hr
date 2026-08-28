@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlusCircle, Clock, CheckCircle2, XCircle, Info } from "lucide-react";
 import { LoanRequestDialog } from "./request-dialog";
+import { LoanMonthlySchedule } from "@/pages/admin/loans/monthly-schedule";
 
 function usePortalLoanRequests() {
   return useQuery({
@@ -148,7 +149,9 @@ export function PortalLoans() {
                       </div>
                     )}
 
-                    <h4 className="text-xs font-mono text-muted-foreground mb-3 border-b border-border/30 pb-2">REPAYMENT HISTORY</h4>
+                    <LoanMonthlySchedule loan={row.loan} repayments={row.repayments ?? []} />
+
+                    <h4 className="text-xs font-mono text-muted-foreground mb-3 mt-5 border-b border-border/30 pb-2">REPAYMENT HISTORY</h4>
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader className="bg-muted/10">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useListLoans, useListLoanRequests, getListLoansQueryKey, getListLoanRequestsQueryKey } from "@workspace/api-client-react";
 import { formatMoney, formatDate, formatPercent, fullName } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -7,18 +7,20 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { Coins, Pencil, FileText, ClipboardCheck } from "lucide-react";
+import { Coins, Pencil, FileText, ClipboardCheck, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { IssueLoanDialog } from "./issue-dialog";
 import { EditLoanRequestDialog } from "./edit-request-dialog";
 import { ApproveLoanDialog } from "./approve-dialog";
 import { RequestLoanForDialog } from "./request-for-dialog";
+import { LoanMonthlySchedule } from "./monthly-schedule";
 
 export function LoansAdmin() {
   const [issuingLoan, setIssuingLoan] = useState(false);
   const [requestingFor, setRequestingFor] = useState(false);
   const [editTarget, setEditTarget] = useState<any | null>(null);
   const [approveTarget, setApproveTarget] = useState<{ request: any; employee: any } | null>(null);
+  const [expandedLoanId, setExpandedLoanId] = useState<number | null>(null);
 
   const { data: loans, isLoading: isLoadingLoans } = useListLoans();
   const { data: requests, isLoading: isLoadingRequests } = useListLoanRequests();
@@ -90,38 +92,63 @@ export function LoansAdmin() {
                     <TableHead className="font-mono text-xs text-right">INSTALLMENT</TableHead>
                     <TableHead className="font-mono text-xs text-right">RATE</TableHead>
                     <TableHead className="font-mono text-xs text-right text-amber-500">FRINGE TAX / MO</TableHead>
+                    <TableHead className="font-mono text-xs text-right">MONTHLY PLAN</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoadingLoans ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground font-mono">LOADING LOANS...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground font-mono">LOADING LOANS...</TableCell></TableRow>
                   ) : !loans || loans.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground font-mono">NO ACTIVE LOANS</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground font-mono">NO ACTIVE LOANS</TableCell></TableRow>
                   ) : (
-                    loans.map((row) => (
-                      <TableRow key={row.loan.id} className="hover:bg-muted/20">
-                        <TableCell>
-                          <div className="font-medium text-sm">{fullName(row.employee)}</div>
-                          <div className="text-xs text-muted-foreground font-mono">{row.employee.empNo}</div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="font-mono text-[10px] capitalize">{row.loan.type}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm">{formatMoney(row.loan.principal)}</TableCell>
-                        <TableCell className="text-right font-mono text-sm text-primary font-bold">{formatMoney(row.loan.balance)}</TableCell>
-                        <TableCell className="text-right font-mono text-sm text-muted-foreground">{formatMoney(row.loan.monthlyInstallment)}</TableCell>
-                        <TableCell className="text-right font-mono text-sm text-muted-foreground">{formatPercent(row.loan.interestRateBps)}</TableCell>
-                        <TableCell className="text-right font-mono text-sm">
-                          {row.fringeBenefit ? (
-                            <span className="text-amber-500 font-medium">{formatMoney((row.fringeBenefit as any).monthlyTax)}</span>
-                          ) : row.loan.type === "company" ? (
-                            <span className="text-muted-foreground text-xs">—</span>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">N/A</span>
+                    loans.map((row) => {
+                      const isExpanded = expandedLoanId === row.loan.id;
+                      return (
+                        <Fragment key={row.loan.id}>
+                          <TableRow key={row.loan.id} className="hover:bg-muted/20">
+                            <TableCell>
+                              <div className="font-medium text-sm">{fullName(row.employee)}</div>
+                              <div className="text-xs text-muted-foreground font-mono">{row.employee.empNo}</div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="font-mono text-[10px] capitalize">{row.loan.type}</Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-sm">{formatMoney(row.loan.principal)}</TableCell>
+                            <TableCell className="text-right font-mono text-sm text-primary font-bold">{formatMoney(row.loan.balance)}</TableCell>
+                            <TableCell className="text-right font-mono text-sm text-muted-foreground">{formatMoney(row.loan.monthlyInstallment)}</TableCell>
+                            <TableCell className="text-right font-mono text-sm text-muted-foreground">{formatPercent(row.loan.interestRateBps)}</TableCell>
+                            <TableCell className="text-right font-mono text-sm">
+                              {row.fringeBenefit ? (
+                                <span className="text-amber-500 font-medium">{formatMoney((row.fringeBenefit as any).monthlyTax)}</span>
+                              ) : row.loan.type === "company" ? (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">N/A</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 gap-1 px-2 font-mono text-[10px]"
+                                aria-expanded={isExpanded}
+                                onClick={() => setExpandedLoanId(isExpanded ? null : row.loan.id)}
+                              >
+                                {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                                {isExpanded ? "HIDE" : "VIEW"}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                          {isExpanded && (
+                            <TableRow key={`${row.loan.id}-schedule`} className="bg-muted/5">
+                              <TableCell colSpan={8} className="p-3">
+                                <LoanMonthlySchedule loan={row.loan} repayments={row.repayments as any[]} />
+                              </TableCell>
+                            </TableRow>
                           )}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                        </Fragment>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
