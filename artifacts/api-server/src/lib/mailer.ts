@@ -1,28 +1,10 @@
 import nodemailer from "nodemailer";
-import crypto from "node:crypto";
 import { logger } from "./logger.js";
 
 // Gmail app passwords are often copied with spaces between groups of
 // characters. Gmail ignores those spaces, but nodemailer does not.
 const gmailUser = process.env.GMAIL_USER?.trim() ?? "";
 const gmailAppPassword = process.env.GMAIL_APP_PASSWORD?.replace(/\s/g, "") ?? "";
-
-// TEMPORARY DEBUG LOGGING — remove after diagnosing SMTP auth failure.
-// Logs only length and a hash prefix, never the raw password.
-const debugHash = crypto
-  .createHash("sha256")
-  .update(gmailAppPassword)
-  .digest("hex")
-  .slice(0, 12);
-logger.info(
-  {
-    gmailUserLength: gmailUser.length,
-    gmailUserLastChars: gmailUser.slice(-6),
-    passwordLength: gmailAppPassword.length,
-    passwordHashPrefix: debugHash,
-  },
-  "TEMP-DEBUG: gmail credentials as seen by process"
-);
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
