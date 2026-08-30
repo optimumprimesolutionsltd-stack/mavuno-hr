@@ -18,9 +18,10 @@ import {
   Landmark,
   Loader2,
   ReceiptText,
+  Users,
 } from "lucide-react";
 
-type DownloadKey = "p9" | "p10" | "muster" | "p10a" | "nssf" | "shif" | "ahl";
+type DownloadKey = "p9" | "p10" | "muster" | "p10a" | "nssf" | "shif" | "ahl" | "leaveBalance";
 
 function statusClass(status: string): string {
   const classes: Record<string, string> = {
@@ -66,6 +67,46 @@ export function Reports() {
     successMessage: string,
   ) => {
     if (!selectedRun) return;
+    setLoading(key);
+    try {
+      const token = sessionStorage.getItem("zawadi_session_token");
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await fetch(path, { headers });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error ?? "The report could not be generated.");
+      }
+      const blob = await response.blob();
+      if (blob.size === 0) throw new Error("The generated report was empty.");
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      URL.revokeObjectURL(url);
+      document.body.removeChild(anchor);
+      toast({ title: "Download ready", description: successMessage });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Report download failed",
+        description: error?.message ?? "The report could not be generated.",
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  // Like downloadBlob, but not tied to a selected payroll run — for reports
+  // (e.g. leave balances) that reflect current org-wide state rather than
+  // one payroll cycle.
+  const downloadOrgReport = async (
+    key: DownloadKey,
+    path: string,
+    filename: string,
+    successMessage: string,
+  ) => {
     setLoading(key);
     try {
       const token = sessionStorage.getItem("zawadi_session_token");
@@ -245,6 +286,22 @@ export function Reports() {
           loading={loading === "muster"}
           disabled={!canDownloadMusterRoll}
           onClick={() => downloadBlob("muster", `/api/payroll/${selectedRun?.id}/muster-roll.csv`, `Muster_Roll_${selectedRun?.period ?? "payroll"}.csv`, "Your payroll muster roll is ready.")}
+        />
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-base font-semibold">Leave</h2>
+          <p className="text-sm text-muted-foreground">A current snapshot of every active employee's leave entitlement, usage, and remaining balance — not tied to a specific payroll run.</p>
+        </div>
+        <ReportCard
+          icon={<Users className="h-5 w-5 text-cyan-400" />}
+          title="Leave balance report"
+          description="Entitlement, days taken this year, and remaining balance for every active employee."
+          actionLabel="DOWNLOAD LEAVE BALANCES"
+          loading={loading === "leaveBalance"}
+          disabled={false}
+          onClick={() => downloadOrgReport("leaveBalance", "/api/leaves/balance-report.csv", `Leave_Balance_Report_${new Date().toISOString().slice(0, 10)}.csv`, "Your leave balance report is ready.")}
         />
       </section>
 

@@ -7,6 +7,7 @@ import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-aut
 import { writeAudit } from "../lib/audit.js";
 import { can } from "../lib/rbac.js";
 import { HttpError } from "../lib/http-error.js";
+import { fullName } from "../lib/employee-name.js";
 
 const router = Router();
 
@@ -80,6 +81,56 @@ router.get("/", requireAuth("leave:admin"), async (req, res, next) => {
     });
 
     res.json(result);
+  } catch (err) { next(err); }
+});
+
+// ── GET /balance-report.csv — org-wide leave balance snapshot ───────────────
+router.get("/balance-report.csv", requireAuth("leave:admin"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+
+    const staff = await db.select()
+      .from(employees)
+      .where(and(eq(employees.orgId, p.orgId), eq(employees.status, "active")))
+      .orderBy(employees.empNo);
+    if (staff.length === 0) throw new HttpError(404, "No active employees found");
+
+    const approvedAnnual = await db.select({
+        employeeId: leaveRequests.employeeId,
+        days: leaveRequests.days,
+        startDate: leaveRequests.startDate,
+      })
+      .from(leaveRequests)
+      .where(and(
+        eq(leaveRequests.orgId, p.orgId),
+        eq(leaveRequests.status, "approved"),
+        eq(leaveRequests.type, "annual"),
+      ));
+
+    const thisYear = new Date().getFullYear().toString();
+    const takenByEmployee: Record<number, number> = {};
+    for (const l of approvedAnnual) {
+      if (!l.startDate?.startsWith(thisYear)) continue;
+      takenByEmployee[l.employeeId] =
+        (takenByEmployee[l.employeeId] ?? 0) + Math.round((l.days ?? 0) / 10);
+    }
+
+    const headers = ["Employee No", "Employee", "Position", "Entitlement (days)", "Taken (days)", "Remaining (days)"];
+    const escapeCsv = (value: string | number) => `"${String(value).replace(/"/g, "\"\"")}"`;
+
+    const dataRows = staff.map((emp) => {
+      const entitlement = Math.round((emp.leaveBalance ?? 210) / 10);
+      const taken = takenByEmployee[emp.id] ?? 0;
+      const remaining = Math.max(0, entitlement - taken);
+      return [emp.empNo, fullName(emp), emp.position ?? "", entitlement, taken, remaining];
+    });
+
+    const csv = [headers, ...dataRows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
+    const today = new Date().toISOString().slice(0, 10);
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="Leave_Balance_Report_${today}.csv"`);
+    res.send(`\ufeff${csv}`);
   } catch (err) { next(err); }
 });
 
