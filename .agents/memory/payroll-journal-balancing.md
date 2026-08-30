@@ -1,6 +1,6 @@
 ---
 name: Payroll journal balancing
-description: Double-entry treatment for Zawadi HR payroll general-ledger reports
+description: Double-entry treatment for Mavuno HR payroll general-ledger reports
 ---
 
 The payroll GL must derive its journal from payslip line items, not only payroll-run summary fields. Debit gross payroll and employer contributions; credit every employee and employer liability, every employee deduction, net pay, and a non-cash benefit clearing line when applicable. For paid runs, net pay credits bank/cash; otherwise it credits net salaries payable.

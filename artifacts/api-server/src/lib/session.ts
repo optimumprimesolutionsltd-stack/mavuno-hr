@@ -4,7 +4,7 @@ import { db } from "@workspace/db";
 import { sessions, users, organizations, type Role } from "@workspace/db/schema";
 import type { Request, Response } from "express";
 
-const COOKIE = "zawadi_session";
+const COOKIE = "mavuno_session";
 const MAX_AGE_S = 60 * 60 * 12; // 12h
 
 function requireSecret(): string {

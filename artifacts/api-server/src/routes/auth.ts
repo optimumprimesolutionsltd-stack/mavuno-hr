@@ -107,7 +107,7 @@ router.post("/login", async (req, res, next) => {
 });
 
 /**
- * Exchange a verified Clerk session for a normal Zawadi session.
+ * Exchange a verified Clerk session for a normal Mavuno session.
  * Google identity alone never creates an organization, role, or employee link.
  * An administrator must first create the local account with the same email.
  */

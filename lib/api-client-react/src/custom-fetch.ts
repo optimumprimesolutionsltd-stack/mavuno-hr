@@ -361,7 +361,7 @@ export async function customFetch<T = unknown>(
     // picked up even if setAuthTokenGetter was not called in this module
     // instance (can happen with Vite's module deduplication in dev).
     if (!token && typeof sessionStorage !== "undefined") {
-      token = sessionStorage.getItem("zawadi_session_token");
+      token = sessionStorage.getItem("mavuno_session_token");
     }
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
