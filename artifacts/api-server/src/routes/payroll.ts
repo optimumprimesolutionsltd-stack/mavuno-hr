@@ -10,7 +10,7 @@ import { computePayslip } from "../lib/payroll.js";
 import { resolveConfig } from "../lib/statutory-resolve.js";
 import { canApproveRun, can } from "../lib/rbac.js";
 import { HttpError } from "../lib/http-error.js";
-import { getSafeMailError, sendPayslipEmail, sendStatutoryRemittanceEmail } from "../lib/mailer.js";
+import { getSafeMailError, getSafeResendError, sendPayslipEmail, sendStatutoryRemittanceEmail } from "../lib/mailer.js";
 import { logger } from "../lib/logger.js";
 import { createHash } from "crypto";
 import { fullName } from "../lib/employee-name.js";
@@ -1372,7 +1372,7 @@ router.post("/:id/email-payslips", requireAuth("payroll:read"), async (req, res,
         sent++;
       } catch (e: any) {
         logger.warn({ err: e, employeeNo: emp.empNo }, "payslip: failed to send email");
-        errors.push(`${emp.empNo}: ${getSafeMailError(e)}`);
+        errors.push(`${emp.empNo}: ${getSafeResendError(e)}`);
       }
     }
 

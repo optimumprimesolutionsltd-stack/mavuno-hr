@@ -23,6 +23,7 @@
     "express": "^5.2.1",
     "http-proxy-middleware": "^4.2.0",
     "nodemailer": "^9.0.3",
+    "resend": "^6.25.0",
     "pdf-lib": "^1.17.1",
     "pdfkit": "^0.19.1",
     "pino": "^9.14.0",

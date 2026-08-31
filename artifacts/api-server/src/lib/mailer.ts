@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import { logger } from "./logger.js";
 
 // Gmail app passwords are often copied with spaces between groups of
@@ -15,6 +16,41 @@ const transporter = nodemailer.createTransport({
 });
 
 const FROM = () => `"Mavuno HR" <${gmailUser}>`;
+
+// Resend handles the two mail types whose volume scales with the number of
+// clients and employees — payment receipts and payslips — so a single
+// Gmail account (with its own sending-rate limits) never becomes a
+// bottleneck as the org grows. Password resets and internal filing
+// confirmations stay on Gmail above: low, predictable volume, and no
+// benefit from moving them.
+const resendApiKey = process.env.RESEND_API_KEY?.trim() ?? "";
+const resendFromAddress = process.env.RESEND_FROM_EMAIL?.trim() ?? "";
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
+const RESEND_FROM = () => `Mavuno HR <${resendFromAddress}>`;
+
+/**
+ * Resend returns { message, error } rather than throwing, distinct from
+ * nodemailer/Gmail's error shapes. Mirrors getSafeMailError below: log the
+ * real detail, show the user something actionable but not leaking provider
+ * internals. Resend's docs group errors by HTTP status rather than a fixed
+ * set of names, so this checks the message text for the cases worth calling
+ * out specifically and otherwise falls back to a generic message.
+ */
+export function getSafeResendError(error: unknown): string {
+  if (!resendApiKey || !resendFromAddress) {
+    return "Email delivery is not configured. Set the Resend API key and sender address, then try again.";
+  }
+  const err = error as { message?: string } | null;
+  const message = (err?.message ?? "").toLowerCase();
+
+  if (message.includes("domain") || message.includes("from")) {
+    return "The sender address is not verified with Resend. Verify the sending domain, then try again.";
+  }
+  if (message.includes("rate limit")) {
+    return "Too many emails were sent in a short period. Please try again shortly.";
+  }
+  return "The email service could not deliver this message. Check the Resend account settings and try again.";
+}
 
 /**
  * SMTP providers return detailed authentication and connection errors. Those
@@ -134,14 +170,18 @@ export async function sendReceiptEmail(opts: {
 
   const text = `MAVUNO HR — PAYMENT RECEIPT\n\nReceipt No: ${receiptNo}\nCompany: ${orgName}\nPlan: ${plan}\nPeriod: ${period}\nAmount: ${amountKes}\nMethod: ${methodLabel[method] ?? method}\n${reference ? `Reference: ${reference}\n` : ""}Verified: ${verifiedAt}\n\nThank you for your payment.`;
 
-  await transporter.sendMail({
-    from: FROM(),
+  if (!resend) {
+    throw new Error("RESEND_NOT_CONFIGURED");
+  }
+  const { error } = await resend.emails.send({
+    from: RESEND_FROM(),
     to,
     subject: `[Mavuno HR] Payment Receipt ${receiptNo} — ${period}`,
     html,
     text,
   });
-  logger.info({ to, receiptNo }, "receipt email sent");
+  if (error) { const e = new Error(error.message ?? "Resend error"); e.name = error.name ?? "ResendError"; throw e; }
+  logger.info({ to, receiptNo }, "receipt email sent via Resend");
 }
 
 // ── Password reset ────────────────────────────────────────────────────────────
@@ -215,8 +255,11 @@ export async function sendPayslipEmail(opts: {
   const { to, empName, period, orgName, pdfBuffer } = opts;
   const firstName = empName.split(" ")[0];
 
-  await transporter.sendMail({
-    from: FROM(),
+  if (!resend) {
+    throw new Error("RESEND_NOT_CONFIGURED");
+  }
+  const { error } = await resend.emails.send({
+    from: RESEND_FROM(),
     to,
     subject: `Your Payslip — ${period} | ${orgName}`,
     html: `
@@ -278,10 +321,10 @@ export async function sendPayslipEmail(opts: {
     attachments: [{
       filename: `${empName.replace(/ /g, "_")}_Payslip_${period}.pdf`,
       content: pdfBuffer,
-      contentType: "application/pdf",
     }],
   });
-  logger.info({ to, period }, "mailer: payslip email sent");
+  if (error) { const e = new Error(error.message ?? "Resend error"); e.name = error.name ?? "ResendError"; throw e; }
+  logger.info({ to, period }, "mailer: payslip email sent via Resend");
 }
 
 // ── Statutory remittance confirmation ────────────────────────────────────────
