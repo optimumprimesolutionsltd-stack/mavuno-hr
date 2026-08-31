@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowRight,
+  Calculator,
   Download,
   FileArchive,
   FileCheck2,
@@ -21,7 +22,7 @@ import {
   Users,
 } from "lucide-react";
 
-type DownloadKey = "p9" | "p10" | "muster" | "p10a" | "nssf" | "shif" | "ahl" | "leaveBalance";
+type DownloadKey = "p9" | "p10" | "muster" | "summary" | "p10a" | "nssf" | "shif" | "ahl" | "leaveBalance";
 
 function statusClass(status: string): string {
   const classes: Record<string, string> = {
@@ -286,6 +287,15 @@ export function Reports() {
           loading={loading === "muster"}
           disabled={!canDownloadMusterRoll}
           onClick={() => downloadBlob("muster", `/api/payroll/${selectedRun?.id}/muster-roll.csv`, `Muster_Roll_${selectedRun?.period ?? "payroll"}.csv`, "Your payroll muster roll is ready.")}
+        />
+        <ReportCard
+          icon={<Calculator className="h-5 w-5 text-amber-400" />}
+          title="Payroll summary"
+          description="A one-page cost summary for the selected run — total gross, each deduction type, net pay, and employer NSSF/Housing Levy contributions."
+          actionLabel="DOWNLOAD SUMMARY"
+          loading={loading === "summary"}
+          disabled={!canDownloadMusterRoll}
+          onClick={() => downloadBlob("summary", `/api/payroll/${selectedRun?.id}/summary.csv`, `Payroll_Summary_${selectedRun?.period ?? "payroll"}.csv`, "Your payroll summary is ready.")}
         />
       </section>
 

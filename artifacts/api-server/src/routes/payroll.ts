@@ -928,6 +928,100 @@ router.get("/:id/muster-roll.csv", requireAuth("payroll:read"), async (req, res,
   } catch (err) { next(err); }
 });
 
+// ── GET /:id/summary.csv — one-page cost summary for one payroll run ────────
+// Distinct from the muster roll: this is the run's totals at a glance
+// (including employer-side statutory contributions), not a line per employee.
+router.get("/:id/summary.csv", requireAuth("payroll:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const runId = Number(req.params.id);
+    const [run] = await db.select().from(payrollRuns)
+      .where(and(eq(payrollRuns.id, runId), eq(payrollRuns.orgId, p.orgId)));
+    if (!run) throw new HttpError(404, "Payroll run not found");
+    if (run.status === "reversed") {
+      throw new HttpError(422, "A summary is not available for a reversed payroll run");
+    }
+
+    const rows = await db.select({ slip: payslips })
+      .from(payslips)
+      .where(and(eq(payslips.runId, runId), eq(payslips.orgId, p.orgId)));
+    if (rows.length === 0) throw new HttpError(404, "No payslips found for this payroll run");
+
+    const extractInsurancePremium = (slip: typeof payslips.$inferSelect) =>
+      ((slip.breakdown ?? {}) as { insurancePremium?: number }).insurancePremium ?? 0;
+
+    const totals = rows.reduce((sum, { slip }) => ({
+      employeeCount: sum.employeeCount + 1,
+      basic: sum.basic + slip.basic,
+      allowances: sum.allowances + slip.allowances,
+      gross: sum.gross + slip.gross,
+      paye: sum.paye + slip.paye,
+      nssfEmployee: sum.nssfEmployee + slip.nssfEmployee,
+      nssfEmployer: sum.nssfEmployer + slip.nssfEmployer,
+      shif: sum.shif + slip.shif,
+      housingLevyEmployee: sum.housingLevyEmployee + slip.housingLevyEmployee,
+      housingLevyEmployer: sum.housingLevyEmployer + slip.housingLevyEmployer,
+      pension: sum.pension + slip.pension,
+      helb: sum.helb + slip.helb,
+      sacco: sum.sacco + slip.sacco,
+      loan: sum.loan + slip.loanDeduction,
+      insurancePremium: sum.insurancePremium + extractInsurancePremium(slip),
+      otherDeductions: sum.otherDeductions + slip.adjustmentDeductions,
+      totalDeductions: sum.totalDeductions + slip.totalDeductions,
+      netPay: sum.netPay + slip.netPay,
+    }), {
+      employeeCount: 0, basic: 0, allowances: 0, gross: 0, paye: 0,
+      nssfEmployee: 0, nssfEmployer: 0, shif: 0,
+      housingLevyEmployee: 0, housingLevyEmployer: 0,
+      pension: 0, helb: 0, sacco: 0, loan: 0, insurancePremium: 0,
+      otherDeductions: 0, totalDeductions: 0, netPay: 0,
+    });
+
+    const toKes = (cents: number) => (cents / 100).toFixed(2);
+    const escapeCsv = (value: string | number) => `"${String(value).replace(/"/g, "\"\"")}"`;
+    const employerContributions = totals.nssfEmployer + totals.housingLevyEmployer;
+    const totalEmployerCost = totals.gross + employerContributions;
+
+    const lines: [string, string][] = [
+      ["Payroll Period", run.period],
+      ["Employees Paid", String(totals.employeeCount)],
+      ["", ""],
+      ["EARNINGS", ""],
+      ["Total Basic Pay", toKes(totals.basic)],
+      ["Total Allowances", toKes(totals.allowances)],
+      ["Total Gross Pay", toKes(totals.gross)],
+      ["", ""],
+      ["EMPLOYEE DEDUCTIONS", ""],
+      ["PAYE", toKes(totals.paye)],
+      ["NSSF (Employee)", toKes(totals.nssfEmployee)],
+      ["SHIF", toKes(totals.shif)],
+      ["Housing Levy (Employee)", toKes(totals.housingLevyEmployee)],
+      ["Pension", toKes(totals.pension)],
+      ["HELB", toKes(totals.helb)],
+      ["SACCO", toKes(totals.sacco)],
+      ["Loan Repayments", toKes(totals.loan)],
+      ["Insurance Premium", toKes(totals.insurancePremium)],
+      ["Other Deductions", toKes(totals.otherDeductions)],
+      ["Total Deductions", toKes(totals.totalDeductions)],
+      ["", ""],
+      ["NET PAY", toKes(totals.netPay)],
+      ["", ""],
+      ["EMPLOYER CONTRIBUTIONS (not deducted from employees)", ""],
+      ["NSSF (Employer)", toKes(totals.nssfEmployer)],
+      ["Housing Levy (Employer)", toKes(totals.housingLevyEmployer)],
+      ["Total Employer Contributions", toKes(employerContributions)],
+      ["", ""],
+      ["TOTAL EMPLOYER COST (Gross Pay + Employer Contributions)", toKes(totalEmployerCost)],
+    ];
+
+    const csv = lines.map(([label, value]) => `${escapeCsv(label)},${escapeCsv(value)}`).join("\r\n");
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="Payroll_Summary_${run.period}.csv"`);
+    res.send(`\ufeff${csv}`);
+  } catch (err) { next(err); }
+});
+
 // ── GET /:id/employees/:employeeId/p9-pdf — annual P9 for one employee ─────
 router.get("/:id/employees/:employeeId/p9-pdf", requireAuth("payroll:read"), async (req, res, next) => {
   try {
