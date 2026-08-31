@@ -1,10 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, CheckCircle2, Clock, Loader2, Receipt, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { CreditCard, CheckCircle2, Clock, Loader2, Receipt, Smartphone } from "lucide-react";
 
 interface BillingPayment {
   id: number; orgId: number; receiptNo: string; amount: number;
@@ -47,8 +54,116 @@ function useBillingMy() {
   });
 }
 
+function PayNowDialog({ open, onOpenChange, monthlyCharge }: {
+  open: boolean; onOpenChange: (open: boolean) => void; monthlyCharge: number;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [amountKes, setAmountKes] = useState(monthlyCharge > 0 ? String(monthlyCharge / 100) : "");
+  const [pollingPaymentId, setPollingPaymentId] = useState<number | null>(null);
+
+  const initiate = useMutation({
+    mutationFn: () =>
+      customFetch("/api/billing/mpesa/initiate", {
+        method: "POST",
+        body: JSON.stringify({
+          phoneNumber,
+          amount: Math.round(Number(amountKes) * 100),
+          period: new Date().toLocaleDateString("en-KE", { month: "long", year: "numeric" }),
+        }),
+      }) as Promise<{ paymentId: number; message: string }>,
+    onSuccess: (data) => {
+      toast({ title: "Check your phone", description: data.message });
+      setPollingPaymentId(data.paymentId);
+    },
+    onError: (err: any) => {
+      toast({ variant: "destructive", title: "Could not start payment", description: err?.data?.error ?? err?.message });
+    },
+  });
+
+  // Poll for the callback result while a payment is in flight — STK Push is
+  // asynchronous, so the dialog needs to find out once the customer has
+  // entered their PIN (or cancelled/timed out) on their phone.
+  useEffect(() => {
+    if (!pollingPaymentId) return;
+    const interval = setInterval(async () => {
+      try {
+        const result = await customFetch(`/api/billing/mpesa/${pollingPaymentId}/status`) as { status: string };
+        if (result.status === "verified") {
+          clearInterval(interval);
+          toast({ title: "Payment received", description: "Your account has been activated." });
+          queryClient.invalidateQueries({ queryKey: ["billing-my"] });
+          setPollingPaymentId(null);
+          onOpenChange(false);
+        } else if (result.status === "failed") {
+          clearInterval(interval);
+          toast({ variant: "destructive", title: "Payment not completed", description: "The M-Pesa prompt was cancelled or timed out. You can try again." });
+          setPollingPaymentId(null);
+        }
+      } catch { /* keep polling — a transient error here shouldn't stop the poll */ }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [pollingPaymentId]);
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!initiate.isPending && !pollingPaymentId) onOpenChange(o); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Smartphone className="h-5 w-5 text-primary" /> Pay with M-Pesa</DialogTitle>
+          <DialogDescription>
+            You'll receive an STK Push prompt on your phone. Enter your M-Pesa PIN there to complete payment.
+          </DialogDescription>
+        </DialogHeader>
+
+        {pollingPaymentId ? (
+          <div className="flex flex-col items-center gap-3 py-8 text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Waiting for you to complete the payment on your phone…</p>
+          </div>
+        ) : (
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-mono text-muted-foreground">M-PESA PHONE NUMBER</label>
+              <Input
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="07XXXXXXXX"
+                disabled={initiate.isPending}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-mono text-muted-foreground">AMOUNT (KES)</label>
+              <Input
+                type="number"
+                min={1}
+                value={amountKes}
+                onChange={(e) => setAmountKes(e.target.value)}
+                disabled={initiate.isPending}
+              />
+            </div>
+          </div>
+        )}
+
+        {!pollingPaymentId && (
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={initiate.isPending}>Cancel</Button>
+            <Button
+              onClick={() => initiate.mutate()}
+              disabled={initiate.isPending || !phoneNumber || !amountKes || Number(amountKes) <= 0}
+            >
+              {initiate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send Payment Request"}
+            </Button>
+          </DialogFooter>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function AdminBilling() {
   const { data, isLoading } = useBillingMy();
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
 
   const totalPaid = (data?.payments ?? [])
     .filter((r) => r.payment.status === "verified")
@@ -88,6 +203,11 @@ export function AdminBilling() {
               <p className="text-2xl font-bold font-mono text-primary">
                 {(data?.org?.monthlyCharge ?? 0) > 0 ? fmtKes(data?.org?.monthlyCharge ?? 0) : <span className="text-yellow-400">FREE (Trial)</span>}
               </p>
+              {(data?.org?.monthlyCharge ?? 0) > 0 && (
+                <Button size="sm" className="mt-1 gap-2" onClick={() => setPayDialogOpen(true)}>
+                  <Smartphone className="h-4 w-4" /> Pay Now
+                </Button>
+              )}
             </div>
             <div className="space-y-1 text-right">
               <p className="text-xs font-mono text-muted-foreground">TOTAL PAID</p>
@@ -163,6 +283,12 @@ export function AdminBilling() {
           </p>
         </>
       )}
+
+      <PayNowDialog
+        open={payDialogOpen}
+        onOpenChange={setPayDialogOpen}
+        monthlyCharge={data?.org?.monthlyCharge ?? 0}
+      />
     </div>
   );
 }

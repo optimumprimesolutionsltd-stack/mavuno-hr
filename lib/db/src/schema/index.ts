@@ -375,16 +375,27 @@ export const billingPayments = pgTable("billing_payments", {
   amount: money("amount").notNull(),
   period: text("period").notNull(),              // e.g. "July 2026" or "Annual 2026"
   method: text("method").notNull().default("bank_transfer"), // mpesa | bank_transfer | cash | cheque | other
-  reference: text("reference"),                  // M-Pesa code / bank ref etc.
+  reference: text("reference"),                  // M-Pesa receipt number / bank ref etc.
   description: text("description"),
   status: text("status").notNull().default("pending"), // pending | verified | failed
   verifiedByUserId: integer("verified_by_user_id").references(() => users.id),
   verifiedAt: timestamp("verified_at"),
   receiptSentAt: timestamp("receipt_sent_at"),
+  // M-Pesa STK Push tracking — populated only for method: "mpesa" payments initiated
+  // in-app. checkoutRequestId is Safaricom's handle for matching the async callback
+  // back to this row; mpesaReceiptNumber is the actual M-Pesa transaction code
+  // (e.g. "SFC1A2B3C4"), unique so a duplicate/replayed callback can never credit
+  // the same M-Pesa transaction twice.
+  checkoutRequestId: text("checkout_request_id"),
+  merchantRequestId: text("merchant_request_id"),
+  mpesaReceiptNumber: text("mpesa_receipt_number"),
+  phoneNumber: text("phone_number"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [
   index("billing_org_idx").on(t.orgId),
   uniqueIndex("billing_receipt_no_uq").on(t.receiptNo),
+  uniqueIndex("billing_checkout_request_uq").on(t.checkoutRequestId),
+  uniqueIndex("billing_mpesa_receipt_uq").on(t.mpesaReceiptNumber),
 ]);
 
 export const passwordResetTokens = pgTable("password_reset_tokens", {

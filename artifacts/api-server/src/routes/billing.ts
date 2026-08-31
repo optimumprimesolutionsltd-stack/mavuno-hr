@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, isNull } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   billingPayments, organizations, users,
@@ -8,6 +8,10 @@ import {
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
 import { sendReceiptEmail } from "../lib/mailer.js";
+import {
+  initiateStkPush, queryTransactionStatus, isAllowedCallbackIp, accountReferenceFor,
+} from "../lib/mpesa.js";
+import { logger } from "../lib/logger.js";
 import type { Request, Response, NextFunction } from "express";
 
 const router = Router();
@@ -127,15 +131,24 @@ router.post("/:id/verify", ...requireSuperAdmin(), async (req, res, next) => {
 
     const now = new Date();
 
-    // Update status
-    const [updated] = await db.update(billingPayments)
-      .set({
-        status: "verified",
-        verifiedByUserId: p.userId,
-        verifiedAt: now,
-      })
-      .where(eq(billingPayments.id, id))
-      .returning();
+    // Update status, and reactivate the org in the same transaction — a
+    // verified payment should never leave the org sitting suspended.
+    const [updated] = await db.transaction(async (tx) => {
+      const [payment] = await tx.update(billingPayments)
+        .set({
+          status: "verified",
+          verifiedByUserId: p.userId,
+          verifiedAt: now,
+        })
+        .where(eq(billingPayments.id, id))
+        .returning();
+      if (row.org.status !== "active") {
+        await tx.update(organizations)
+          .set({ status: "active" })
+          .where(eq(organizations.id, row.org.id));
+      }
+      return [payment];
+    });
 
     // Find company admin email(s) to send receipt
     const adminUsers = await db
@@ -248,6 +261,184 @@ router.get("/my", requireAuth("org:admin"), async (req, res, next) => {
 
     res.json({ org, payments });
   } catch (err) { next(err); }
+});
+
+// ── POST /api/billing/mpesa/initiate — company admin: pay via M-Pesa STK Push ─
+const initiateSchema = z.object({
+  amount: z.number().int().positive(),  // KES cents
+  phoneNumber: z.string().min(9).max(15),
+  period: z.string().min(1).max(100),
+});
+
+router.post("/mpesa/initiate", requireAuth("org:admin"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const parsed = initiateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return;
+    }
+    const d = parsed.data;
+
+    const stk = await initiateStkPush({
+      orgId: p.orgId,
+      amount: d.amount / 100, // Safaricom's Amount is whole KES, not cents
+      phoneNumber: d.phoneNumber,
+      transactionDesc: "Mavuno HR",
+    });
+
+    // Placeholder receipt no, same pattern as the manual-entry endpoint —
+    // the real number is assigned once the payment is confirmed.
+    const [payment] = await db.insert(billingPayments).values({
+      orgId: p.orgId,
+      receiptNo: "RCP-PENDING",
+      amount: d.amount,
+      period: d.period,
+      method: "mpesa",
+      status: "pending",
+      checkoutRequestId: stk.checkoutRequestId,
+      merchantRequestId: stk.merchantRequestId,
+      phoneNumber: d.phoneNumber,
+    }).returning();
+
+    res.status(202).json({
+      paymentId: payment.id,
+      checkoutRequestId: stk.checkoutRequestId,
+      message: stk.customerMessage || "Check your phone to complete the M-Pesa payment.",
+    });
+  } catch (err) { next(err); }
+});
+
+// ── GET /api/billing/mpesa/:id/status — company admin: poll a pending payment ─
+router.get("/mpesa/:id/status", requireAuth("org:admin"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+    if (isNaN(id)) throw new HttpError(400, "Invalid payment id");
+
+    const [payment] = await db.select().from(billingPayments)
+      .where(and(eq(billingPayments.id, id), eq(billingPayments.orgId, p.orgId)))
+      .limit(1);
+    if (!payment) throw new HttpError(404, "Payment not found");
+
+    res.json({ status: payment.status, mpesaReceiptNumber: payment.mpesaReceiptNumber });
+  } catch (err) { next(err); }
+});
+
+// ── POST /api/billing/mpesa/callback — Safaricom posts the STK Push result ────
+// Public endpoint (Safaricom cannot authenticate as a user). Never credits a
+// payment on the strength of this POST body alone — it only uses the body to
+// find which payment to look up, then independently re-verifies via the
+// Transaction Status API before crediting anything. This closes both gaps
+// flagged from the earlier TallyBill build: idempotency (unique index on
+// mpesaReceiptNumber + an explicit already-verified check) and blind trust
+// of an unauthenticated callback payload.
+router.post("/mpesa/callback", async (req, res) => {
+  // Always acknowledge quickly — Safaricom retries on non-200/slow responses,
+  // and retried callbacks are exactly what the idempotency checks below guard
+  // against, so acknowledging early is safe.
+  res.status(200).json({ ResultCode: 0, ResultDesc: "Accepted" });
+
+  try {
+    const ip = getIp(req);
+    if (!isAllowedCallbackIp(ip ?? "")) {
+      logger.warn({ ip }, "mpesa: callback rejected — IP not in configured allowlist");
+      return;
+    }
+
+    const body = req.body as any;
+    const stkCallback = body?.Body?.stkCallback;
+    if (!stkCallback?.CheckoutRequestID) {
+      logger.warn({ body }, "mpesa: callback missing CheckoutRequestID, ignoring");
+      return;
+    }
+    const checkoutRequestId: string = stkCallback.CheckoutRequestID;
+
+    const [payment] = await db.select().from(billingPayments)
+      .where(eq(billingPayments.checkoutRequestId, checkoutRequestId))
+      .limit(1);
+    if (!payment) {
+      logger.warn({ checkoutRequestId }, "mpesa: callback for unknown checkoutRequestId");
+      return;
+    }
+    if (payment.status === "verified") {
+      logger.info({ checkoutRequestId }, "mpesa: callback for already-verified payment, ignoring (idempotent)");
+      return;
+    }
+
+    if (Number(stkCallback.ResultCode) !== 0) {
+      await db.update(billingPayments)
+        .set({ status: "failed" })
+        .where(eq(billingPayments.id, payment.id));
+      logger.info({ checkoutRequestId, resultDesc: stkCallback.ResultDesc }, "mpesa: payment not completed by customer");
+      return;
+    }
+
+    // Independently re-verify with Safaricom rather than trusting the
+    // callback body's own metadata items for the credited amount/receipt.
+    const verification = await queryTransactionStatus(checkoutRequestId);
+    if (verification.resultCode !== "0") {
+      logger.warn({ checkoutRequestId, verification }, "mpesa: callback claimed success but status query disagrees, not crediting");
+      return;
+    }
+
+    const items: { Name: string; Value?: string | number }[] =
+      stkCallback.CallbackMetadata?.Item ?? [];
+    const findItem = (name: string) => items.find((i) => i.Name === name)?.Value;
+    const mpesaReceiptNumber = String(findItem("MpesaReceiptNumber") ?? "");
+    const amountPaid = Number(findItem("Amount") ?? 0) * 100; // back to cents
+
+    if (!mpesaReceiptNumber) {
+      logger.warn({ checkoutRequestId }, "mpesa: verified callback missing receipt number, not crediting");
+      return;
+    }
+
+    const now = new Date();
+    await db.transaction(async (tx) => {
+      const receiptNo = `RCP-${now.getFullYear()}-${String(payment.id).padStart(5, "0")}`;
+      await tx.update(billingPayments)
+        .set({
+          status: "verified",
+          reference: mpesaReceiptNumber,
+          mpesaReceiptNumber,
+          receiptNo,
+          amount: amountPaid || payment.amount,
+          verifiedAt: now,
+        })
+        .where(eq(billingPayments.id, payment.id));
+
+      await tx.update(organizations)
+        .set({ status: "active" })
+        .where(eq(organizations.id, payment.orgId));
+    });
+
+    logger.info({ checkoutRequestId, mpesaReceiptNumber, orgId: payment.orgId }, "mpesa: payment verified, org activated");
+
+    // Best-effort receipt email — failure here must not undo the activation above.
+    try {
+      const [org] = await db.select().from(organizations).where(eq(organizations.id, payment.orgId)).limit(1);
+      const adminUsers = await db.select({ email: users.email })
+        .from(users).where(and(eq(users.orgId, payment.orgId), eq(users.role, "admin")));
+      for (const u of adminUsers) {
+        if (!u.email) continue;
+        await sendReceiptEmail({
+          to: u.email,
+          orgName: org?.name ?? "",
+          receiptNo: `RCP-${now.getFullYear()}-${String(payment.id).padStart(5, "0")}`,
+          period: payment.period,
+          amountKes: `KES ${((amountPaid || payment.amount) / 100).toLocaleString("en-KE")}`,
+          method: "mpesa",
+          reference: mpesaReceiptNumber,
+          verifiedAt: now.toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" }),
+          plan: (org?.plan ?? "").charAt(0).toUpperCase() + (org?.plan ?? "").slice(1),
+        });
+      }
+      await db.update(billingPayments).set({ receiptSentAt: now }).where(eq(billingPayments.id, payment.id));
+    } catch (mailErr) {
+      logger.error({ err: mailErr }, "mpesa: receipt email failed after successful activation");
+    }
+  } catch (err) {
+    logger.error({ err }, "mpesa: callback processing failed");
+  }
 });
 
 export default router;

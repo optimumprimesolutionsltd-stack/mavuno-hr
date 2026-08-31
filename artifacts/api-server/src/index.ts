@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { runStartupMigrations } from "./lib/startup-migrations.js";
 import { scheduleFilingReminders } from "./lib/filing-reminders.js";
+import { scheduleMpesaPaymentPoller } from "./lib/mpesa-payment-poller.js";
 
 const rawPort = process.env["PORT"];
 
@@ -26,4 +27,5 @@ app.listen(port, async (err) => {
   logger.info({ port }, "Server listening");
   await runStartupMigrations();
   scheduleFilingReminders();
+  scheduleMpesaPaymentPoller();
 });
