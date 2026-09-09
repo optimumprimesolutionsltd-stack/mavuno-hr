@@ -15,7 +15,7 @@ const capabilities = [
   },
   {
     title: "Statutory Compliance",
-    description: "Built-in, perfectly accurate calculations for PAYE, NSSF, NHIF, and the Affordable Housing Levy. Always up-to-date with current Kenyan law.",
+    description: "Built-in, perfectly accurate calculations for PAYE, NSSF, SHIF, and the Affordable Housing Levy. Always up-to-date with current Kenyan law.",
     icon: Building2,
     color: "bg-indigo-50 text-indigo-600 border-indigo-100"
   },

@@ -6,7 +6,7 @@ export function Footer() {
   return (
     <footer className="bg-white border-t border-border pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-12 mb-16">
           <div className="md:col-span-1">
             <img src={logoSvg} alt="Mavuno HR" className="h-8 w-auto mb-6" />
             <p className="text-muted-foreground text-sm leading-relaxed mb-6">
@@ -16,7 +16,7 @@ export function Footer() {
               Built for Kenyan businesses
             </div>
           </div>
-          
+
           <div>
             <h4 className="font-semibold text-secondary mb-4">Product</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
@@ -26,7 +26,7 @@ export function Footer() {
               <li><a href="#" className="hover:text-primary transition-colors">Pricing</a></li>
             </ul>
           </div>
-          
+
           <div>
             <h4 className="font-semibold text-secondary mb-4">Resources</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
@@ -43,6 +43,18 @@ export function Footer() {
               <li><a href="#" className="hover:text-primary transition-colors">Privacy Policy</a></li>
               <li><a href="#" className="hover:text-primary transition-colors">Terms of Service</a></li>
               <li><a href="#" className="hover:text-primary transition-colors">Security</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-semibold text-secondary mb-4">Contact</h4>
+            <ul className="space-y-3 text-sm text-muted-foreground">
+              <li>
+                <a href="mailto:info@mavunohr.co.ke" className="hover:text-primary transition-colors">
+                  info@mavunohr.co.ke
+                </a>
+              </li>
+              <li>Nairobi, Kenya</li>
             </ul>
           </div>
         </div>
