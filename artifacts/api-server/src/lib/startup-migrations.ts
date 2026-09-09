@@ -63,20 +63,22 @@ async function createSessionsTable(): Promise<void> {
   // The email/password, super-admin and Clerk-exchange login flows all INSERT
   // into this table via createSession(). It was in the schema but never made it
   // into the production database, so every login and every Bearer-token request
-  // 500ed. Idempotent — a no-op once the table exists.
+  // 500ed. Split into separate statements and no FK constraints — the join in
+  // getPrincipal already enforces referential integrity at read time, and a
+  // plain table is the least that can go wrong at CREATE. Idempotent.
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS sessions (
       id          TEXT PRIMARY KEY,
-      user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      org_id      INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      user_id     INTEGER NOT NULL,
+      org_id      INTEGER NOT NULL,
       user_agent  TEXT,
       ip          TEXT,
       expires_at  TIMESTAMP NOT NULL,
       revoked_at  TIMESTAMP,
       created_at  TIMESTAMP NOT NULL DEFAULT NOW()
-    );
-    CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions(user_id);
+    )
   `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions(user_id)`);
 }
 
 async function createPasswordResetTokensTable(): Promise<void> {
@@ -190,24 +192,33 @@ async function addEmployeeSalaryBasis(): Promise<void> {
 }
 
 export async function runStartupMigrations(): Promise<void> {
-  try {
-    await createSessionsTable();
-    await migrateAdminCredentials();
-    await syncSuperAdminPassword();
-    await createPasswordResetTokensTable();
-    await addEmployeeTerminationReason();
-    await addEmployeeWorkSchedule();
-    await addLoanRequestInterestRate();
-    await addOrgMonthlyCharge();
-    await addOrgBillingCycle();
-    await createBillingPaymentsTable();
-    await createNotificationsTable();
-    await addFilingConfirmedByColumns();
-    await addEmployeeMiddleName();
-    await addEmployeePersonalDetails();
-    await addEmployeeBankBranchName();
-    await addEmployeeSalaryBasis();
-  } catch (err) {
-    logger.error({ err }, "startup-migration: failed (non-fatal)");
+  // Each step is isolated: one failing migration must not skip the rest, and
+  // the log names which one broke and why. All are idempotent, so a failed
+  // step simply retries on the next boot.
+  const steps: [string, () => Promise<void>][] = [
+    ["createSessionsTable", createSessionsTable],
+    ["migrateAdminCredentials", migrateAdminCredentials],
+    ["syncSuperAdminPassword", syncSuperAdminPassword],
+    ["createPasswordResetTokensTable", createPasswordResetTokensTable],
+    ["addEmployeeTerminationReason", addEmployeeTerminationReason],
+    ["addEmployeeWorkSchedule", addEmployeeWorkSchedule],
+    ["addLoanRequestInterestRate", addLoanRequestInterestRate],
+    ["addOrgMonthlyCharge", addOrgMonthlyCharge],
+    ["addOrgBillingCycle", addOrgBillingCycle],
+    ["createBillingPaymentsTable", createBillingPaymentsTable],
+    ["createNotificationsTable", createNotificationsTable],
+    ["addFilingConfirmedByColumns", addFilingConfirmedByColumns],
+    ["addEmployeeMiddleName", addEmployeeMiddleName],
+    ["addEmployeePersonalDetails", addEmployeePersonalDetails],
+    ["addEmployeeBankBranchName", addEmployeeBankBranchName],
+    ["addEmployeeSalaryBasis", addEmployeeSalaryBasis],
+  ];
+
+  for (const [name, run] of steps) {
+    try {
+      await run();
+    } catch (err) {
+      logger.error({ err, migration: name }, "startup-migration: step failed (non-fatal)");
+    }
   }
 }
