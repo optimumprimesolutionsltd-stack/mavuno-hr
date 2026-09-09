@@ -4,27 +4,27 @@
   "description": "Payroll, people management and statutory compliance for Kenyan businesses.",
   "lang": "en-KE",
   "dir": "ltr",
-  "start_url": "/admin/login",
-  "scope": "/",
+  "start_url": "./admin/login",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f7fbf9",
   "theme_color": "#049756",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/branding/zawadi-mark.svg",
+      "src": "./branding/mavuno-mark.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "/branding/zawadi-mark-192.png",
+      "src": "./branding/mavuno-mark-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/branding/zawadi-mark-512.png",
+      "src": "./branding/mavuno-mark-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -35,15 +35,15 @@
       "name": "Mavuno HR — HR & Payroll",
       "short_name": "HR",
       "description": "Open the HR and payroll login",
-      "url": "/admin/login",
-      "icons": [{ "src": "/branding/zawadi-mark-192.png", "sizes": "192x192", "type": "image/png" }]
+      "url": "./admin/login",
+      "icons": [{ "src": "./branding/mavuno-mark-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Employee Portal",
       "short_name": "Portal",
       "description": "Open the employee self-service login",
-      "url": "/portal/login",
-      "icons": [{ "src": "/branding/zawadi-mark-192.png", "sizes": "192x192", "type": "image/png" }]
+      "url": "./portal/login",
+      "icons": [{ "src": "./branding/mavuno-mark-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }
