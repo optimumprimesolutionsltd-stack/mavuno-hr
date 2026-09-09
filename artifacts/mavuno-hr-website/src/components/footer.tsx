@@ -1,4 +1,4 @@
-import logoSvg from "@assets/branding/mavuno-hr-logo.svg";
+import logoSvg from "@assets/branding/mavuno-hr-wordmark.svg";
 
 export function Footer() {
   const currentYear = new Date().getFullYear();

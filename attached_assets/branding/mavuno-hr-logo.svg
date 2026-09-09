@@ -1,20 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 180" role="img" aria-labelledby="title desc">
-  <title id="title">zawadiHR</title>
-  <desc id="desc">zawadiHR logo with an emerald and navy geometric mark and wordmark.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 340" role="img" aria-labelledby="t d">
+  <title id="t">Mavuno HR</title>
+  <desc id="d">Mavuno HR logo: a green tile with a gold sprout mark, the wordmark Mavuno in navy and HR in green, and the tagline People, Payroll, Performance.</desc>
   <defs>
-    <linearGradient id="navy" x1="97.12" x2="128.8" y1="99.61" y2="99.61" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#182C5B"/>
-      <stop offset="1" stop-color="#1D2F5C"/>
+    <linearGradient id="mhTile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#33A63F"/><stop offset=".55" stop-color="#1E8034"/><stop offset="1" stop-color="#14652A"/>
     </linearGradient>
+    <linearGradient id="mhTileHi" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".18"/><stop offset=".45" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="mhGold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7CE4B"/><stop offset="1" stop-color="#E2A62B"/>
+    </linearGradient>
+    <linearGradient id="mhHr" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#33A63F"/><stop offset="1" stop-color="#1C6C2B"/>
+    </linearGradient>
+    <clipPath id="mhTc"><rect x="24" y="44" width="252" height="252" rx="54"/></clipPath>
   </defs>
-  <g transform="translate(24 15) scale(1)">
-    <polygon fill="#049756" points="87.3 10.7 79.9 21.5 99 26.4 114.6 26.4 124.7 10.7"/>
-    <path fill="#182C5B" d="m21.7 42.7 16.1 26.8 14.7-21-3.1-5.8h-27.7z"/>
-    <path fill="#049756" d="m66.1 42.7s-12.8 19.3-16.7 24.1c-10.1 13.2-38.6 49.3-38.6 49.3l14.3 23.1 15.6-23.1 47.4-73.4h-22z"/>
-    <polygon fill="#0BB463" points="36.4 21.4 21.7 42.7 88.1 42.8 102.2 21.4"/>
-    <path fill="url(#navy)" d="m126.9 106.5-13.9-23.5-15.9 22.2 6.2 10.8h25.2c.6-5.4-1.6-9.5-1.6-9.5z"/>
-    <path fill="#0BB463" d="m124.7 10.7-61.6 93.9v.1h23.6l25.8-29.7 26.2-40.8-14-23.5zm-84 105.3-15.6 23.2h87.5l15.9-23.2h-87.8z"/>
+
+  <rect x="24" y="44" width="252" height="252" rx="54" fill="url(#mhTile)"/>
+  <g clip-path="url(#mhTc)">
+    <path d="M24 252 C 96 206 176 206 276 244 L276 296 L24 296 Z" fill="#3FAE49"/>
+    <path d="M24 276 C 104 242 172 252 276 274 L276 296 L24 296 Z" fill="#82C243"/>
   </g>
-  <text x="205" y="104" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="800" letter-spacing="2" fill="#182C5B">zawadi</text>
-  <text x="450" y="104" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="800" letter-spacing="2" fill="#049756">HR</text>
+  <rect x="24" y="44" width="252" height="252" rx="54" fill="url(#mhTileHi)"/>
+
+  <path d="M150 262 C147 224 148 194 150 168 C152 194 153 224 150 262 Z" fill="url(#mhGold)"/>
+  <path d="M150 220 C114 226 84 206 70 168 C108 164 141 184 150 220 Z" fill="url(#mhGold)"/>
+  <path d="M150 220 C186 226 216 206 230 168 C192 164 159 184 150 220 Z" fill="url(#mhGold)"/>
+  <path d="M150 192 C126 184 104 156 98 120 C128 128 148 154 150 192 Z" fill="url(#mhGold)"/>
+  <path d="M150 192 C174 184 196 156 202 120 C172 128 152 154 150 192 Z" fill="url(#mhGold)"/>
+  <circle cx="150" cy="112" r="23" fill="url(#mhGold)"/>
+
+  <text x="300" y="214" textLength="560" lengthAdjust="spacingAndGlyphs" font-family="'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif" font-size="152" font-weight="800" fill="#14284C">Mavuno</text>
+  <rect x="878" y="82" width="9" height="148" rx="4" fill="#F0B429"/>
+  <text x="908" y="214" textLength="222" lengthAdjust="spacingAndGlyphs" font-family="'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif" font-size="152" font-weight="800" fill="url(#mhHr)">HR</text>
+
+  <g font-family="'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif">
+    <line x1="352" y1="270" x2="424" y2="270" stroke="#F0B429" stroke-width="5" stroke-linecap="round"/>
+    <line x1="1006" y1="270" x2="1078" y2="270" stroke="#F0B429" stroke-width="5" stroke-linecap="round"/>
+    <text x="715" y="284" text-anchor="middle" textLength="560" lengthAdjust="spacing" font-size="40" font-weight="600" fill="#33455F">People<tspan fill="#F0B429">&#160;&#160;&#8226;&#160;&#160;</tspan>Payroll<tspan fill="#F0B429">&#160;&#160;&#8226;&#160;&#160;</tspan>Performance</text>
+  </g>
 </svg>
