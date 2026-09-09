@@ -11,6 +11,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { PLAN_LABELS, PLAN_COLORS, PLAN_RATES } from "@/lib/pricing";
 import { CreditCard, CheckCircle2, Clock, Loader2, Receipt, Smartphone } from "lucide-react";
 
 interface BillingPayment {
@@ -20,22 +21,23 @@ interface BillingPayment {
   verifiedAt: string | null; receiptSentAt: string | null; createdAt: string;
 }
 interface BillingData {
-  org: { name: string; plan: string; monthlyCharge: number };
+  org: {
+    name: string;
+    plan: string;
+    seatLimit: number;
+    activeEmployees: number;
+    billingCycle: string;          // "monthly" | "annual"
+    monthlyCharge: number;         // KES cents — effective (override wins over rate card)
+    standardMonthlyCharge: number; // KES cents — rate card at current headcount
+    overrideCharge: number;        // KES cents — negotiated override (0 = none)
+    cycleCharge: number;           // KES cents — amount on each invoice
+  };
   payments: { payment: BillingPayment; verifierEmail: string | null }[];
 }
 
 const METHOD_LABELS: Record<string, string> = {
   mpesa: "M-Pesa", bank_transfer: "Bank Transfer",
   cash: "Cash", cheque: "Cheque", other: "Other",
-};
-const PLAN_LABELS: Record<string, string> = {
-  trial: "Trial", starter: "Starter", growth: "Growth", enterprise: "Enterprise",
-};
-const PLAN_COLORS: Record<string, string> = {
-  trial:      "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
-  starter:    "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  growth:     "bg-purple-500/15 text-purple-400 border-purple-500/30",
-  enterprise: "bg-primary/15 text-primary border-primary/30",
 };
 
 function fmtKes(cents: number) {
@@ -54,13 +56,13 @@ function useBillingMy() {
   });
 }
 
-function PayNowDialog({ open, onOpenChange, monthlyCharge }: {
-  open: boolean; onOpenChange: (open: boolean) => void; monthlyCharge: number;
+function PayNowDialog({ open, onOpenChange, defaultAmountCents }: {
+  open: boolean; onOpenChange: (open: boolean) => void; defaultAmountCents: number;
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [amountKes, setAmountKes] = useState(monthlyCharge > 0 ? String(monthlyCharge / 100) : "");
+  const [amountKes, setAmountKes] = useState(defaultAmountCents > 0 ? String(defaultAmountCents / 100) : "");
   const [pollingPaymentId, setPollingPaymentId] = useState<number | null>(null);
 
   const initiate = useMutation({
@@ -169,6 +171,15 @@ export function AdminBilling() {
     .filter((r) => r.payment.status === "verified")
     .reduce((s, r) => s + r.payment.amount, 0);
 
+  const org = data?.org;
+  const plan = org?.plan ?? "trial";
+  const rate = PLAN_RATES[plan as keyof typeof PLAN_RATES] ?? PLAN_RATES.trial;
+  const headcount = org?.activeEmployees ?? 0;
+  const monthly = org?.monthlyCharge ?? 0;
+  const perInvoice = org?.cycleCharge ?? monthly;
+  const annual = (org?.billingCycle ?? "monthly") === "annual";
+  const usingOverride = (org?.overrideCharge ?? 0) > 0;
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Header */}
@@ -189,30 +200,73 @@ export function AdminBilling() {
       ) : (
         <>
           {/* Plan card */}
-          <div className="rounded-lg border border-border/50 bg-card/30 p-5 flex items-center justify-between flex-wrap gap-4">
-            <div className="space-y-1">
-              <p className="text-xs font-mono text-muted-foreground">CURRENT PLAN</p>
-              <div className="flex items-center gap-2">
-                <span className={`inline-flex items-center px-2.5 py-1 rounded text-sm font-mono font-bold border ${PLAN_COLORS[data?.org?.plan ?? "trial"] ?? "bg-muted/20 text-muted-foreground border-border"}`}>
-                  {PLAN_LABELS[data?.org?.plan ?? "trial"] ?? data?.org?.plan}
-                </span>
+          <div className="rounded-lg border border-border/50 bg-card/30 p-5 space-y-4">
+            <div className="flex items-start justify-between flex-wrap gap-4">
+              <div className="space-y-1">
+                <p className="text-xs font-mono text-muted-foreground">CURRENT PLAN</p>
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded text-sm font-mono font-bold border ${PLAN_COLORS[plan] ?? "bg-muted/20 text-muted-foreground border-border"}`}>
+                    {PLAN_LABELS[plan] ?? plan}
+                  </span>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    {annual ? "billed annually" : "billed monthly"}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground font-mono pt-1">
+                  {headcount} active {headcount === 1 ? "employee" : "employees"}
+                </p>
+              </div>
+              <div className="space-y-1 text-right">
+                <p className="text-xs font-mono text-muted-foreground">
+                  {annual ? "PER YEAR" : "PER MONTH"}
+                </p>
+                <p className="text-2xl font-bold font-mono text-primary">
+                  {monthly > 0 ? fmtKes(perInvoice) : <span className="text-yellow-400">FREE (Trial)</span>}
+                </p>
+                {monthly > 0 && (
+                  <Button size="sm" className="mt-1 gap-2" onClick={() => setPayDialogOpen(true)}>
+                    <Smartphone className="h-4 w-4" /> Pay Now
+                  </Button>
+                )}
+              </div>
+              <div className="space-y-1 text-right">
+                <p className="text-xs font-mono text-muted-foreground">TOTAL PAID</p>
+                <p className="text-2xl font-bold font-mono text-emerald-400">{fmtKes(totalPaid)}</p>
               </div>
             </div>
-            <div className="space-y-1 text-right">
-              <p className="text-xs font-mono text-muted-foreground">MONTHLY CHARGE</p>
-              <p className="text-2xl font-bold font-mono text-primary">
-                {(data?.org?.monthlyCharge ?? 0) > 0 ? fmtKes(data?.org?.monthlyCharge ?? 0) : <span className="text-yellow-400">FREE (Trial)</span>}
-              </p>
-              {(data?.org?.monthlyCharge ?? 0) > 0 && (
-                <Button size="sm" className="mt-1 gap-2" onClick={() => setPayDialogOpen(true)}>
-                  <Smartphone className="h-4 w-4" /> Pay Now
-                </Button>
-              )}
-            </div>
-            <div className="space-y-1 text-right">
-              <p className="text-xs font-mono text-muted-foreground">TOTAL PAID</p>
-              <p className="text-2xl font-bold font-mono text-emerald-400">{fmtKes(totalPaid)}</p>
-            </div>
+
+            {/* How the charge is worked out */}
+            {monthly > 0 && (
+              <div className="rounded-md border border-border/40 bg-muted/10 px-3 py-2 text-xs font-mono text-muted-foreground space-y-0.5">
+                {usingOverride ? (
+                  <div className="flex justify-between">
+                    <span>Agreed price</span>
+                    <span className="text-foreground">{fmtKes(monthly)} / month</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between">
+                      <span>{fmtKes(rate.rateCents)} × {headcount} employees</span>
+                      <span>{fmtKes(rate.rateCents * headcount)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Plan minimum</span>
+                      <span>{fmtKes(rate.minCents)}</span>
+                    </div>
+                    <div className="flex justify-between text-foreground font-medium border-t border-border/40 pt-0.5 mt-0.5">
+                      <span>Monthly charge</span>
+                      <span>{fmtKes(monthly)}</span>
+                    </div>
+                  </>
+                )}
+                {annual && (
+                  <div className="flex justify-between text-foreground font-medium">
+                    <span>Annual (10 months)</span>
+                    <span>{fmtKes(perInvoice)}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Payments table */}
@@ -287,7 +341,7 @@ export function AdminBilling() {
       <PayNowDialog
         open={payDialogOpen}
         onOpenChange={setPayDialogOpen}
-        monthlyCharge={data?.org?.monthlyCharge ?? 0}
+        defaultAmountCents={perInvoice}
       />
     </div>
   );

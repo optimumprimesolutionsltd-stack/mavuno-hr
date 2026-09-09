@@ -3,6 +3,7 @@ import { Hero } from "@/components/hero";
 import { Features } from "@/components/features";
 import { Compliance } from "@/components/compliance";
 import { TallyIntegration } from "@/components/tally-integration";
+import { Pricing } from "@/components/pricing";
 import { Cta } from "@/components/cta";
 import { Footer } from "@/components/footer";
 
@@ -15,6 +16,7 @@ export function Home() {
         <Features />
         <Compliance />
         <TallyIntegration />
+        <Pricing />
         <Cta />
       </main>
       <Footer />

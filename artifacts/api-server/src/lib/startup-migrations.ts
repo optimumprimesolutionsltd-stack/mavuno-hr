@@ -93,6 +93,10 @@ async function addOrgMonthlyCharge(): Promise<void> {
   await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS monthly_charge BIGINT NOT NULL DEFAULT 0`);
 }
 
+async function addOrgBillingCycle(): Promise<void> {
+  await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS billing_cycle TEXT NOT NULL DEFAULT 'monthly'`);
+}
+
 async function createBillingPaymentsTable(): Promise<void> {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS billing_payments (
@@ -174,6 +178,7 @@ export async function runStartupMigrations(): Promise<void> {
     await addEmployeeWorkSchedule();
     await addLoanRequestInterestRate();
     await addOrgMonthlyCharge();
+    await addOrgBillingCycle();
     await createBillingPaymentsTable();
     await createNotificationsTable();
     await addFilingConfirmedByColumns();

@@ -14,6 +14,7 @@ export function Navbar() {
           <a href="#features" className="hover:text-primary transition-colors">Features</a>
           <a href="#compliance" className="hover:text-primary transition-colors">Compliance</a>
           <a href="#tally" className="hover:text-primary transition-colors">Integrations</a>
+          <a href="#pricing" className="hover:text-primary transition-colors">Pricing</a>
         </div>
 
         <div className="flex items-center gap-4">
