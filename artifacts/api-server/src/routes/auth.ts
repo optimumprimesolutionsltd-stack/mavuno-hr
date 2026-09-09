@@ -28,6 +28,12 @@ const changePasswordSchema = z.object({
 const MAX_FAILURES = 10;
 const LOCKOUT_MS = 15 * 60 * 1000;
 
+// The admin SPA is mounted under a base path (`BASE_PATH=/app/` in the
+// single-origin deploy), so links emailed to users must carry that prefix or
+// they land on the marketing site. Defaults to the deploy value; set
+// `APP_BASE_PATH=/` (or empty) in local dev where the app is served at root.
+const APP_BASE_PATH = (process.env.APP_BASE_PATH ?? "/app").replace(/\/+$/, "");
+
 router.post("/login", async (req, res, next) => {
   try {
     const parsed = loginSchema.safeParse(req.body);
@@ -279,10 +285,11 @@ router.post("/forgot-password", async (req, res, next) => {
 
       await db.insert(passwordResetTokens).values({ userId: user.id, token: rawToken, expiresAt });
 
-      // Build reset URL from request origin or host
+      // Build reset URL from request origin or host, prefixed with the SPA's
+      // base path so the link opens the app and not the marketing site.
       const origin = req.headers.origin
         ?? `${req.protocol}://${req.headers.host}`;
-      const resetUrl = `${origin}/admin/reset-password?token=${rawToken}`;
+      const resetUrl = `${origin}${APP_BASE_PATH}/admin/reset-password?token=${rawToken}`;
 
       await sendPasswordResetEmail(user.email, user.name, resetUrl).catch((err) => {
         // Log but don't expose to client

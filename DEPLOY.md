@@ -38,6 +38,10 @@ Runtime: `DATABASE_URL`, `SESSION_SECRET` (>= 32 chars), `SUPER_ADMIN_EMAILS`,
 `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (all outbound mail goes through Resend),
 plus `MPESA_*` when that feature is enabled. `PORT` is injected by Render.
 
+`APP_BASE_PATH` defaults to `/app` (the SPA mount) and is what emailed links
+like the password-reset URL are prefixed with — no need to set it here. Local
+dev serving the app at root should set `APP_BASE_PATH=/`.
+
 Build-time (read by Vite): `VITE_CLERK_PUBLISHABLE_KEY`,
 `VITE_CLERK_PROXY_URL=/api/__clerk`.
 
