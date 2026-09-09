@@ -59,6 +59,26 @@ async function syncSuperAdminPassword(): Promise<void> {
   logger.info({ email: TARGET_EMAIL }, "startup-migration: super-admin password synced from secret");
 }
 
+async function createSessionsTable(): Promise<void> {
+  // The email/password, super-admin and Clerk-exchange login flows all INSERT
+  // into this table via createSession(). It was in the schema but never made it
+  // into the production database, so every login and every Bearer-token request
+  // 500ed. Idempotent — a no-op once the table exists.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id          TEXT PRIMARY KEY,
+      user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      org_id      INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      user_agent  TEXT,
+      ip          TEXT,
+      expires_at  TIMESTAMP NOT NULL,
+      revoked_at  TIMESTAMP,
+      created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions(user_id);
+  `);
+}
+
 async function createPasswordResetTokensTable(): Promise<void> {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -171,6 +191,7 @@ async function addEmployeeSalaryBasis(): Promise<void> {
 
 export async function runStartupMigrations(): Promise<void> {
   try {
+    await createSessionsTable();
     await migrateAdminCredentials();
     await syncSuperAdminPassword();
     await createPasswordResetTokensTable();
