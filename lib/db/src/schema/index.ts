@@ -18,7 +18,11 @@ export const organizations = pgTable("organizations", {
   shifEmployerNo: text("shif_employer_no"),
   plan: text("plan").notNull().default("trial"),
   seatLimit: integer("seat_limit").notNull().default(20),
+  /* Negotiated per-org override in KES cents. 0 = use the plan rate card
+     (lib/pricing.ts): max(plan minimum, plan rate x active employees). */
   monthlyCharge: money("monthly_charge").notNull().default(0),
+  /* "monthly" | "annual" — annual bills 10 months for 12. */
+  billingCycle: text("billing_cycle").notNull().default("monthly"),
   status: text("status").notNull().default("active"),
   trialEndsAt: timestamp("trial_ends_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

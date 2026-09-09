@@ -5,6 +5,10 @@ import { db } from "@workspace/db";
 import { organizations, employees, payrollRuns, users } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
+import {
+  PLAN_IDS, BILLING_CYCLES,
+  standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents,
+} from "../lib/pricing.js";
 import type { Request, Response, NextFunction } from "express";
 
 const router = Router();
@@ -62,23 +66,42 @@ router.get("/orgs", ...requireSuperAdmin(), async (_req, res, next) => {
     }
 
     res.json(
-      orgs.map((o) => ({
-        id: o.id,
-        name: o.name,
-        slug: o.slug,
-        plan: o.plan,
-        status: o.status,
-        seatLimit: o.seatLimit,
-        monthlyCharge: o.monthlyCharge ?? 0,
-        countryCode: o.countryCode,
-        currencyCode: o.currencyCode,
-        trialEndsAt: o.trialEndsAt,
-        createdAt: o.createdAt,
-        activeEmployees: empMap[o.id] ?? 0,
-        payrollRuns: runMap[o.id]?.cnt ?? 0,
-        lastPayrollRun: runMap[o.id]?.lastRun ?? null,
-        admins: adminMap[o.id] ?? [],
-      }))
+      orgs.map((o) => {
+        const activeEmployees = empMap[o.id] ?? 0;
+        const overrideCents = o.monthlyCharge ?? 0;
+        const cycle = o.billingCycle ?? "monthly";
+        const standardMonthlyCharge = standardMonthlyCents(o.plan, activeEmployees);
+        const monthlyCharge = effectiveMonthlyCents({
+          plan: o.plan,
+          activeEmployees,
+          overrideCents,
+        });
+        return {
+          id: o.id,
+          name: o.name,
+          slug: o.slug,
+          plan: o.plan,
+          status: o.status,
+          seatLimit: o.seatLimit,
+          billingCycle: cycle,
+          // What the org actually pays each month (override wins over rate card).
+          monthlyCharge,
+          // The rate-card figure at the current headcount, for comparison.
+          standardMonthlyCharge,
+          // The negotiated override itself (0 = none / use rate card).
+          overrideCharge: overrideCents,
+          // Amount per invoice (annual bills 10x the monthly).
+          cycleCharge: cycleChargeCents(monthlyCharge, cycle),
+          countryCode: o.countryCode,
+          currencyCode: o.currencyCode,
+          trialEndsAt: o.trialEndsAt,
+          createdAt: o.createdAt,
+          activeEmployees,
+          payrollRuns: runMap[o.id]?.cnt ?? 0,
+          lastPayrollRun: runMap[o.id]?.lastRun ?? null,
+          admins: adminMap[o.id] ?? [],
+        };
+      })
     );
   } catch (err) {
     next(err);
@@ -87,9 +110,11 @@ router.get("/orgs", ...requireSuperAdmin(), async (_req, res, next) => {
 
 // ── PATCH /api/super/orgs/:id ─────────────────────────────────────────────────
 const patchOrgSchema = z.object({
-  plan: z.enum(["trial", "starter", "growth", "enterprise"]).optional(),
+  plan: z.enum(PLAN_IDS).optional(),
   seatLimit: z.number().int().min(1).max(10_000_000).optional(),
-  monthlyCharge: z.number().int().min(0).optional(), // stored as cents (KES)
+  // Negotiated per-org override in KES cents. 0 clears it (use the rate card).
+  monthlyCharge: z.number().int().min(0).optional(),
+  billingCycle: z.enum(BILLING_CYCLES).optional(),
   status: z.enum(["active", "suspended"]).optional(),
   trialEndsAt: z.string().datetime().nullable().optional(),
 });
@@ -110,6 +135,7 @@ router.patch("/orgs/:id", ...requireSuperAdmin(), async (req, res, next) => {
     if (d.plan !== undefined) updates.plan = d.plan;
     if (d.seatLimit !== undefined) updates.seatLimit = d.seatLimit;
     if (d.monthlyCharge !== undefined) updates.monthlyCharge = d.monthlyCharge;
+    if (d.billingCycle !== undefined) updates.billingCycle = d.billingCycle;
     if (d.status !== undefined) updates.status = d.status;
     if (d.trialEndsAt !== undefined)
       updates.trialEndsAt = d.trialEndsAt ? new Date(d.trialEndsAt) : null;

@@ -17,32 +17,19 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import {
+  PLAN_RATES, PLAN_LABELS, PLAN_COLORS, BILLING_CYCLES,
+  standardMonthlyCents,
+} from "@/lib/pricing";
+import {
   Building2, Search, Loader2, ShieldCheck, Users, Wallet,
   Ban, CheckCircle2, Settings, TrendingUp, CreditCard, Info,
 } from "lucide-react";
 
 // ── Plan configuration ──────────────────────────────────────────────────────
-/** Monthly charge is stored in KES cents (e.g. 300000 = KES 3,000) */
-const PLAN_DEFAULTS: Record<string, { seats: number; monthlyChargeKes: number }> = {
-  trial:      { seats: 20,        monthlyChargeKes: 0      },
-  starter:    { seats: 50,        monthlyChargeKes: 3_000  },
-  growth:     { seats: 250,       monthlyChargeKes: 10_000 },
-  enterprise: { seats: 1_000_000, monthlyChargeKes: 30_000 },
-};
-
-const PLAN_LABELS: Record<string, string> = {
-  trial:      "Trial",
-  starter:    "Starter",
-  growth:     "Growth",
-  enterprise: "Enterprise",
-};
-
-const PLAN_COLORS: Record<string, string> = {
-  trial:      "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
-  starter:    "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  growth:     "bg-purple-500/15 text-purple-400 border-purple-500/30",
-  enterprise: "bg-primary/15 text-primary border-primary/30",
-};
+/** KES cents -> "KES 12,000" */
+function kes(cents: number): string {
+  return `KES ${(cents / 100).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface OrgRow {
@@ -52,7 +39,11 @@ interface OrgRow {
   plan: string;
   status: string;
   seatLimit: number;
-  monthlyCharge: number; // KES cents
+  billingCycle: string;               // "monthly" | "annual"
+  monthlyCharge: number;              // KES cents — effective (override wins over rate card)
+  standardMonthlyCharge: number;      // KES cents — rate card at current headcount
+  overrideCharge: number;             // KES cents — negotiated override (0 = none)
+  cycleCharge: number;                // KES cents — per-invoice (annual = 10x monthly)
   countryCode: string;
   currencyCode: string;
   trialEndsAt: string | null;
@@ -78,19 +69,12 @@ function EditOrgDialog({ org, open, onClose }: { org: OrgRow; open: boolean; onC
 
   const [plan, setPlan] = useState(org.plan);
   const [seatLimit, setSeatLimit] = useState(String(org.seatLimit));
-  // monthlyCharge stored in cents; display / edit in whole KES
-  const [monthlyChargeKes, setMonthlyChargeKes] = useState(String(Math.round(org.monthlyCharge / 100)));
+  const [billingCycle, setBillingCycle] = useState(org.billingCycle || "monthly");
+  // Negotiated override, stored in cents; edited here in whole KES. "" / 0 = use the rate card.
+  const [overrideKes, setOverrideKes] = useState(
+    org.overrideCharge > 0 ? String(Math.round(org.overrideCharge / 100)) : "",
+  );
   const [trialEndsAt, setTrialEndsAt] = useState(org.trialEndsAt ? org.trialEndsAt.slice(0, 10) : "");
-
-  // When plan changes, auto-fill defaults (user can still override)
-  function onPlanChange(p: string) {
-    setPlan(p);
-    const def = PLAN_DEFAULTS[p];
-    if (def) {
-      setSeatLimit(String(def.seats));
-      setMonthlyChargeKes(String(def.monthlyChargeKes));
-    }
-  }
 
   const mutation = useMutation({
     mutationFn: (body: object) =>
@@ -112,16 +96,21 @@ function EditOrgDialog({ org, open, onClose }: { org: OrgRow; open: boolean; onC
     const body: any = {
       plan,
       seatLimit: parseInt(seatLimit) || 1,
-      // send in cents
-      monthlyCharge: Math.round(parseFloat(monthlyChargeKes || "0") * 100),
+      billingCycle,
+      // 0 clears the override -> rate card applies
+      monthlyCharge: Math.round(parseFloat(overrideKes || "0") * 100),
     };
     if (trialEndsAt) body.trialEndsAt = new Date(trialEndsAt).toISOString();
     else body.trialEndsAt = null;
     mutation.mutate(body);
   }
 
-  const def = PLAN_DEFAULTS[plan];
-  const isEnterprise = plan === "enterprise";
+  const rate = PLAN_RATES[plan as keyof typeof PLAN_RATES] ?? PLAN_RATES.trial;
+  // Rate-card monthly at this org's current headcount, for the selected plan.
+  const standardAtHeadcount = standardMonthlyCents(plan, org.activeEmployees);
+  const overrideCents = Math.round(parseFloat(overrideKes || "0") * 100);
+  const effectiveMonthly = overrideCents > 0 ? overrideCents : standardAtHeadcount;
+  const perInvoice = billingCycle === "annual" ? effectiveMonthly * 10 : effectiveMonthly;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -134,37 +123,56 @@ function EditOrgDialog({ org, open, onClose }: { org: OrgRow; open: boolean; onC
           {/* Plan selector */}
           <div className="space-y-1.5">
             <Label className="font-mono text-xs">PLAN</Label>
-            <Select value={plan} onValueChange={onPlanChange}>
+            <Select value={plan} onValueChange={setPlan}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(PLAN_LABELS).map(([v, l]) => (
+                {Object.entries(PLAN_RATES).map(([v, r]) => (
                   <SelectItem key={v} value={v}>
-                    <span className="font-mono">{l}</span>
+                    <span className="font-mono">{r.label}</span>
                     <span className="ml-2 text-muted-foreground text-xs">
-                      — {PLAN_DEFAULTS[v].seats >= 1_000_000 ? "Unlimited" : `${PLAN_DEFAULTS[v].seats} seats`}
-                      {PLAN_DEFAULTS[v].monthlyChargeKes > 0
-                        ? `, KES ${PLAN_DEFAULTS[v].monthlyChargeKes.toLocaleString()}/mo`
-                        : ", Free"}
+                      — {r.rateCents > 0
+                        ? `${kes(r.rateCents)}/employee, min ${kes(r.minCents)}/mo`
+                        : "Free"}
                     </span>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            {/* Plan reference card */}
+            {/* Rate-card reference */}
             <div className="flex items-start gap-2 rounded-md border border-border/40 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
               <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
               <span>
-                Default for <strong className="text-foreground">{PLAN_LABELS[plan]}</strong>:{" "}
-                {isEnterprise ? "Unlimited employees" : `${def?.seats ?? 0} employees`},{" "}
-                {def && def.monthlyChargeKes > 0
-                  ? `KES ${def.monthlyChargeKes.toLocaleString()}/month`
-                  : "Free"}
-                . You can override below.
+                <strong className="text-foreground">{rate.label}</strong> — {rate.bestFor}.{" "}
+                {rate.rateCents > 0
+                  ? <>
+                      {kes(rate.rateCents)}/employee/mo, minimum {kes(rate.minCents)}/mo. Rate card at{" "}
+                      {org.activeEmployees} active {org.activeEmployees === 1 ? "employee" : "employees"}:{" "}
+                      <strong className="text-foreground">{kes(standardAtHeadcount)}/mo</strong>.
+                    </>
+                  : "Free."}
               </span>
             </div>
+          </div>
+
+          {/* Billing cycle */}
+          <div className="space-y-1.5">
+            <Label className="font-mono text-xs">BILLING CYCLE</Label>
+            <Select value={billingCycle} onValueChange={setBillingCycle}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {BILLING_CYCLES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    <span className="font-mono capitalize">{c}</span>
+                    {c === "annual" && (
+                      <span className="ml-2 text-muted-foreground text-xs">— pay 10 months, get 12</span>
+                    )}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Seat limit */}
@@ -178,27 +186,44 @@ function EditOrgDialog({ org, open, onClose }: { org: OrgRow; open: boolean; onC
               placeholder="e.g. 50"
             />
             <p className="text-xs text-muted-foreground">
-              Payroll runs will be blocked once this limit is reached.
+              Payroll runs will be blocked once this limit is reached. Separate from the pricing rate card.
             </p>
           </div>
 
-          {/* Monthly charge */}
+          {/* Negotiated override */}
           <div className="space-y-1.5">
-            <Label className="font-mono text-xs">MONTHLY CHARGE (KES)</Label>
+            <Label className="font-mono text-xs">NEGOTIATED OVERRIDE (KES / month)</Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-mono">KES</span>
               <Input
                 type="number"
                 min={0}
                 step={500}
-                value={monthlyChargeKes}
-                onChange={(e) => setMonthlyChargeKes(e.target.value)}
+                value={overrideKes}
+                onChange={(e) => setOverrideKes(e.target.value)}
                 className="pl-14 font-mono"
-                placeholder="0"
+                placeholder="0 = use rate card"
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              For billing records only — does not trigger automatic charges.
+              Leave blank / 0 to use the rate card ({kes(standardAtHeadcount)}/mo at current headcount).
+              Set a value only for a bespoke / Enterprise deal.
+            </p>
+          </div>
+
+          {/* Effective charge preview */}
+          <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
+            <div className="flex justify-between font-mono">
+              <span className="text-muted-foreground">EFFECTIVE / MONTH</span>
+              <span className="text-primary font-bold">{kes(effectiveMonthly)}</span>
+            </div>
+            <div className="flex justify-between font-mono mt-1">
+              <span className="text-muted-foreground">PER INVOICE ({billingCycle})</span>
+              <span className="font-bold">{kes(perInvoice)}</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {overrideCents > 0 ? "Using negotiated override." : "Using rate card."}
+              {" "}For billing records — does not trigger automatic charges.
             </p>
           </div>
 
@@ -413,9 +438,17 @@ export function SuperAdminCompanies() {
                     {org.monthlyCharge > 0 ? (
                       <div>
                         <div className="font-mono text-sm font-medium text-primary">
-                          KES {(org.monthlyCharge / 100).toLocaleString("en-KE", { maximumFractionDigits: 0 })}
+                          {kes(org.monthlyCharge)}
                         </div>
-                        <div className="text-xs text-muted-foreground font-mono">/month</div>
+                        <div className="text-xs text-muted-foreground font-mono">
+                          /month
+                          {org.billingCycle === "annual" && (
+                            <> · {kes(org.cycleCharge)}/yr</>
+                          )}
+                        </div>
+                        <div className="text-[10px] font-mono text-muted-foreground/70">
+                          {org.overrideCharge > 0 ? "override" : "rate card"}
+                        </div>
                       </div>
                     ) : (
                       <span className="text-xs text-muted-foreground font-mono bg-yellow-500/10 text-yellow-400 px-1.5 py-0.5 rounded">

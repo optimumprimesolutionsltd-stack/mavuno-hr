@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
-import { eq, and, desc, isNull } from "drizzle-orm";
+import { eq, and, desc, isNull, count } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
-  billingPayments, organizations, users,
+  billingPayments, organizations, users, employees,
 } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
@@ -11,6 +11,9 @@ import { sendReceiptEmail } from "../lib/mailer.js";
 import {
   initiateStkPush, queryTransactionStatus, isAllowedCallbackIp, accountReferenceFor,
 } from "../lib/mpesa.js";
+import {
+  standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents,
+} from "../lib/pricing.js";
 import { logger } from "../lib/logger.js";
 import type { Request, Response, NextFunction } from "express";
 
@@ -240,11 +243,41 @@ router.get("/my", requireAuth("org:admin"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
 
-    const [org] = await db.select({
+    const [orgRow] = await db.select({
       name: organizations.name,
       plan: organizations.plan,
-      monthlyCharge: organizations.monthlyCharge,
+      seatLimit: organizations.seatLimit,
+      overrideCharge: organizations.monthlyCharge,
+      billingCycle: organizations.billingCycle,
     }).from(organizations).where(eq(organizations.id, p.orgId)).limit(1);
+
+    const [{ cnt: activeEmployees }] = await db
+      .select({ cnt: count() })
+      .from(employees)
+      .where(and(eq(employees.orgId, p.orgId), eq(employees.status, "active")));
+
+    const cycle = orgRow?.billingCycle ?? "monthly";
+    const standardMonthlyCharge = standardMonthlyCents(orgRow?.plan ?? "trial", activeEmployees);
+    const monthlyCharge = effectiveMonthlyCents({
+      plan: orgRow?.plan ?? "trial",
+      activeEmployees,
+      overrideCents: orgRow?.overrideCharge ?? 0,
+    });
+    const org = {
+      name: orgRow?.name ?? "",
+      plan: orgRow?.plan ?? "trial",
+      seatLimit: orgRow?.seatLimit ?? 0,
+      activeEmployees,
+      billingCycle: cycle,
+      // What the org pays each month (override wins over the rate card).
+      monthlyCharge,
+      // The rate-card figure at the current headcount, for reference.
+      standardMonthlyCharge,
+      // The negotiated override itself (0 = none).
+      overrideCharge: orgRow?.overrideCharge ?? 0,
+      // Amount on each invoice — annual bills 10x the monthly.
+      cycleCharge: cycleChargeCents(monthlyCharge, cycle),
+    };
 
     const payments = await db
       .select({
