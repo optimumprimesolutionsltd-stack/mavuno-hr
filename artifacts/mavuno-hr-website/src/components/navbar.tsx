@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import logoSvg from "@assets/branding/mavuno-hr-logo.svg";
+import logoSvg from "@assets/branding/mavuno-hr-wordmark.svg";
 import { Button } from "./ui/button";
 
 export function Navbar() {

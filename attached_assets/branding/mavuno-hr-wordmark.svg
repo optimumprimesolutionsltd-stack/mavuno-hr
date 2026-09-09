@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 320" role="img" aria-labelledby="t d">
+  <title id="t">Mavuno HR</title>
+  <desc id="d">Mavuno HR logo: a green tile with a gold sprout mark, the wordmark Mavuno in navy and HR in green.</desc>
+  <defs>
+    <linearGradient id="mwTile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#33A63F"/><stop offset=".55" stop-color="#1E8034"/><stop offset="1" stop-color="#14652A"/>
+    </linearGradient>
+    <linearGradient id="mwTileHi" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".18"/><stop offset=".45" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="mwGold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7CE4B"/><stop offset="1" stop-color="#E2A62B"/>
+    </linearGradient>
+    <linearGradient id="mwHr" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#33A63F"/><stop offset="1" stop-color="#1C6C2B"/>
+    </linearGradient>
+    <clipPath id="mwTc"><rect x="24" y="34" width="252" height="252" rx="54"/></clipPath>
+  </defs>
+
+  <rect x="24" y="34" width="252" height="252" rx="54" fill="url(#mwTile)"/>
+  <g clip-path="url(#mwTc)">
+    <path d="M24 242 C 96 196 176 196 276 234 L276 286 L24 286 Z" fill="#3FAE49"/>
+    <path d="M24 266 C 104 232 172 242 276 264 L276 286 L24 286 Z" fill="#82C243"/>
+  </g>
+  <rect x="24" y="34" width="252" height="252" rx="54" fill="url(#mwTileHi)"/>
+
+  <path d="M150 252 C147 214 148 184 150 158 C152 184 153 214 150 252 Z" fill="url(#mwGold)"/>
+  <path d="M150 210 C114 216 84 196 70 158 C108 154 141 174 150 210 Z" fill="url(#mwGold)"/>
+  <path d="M150 210 C186 216 216 196 230 158 C192 154 159 174 150 210 Z" fill="url(#mwGold)"/>
+  <path d="M150 182 C126 174 104 146 98 110 C128 118 148 144 150 182 Z" fill="url(#mwGold)"/>
+  <path d="M150 182 C174 174 196 146 202 110 C172 118 152 144 150 182 Z" fill="url(#mwGold)"/>
+  <circle cx="150" cy="102" r="23" fill="url(#mwGold)"/>
+
+  <text x="300" y="204" textLength="560" lengthAdjust="spacingAndGlyphs" font-family="'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif" font-size="152" font-weight="800" fill="#14284C">Mavuno</text>
+  <rect x="878" y="72" width="9" height="148" rx="4" fill="#F0B429"/>
+  <text x="908" y="204" textLength="222" lengthAdjust="spacingAndGlyphs" font-family="'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif" font-size="152" font-weight="800" fill="url(#mwHr)">HR</text>
+</svg>
