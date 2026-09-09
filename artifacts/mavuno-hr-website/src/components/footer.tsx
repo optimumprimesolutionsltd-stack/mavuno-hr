@@ -8,7 +8,10 @@ export function Footer() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-12 mb-16">
           <div className="md:col-span-1">
-            <img src={logoSvg} alt="Mavuno HR" className="h-8 w-auto mb-6" />
+            <img src={logoSvg} alt="Mavuno HR" className="h-8 w-auto mb-3" />
+            <p className="mb-6 text-xs font-bold uppercase tracking-[0.22em] text-secondary/70">
+              People <span className="text-[#E2A62B]">·</span> Payroll <span className="text-[#E2A62B]">·</span> Performance
+            </p>
             <p className="text-muted-foreground text-sm leading-relaxed mb-6">
               Independent, secure payroll and people management built specifically for modern Kenyan businesses.
             </p>
