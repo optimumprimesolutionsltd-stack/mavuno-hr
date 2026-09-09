@@ -42,6 +42,11 @@ plus `MPESA_*` when that feature is enabled. `PORT` is injected by Render.
 like the password-reset URL are prefixed with — no need to set it here. Local
 dev serving the app at root should set `APP_BASE_PATH=/`.
 
+`CRM_SYNC_KEY` (optional): when set, `GET /api/super/orgs` also accepts it as
+`Authorization: Bearer <key>` — a read-only credential the Optimum CRM uses to
+pull the org list on a schedule. Leave unset to disable that path; rotate by
+changing the value here and in the CRM's function config.
+
 Build-time (read by Vite): `VITE_CLERK_PUBLISHABLE_KEY`,
 `VITE_CLERK_PROXY_URL=/api/__clerk`.
 

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import crypto from "node:crypto";
 import { eq, count, max, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { organizations, employees, payrollRuns, users } from "@workspace/db/schema";
@@ -35,8 +36,42 @@ function requireSuperAdmin() {
   ];
 }
 
+// The CRM pulls the org list on a schedule. It has no user session, so it
+// presents `CRM_SYNC_KEY` as a Bearer token instead. This is a read-only
+// credential for GET /orgs only — patch/suspend/activate stay session-gated.
+function hasValidSyncKey(req: Request): boolean {
+  const expected = process.env.CRM_SYNC_KEY?.trim();
+  if (!expected) return false; // fail closed when unconfigured
+  const auth = req.headers["authorization"];
+  const got = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  if (!got) return false;
+  const a = Buffer.from(got);
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+// Accept either a super-admin session or the CRM sync key. The key is checked
+// first so a valid key is never mistaken for a stale session token by
+// requireAuth().
+function requireSuperAdminOrSyncKey() {
+  const [auth, emailGate] = requireSuperAdmin();
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (hasValidSyncKey(req)) {
+      next();
+      return;
+    }
+    auth(req, res, (err?: unknown) => {
+      if (err) {
+        next(err);
+        return;
+      }
+      emailGate(req, res, next);
+    });
+  };
+}
+
 // ── GET /api/super/orgs ───────────────────────────────────────────────────────
-router.get("/orgs", ...requireSuperAdmin(), async (_req, res, next) => {
+router.get("/orgs", requireSuperAdminOrSyncKey(), async (_req, res, next) => {
   try {
     // Per-org aggregates: employee count, payroll run count, last run date, admin email
     const orgs = await db.select().from(organizations).orderBy(organizations.createdAt);
