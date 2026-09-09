@@ -1,7 +1,18 @@
+import type { FormEvent } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
+const CONTACT_EMAIL = "info@mavunohr.co.ke";
+
 export function Cta() {
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const email = new FormData(e.currentTarget).get("email")?.toString().trim() ?? "";
+    const subject = "Mavuno HR demo request";
+    const body = `Hi Mavuno HR team,\n\nI'd like to request a demo.\n\nWork email: ${email}\n`;
+    window.location.href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
   return (
     <section id="demo" className="py-32 bg-background relative overflow-hidden">
       <div className="absolute inset-0 bg-primary/5" />
@@ -15,10 +26,14 @@ export function Cta() {
             Join the growing number of Kenyan businesses trusting Mavuno HR for accurate payroll, confident compliance, and happier employees.
         </p>
 
-        <form className="max-w-md mx-auto bg-white p-2 rounded-2xl shadow-xl border border-border flex flex-col sm:flex-row gap-2" onSubmit={(e) => e.preventDefault()}>
-          <Input 
-            type="email" 
-            placeholder="Work email address" 
+        <form
+          className="max-w-md mx-auto bg-white p-2 rounded-2xl shadow-xl border border-border flex flex-col sm:flex-row gap-2"
+          onSubmit={handleSubmit}
+        >
+          <Input
+            type="email"
+            name="email"
+            placeholder="Work email address"
             className="border-0 focus-visible:ring-0 shadow-none text-base h-14 px-6"
             required
           />
@@ -26,9 +41,13 @@ export function Cta() {
             Request Demo
           </Button>
         </form>
-        
+
         <p className="mt-6 text-sm text-muted-foreground">
-          No credit card required. Fast, free onboarding setup.
+          No credit card required. Fast, free onboarding setup. Or email us at{" "}
+          <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary hover:underline">
+            {CONTACT_EMAIL}
+          </a>
+          .
         </p>
       </div>
     </section>

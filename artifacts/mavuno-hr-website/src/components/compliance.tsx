@@ -21,7 +21,7 @@ export function Compliance() {
               {[
                 "Instant P10 and P9 form generation",
                 "Automated Housing Levy (AHL) calculations",
-                "NSSF & NHIF/SHIF exact tier mapping",
+                "NSSF & SHIF exact tier mapping",
                 "Filing-ready formats for KRA iTax"
               ].map((item, i) => (
                 <li key={i} className="flex items-center gap-3 text-lg text-white/90">
