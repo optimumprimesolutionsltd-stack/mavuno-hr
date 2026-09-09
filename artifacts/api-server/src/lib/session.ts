@@ -3,6 +3,7 @@ import { eq, and, gt, isNull } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { sessions, users, organizations, type Role } from "@workspace/db/schema";
 import type { Request, Response } from "express";
+import { logger } from "./logger.js";
 
 const COOKIE = "mavuno_session";
 const MAX_AGE_S = 60 * 60 * 12; // 12h
@@ -89,19 +90,28 @@ export async function getPrincipal(req: Request): Promise<Principal | null> {
   }
   if (!raw) return null;
 
-  const rows = await db
-    .select({ s: sessions, u: users, o: organizations })
-    .from(sessions)
-    .innerJoin(users, eq(sessions.userId, users.id))
-    .innerJoin(organizations, eq(sessions.orgId, organizations.id))
-    .where(and(
-      eq(sessions.id, tokenHash(raw)),
-      // A session is only valid when its tenant matches the user's tenant.
-      // Do not let a corrupted or forged session row bridge organizations.
-      eq(sessions.orgId, users.orgId),
-      isNull(sessions.revokedAt),
-      gt(sessions.expiresAt, new Date()),
-    ));
+  // Resolving a presented token must never crash the request. A bad token, or a
+  // transient DB error while looking it up, means "not authenticated" (401) —
+  // not 500. Real problems are still visible in the logs.
+  let rows: Array<{ s: typeof sessions.$inferSelect; u: typeof users.$inferSelect; o: typeof organizations.$inferSelect }>;
+  try {
+    rows = await db
+      .select({ s: sessions, u: users, o: organizations })
+      .from(sessions)
+      .innerJoin(users, eq(sessions.userId, users.id))
+      .innerJoin(organizations, eq(sessions.orgId, organizations.id))
+      .where(and(
+        eq(sessions.id, tokenHash(raw)),
+        // A session is only valid when its tenant matches the user's tenant.
+        // Do not let a corrupted or forged session row bridge organizations.
+        eq(sessions.orgId, users.orgId),
+        isNull(sessions.revokedAt),
+        gt(sessions.expiresAt, new Date()),
+      ));
+  } catch (err) {
+    logger.warn({ err }, "getPrincipal: session lookup failed; treating as unauthenticated");
+    return null;
+  }
 
   const row = rows[0];
   if (!row) return null;
