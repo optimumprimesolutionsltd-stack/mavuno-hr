@@ -35,8 +35,8 @@ pnpm --filter @workspace/api-server run start
 
 Runtime: `DATABASE_URL`, `SESSION_SECRET` (>= 32 chars), `SUPER_ADMIN_EMAILS`,
 `SUPER_ADMIN_PASSWORD`, `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`,
-`GMAIL_USER`, `GMAIL_APP_PASSWORD`, plus `RESEND_API_KEY` / `RESEND_FROM_EMAIL`
-and `MPESA_*` when those features are enabled. `PORT` is injected by Render.
+`RESEND_API_KEY`, `RESEND_FROM_EMAIL` (all outbound mail goes through Resend),
+plus `MPESA_*` when that feature is enabled. `PORT` is injected by Render.
 
 Build-time (read by Vite): `VITE_CLERK_PUBLISHABLE_KEY`,
 `VITE_CLERK_PROXY_URL=/api/__clerk`.
