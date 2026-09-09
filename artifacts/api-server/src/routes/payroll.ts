@@ -10,7 +10,7 @@ import { computePayslip } from "../lib/payroll.js";
 import { resolveConfig } from "../lib/statutory-resolve.js";
 import { canApproveRun, can } from "../lib/rbac.js";
 import { HttpError } from "../lib/http-error.js";
-import { getSafeMailError, getSafeResendError, sendPayslipEmail, sendStatutoryRemittanceEmail } from "../lib/mailer.js";
+import { getSafeResendError, sendPayslipEmail, sendStatutoryRemittanceEmail } from "../lib/mailer.js";
 import { logger } from "../lib/logger.js";
 import { createHash } from "crypto";
 import { fullName } from "../lib/employee-name.js";
@@ -1574,7 +1574,7 @@ router.get("/:id/itax/nssf", requireAuth("payroll:read"), async (req, res, next)
       });
       emailSent = true;
     } catch (mailErr: any) {
-      emailError = getSafeMailError(mailErr);
+      emailError = getSafeResendError(mailErr);
       logger.warn({ err: mailErr }, "nssf: failed to send remittance confirmation email");
     }
 
@@ -1680,7 +1680,7 @@ router.get("/:id/itax/shif", requireAuth("payroll:read"), async (req, res, next)
       });
       emailSent = true;
     } catch (mailErr: any) {
-      emailError = getSafeMailError(mailErr);
+      emailError = getSafeResendError(mailErr);
       logger.warn({ err: mailErr }, "shif: failed to send remittance confirmation email");
     }
 
@@ -1785,7 +1785,7 @@ router.get("/:id/itax/ahl", requireAuth("payroll:read"), async (req, res, next) 
       });
       emailSent = true;
     } catch (mailErr: any) {
-      emailError = getSafeMailError(mailErr);
+      emailError = getSafeResendError(mailErr);
       logger.warn({ err: mailErr }, "ahl: failed to send remittance confirmation email");
     }
 
