@@ -103,6 +103,12 @@ export function GoogleSignIn() {
             routing="path"
             path={`${basePath}/sign-in`}
             signUpUrl={`${basePath}/register`}
+            // Land back on this same route after the OAuth handshake so the
+            // effect above can run the Clerk -> Mavuno bridge. Without this
+            // Clerk falls back to "/" and the user ends up on the marketing
+            // site, signed in to Clerk but never to Mavuno.
+            fallbackRedirectUrl={`${basePath}/sign-in`}
+            forceRedirectUrl={`${basePath}/sign-in`}
             appearance={clerkAppearance}
           />
         )}
