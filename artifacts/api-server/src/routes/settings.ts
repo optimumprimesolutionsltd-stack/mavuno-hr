@@ -59,6 +59,7 @@ router.get("/", requireAuth("org:admin"), async (req, res, next) => {
         shifEmployerNo: org.shifEmployerNo ?? "",
         plan: org.plan,
         status: org.status,
+        requiresPayrollApproval: org.requiresPayrollApproval,
       },
       activeConfig: cfg,
       tier2Provider: cfg?.socialSecurity?.tier2Provider ?? "nssf",
@@ -74,6 +75,7 @@ const updateOrgSchema = z.object({
   kraPin:         z.string().max(20).nullable().optional(),
   nssfEmployerNo: z.string().max(50).nullable().optional(),
   shifEmployerNo: z.string().max(50).nullable().optional(),
+  requiresPayrollApproval: z.boolean().optional(),
 });
 
 router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
@@ -94,6 +96,7 @@ router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
     if (body.kraPin !== undefined)         updates.kraPin = body.kraPin ?? null;
     if (body.nssfEmployerNo !== undefined) updates.nssfEmployerNo = body.nssfEmployerNo ?? null;
     if (body.shifEmployerNo !== undefined) updates.shifEmployerNo = body.shifEmployerNo ?? null;
+    if (body.requiresPayrollApproval !== undefined) updates.requiresPayrollApproval = body.requiresPayrollApproval;
 
     if (Object.keys(updates).length === 0) return void res.json({ ok: true });
 
@@ -113,6 +116,7 @@ router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
           kraPin: org.kraPin,
           nssfEmployerNo: org.nssfEmployerNo,
           shifEmployerNo: org.shifEmployerNo,
+          requiresPayrollApproval: org.requiresPayrollApproval,
         },
         after: updates,
       });

@@ -411,6 +411,73 @@ export async function recalculateRun(
   return { run: updated, warnings };
 }
 
+/**
+ * Single-actor "run & pay": take a draft run straight to `paid`, writing the
+ * submit / approve / pay audit events so the trail matches the standard flow.
+ * Only valid for orgs with `requiresPayrollApproval = false`; the caller
+ * enforces that plus the `payroll:run_all` permission.
+ */
+export async function finalizeRunInTx(
+  tx: Tx,
+  principal: Principal,
+  runId: number,
+  ip: string | null,
+) {
+  const { orgId, userId, email } = principal;
+
+  const [run] = await tx.select().from(payrollRuns)
+    .where(and(eq(payrollRuns.id, runId), eq(payrollRuns.orgId, orgId)));
+  if (!run) throw new HttpError(404, "Payroll run not found");
+  if (run.status !== "draft") {
+    throw new HttpError(409, "Only a draft run can be run in one step", "RUN_NOT_DRAFT");
+  }
+
+  // Readiness: every employee on the run needs NSSF + SHIF numbers — same gate
+  // as GET /api/payroll/:id/readiness, enforced here because there is no
+  // separate approval step to catch it.
+  const slipEmps = await tx
+    .select({ empNo: employees.empNo, nssfNo: employees.nssfNo, shifNo: employees.shifNo })
+    .from(payslips)
+    .innerJoin(employees, and(
+      eq(payslips.employeeId, employees.id),
+      eq(payslips.orgId, employees.orgId),
+    ))
+    .where(and(eq(payslips.runId, runId), eq(payslips.orgId, orgId)));
+  const notReady = slipEmps.filter((e) => !e.nssfNo || !e.shifNo).map((e) => e.empNo);
+  if (notReady.length > 0) {
+    throw new HttpError(
+      422,
+      `Cannot run payroll: ${notReady.length} employee(s) are missing an NSSF or SHIF number ` +
+        `(${notReady.slice(0, 5).join(", ")}${notReady.length > 5 ? "…" : ""}).`,
+      "RUN_NOT_READY",
+    );
+  }
+
+  await applyLoanRepayments(tx, orgId, runId);
+
+  const now = new Date();
+  const [updated] = await tx.update(payrollRuns).set({
+    status: "paid",
+    submittedByUserId: run.submittedByUserId ?? userId,
+    submittedAt: run.submittedAt ?? now,
+    approvedByUserId: userId,
+    approvedAt: now,
+    paidByUserId: userId,
+    paidAt: now,
+  }).where(and(eq(payrollRuns.id, runId), eq(payrollRuns.orgId, orgId))).returning();
+
+  for (const step of ["SUBMITTED", "APPROVED", "PAID"] as const) {
+    await writeAudit(tx, {
+      orgId, action: `PAYROLL_${step}`, entity: "payroll_runs", entityId: runId,
+      detail: "Single-actor run & pay (approval disabled for this organisation)",
+      actorUserId: userId, actorEmail: email, actorIp: ip,
+      before: { status: run.status }, after: { status: "paid" },
+    });
+  }
+
+  return updated;
+}
+
 export async function applyLoanRepayments(tx: Tx, orgId: number, runId: number) {
   const slips = await tx.select({
     employeeId: payslips.employeeId, loanDeduction: payslips.loanDeduction,

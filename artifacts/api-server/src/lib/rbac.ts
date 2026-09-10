@@ -19,7 +19,7 @@ export type Permission =
   | "employee:read" | "employee:write"
   | "leave:approve" | "leave:admin" | "loan:review"
   | "payroll:read" | "payroll:calculate" | "payroll:submit"
-  | "payroll:approve" | "payroll:disburse"
+  | "payroll:approve" | "payroll:disburse" | "payroll:run_all"
   | "audit:read"
   | "org:admin" | "user:admin";
 
@@ -32,10 +32,14 @@ export function canApproveRun(
   role: Role,
   userId: number,
   run: { createdByUserId: number | null; submittedByUserId: number | null },
+  requiresApproval: boolean,
 ): { ok: true } | { ok: false; reason: string } {
   if (!can(role, "payroll:approve")) {
     return { ok: false, reason: "Your role cannot approve payroll runs" };
   }
+  // Segregation of duties only applies when the org opts into maker-checker.
+  // With approval turned off, whoever prepared the run may also approve it.
+  if (!requiresApproval) return { ok: true };
   // Admin (superuser) bypasses segregation — they hold all roles simultaneously.
   // For non-admin roles, enforce segregation of duties.
   if (role !== "admin" && (run.createdByUserId === userId || run.submittedByUserId === userId)) {

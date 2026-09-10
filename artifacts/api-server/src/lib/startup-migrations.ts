@@ -36,6 +36,7 @@ async function createBaseSchema(): Promise<void> {
       monthly_charge BIGINT NOT NULL DEFAULT 0,
       billing_cycle TEXT NOT NULL DEFAULT 'monthly',
       status TEXT NOT NULL DEFAULT 'active',
+      requires_payroll_approval BOOLEAN NOT NULL DEFAULT FALSE,
       trial_ends_at TIMESTAMP,
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     )`,
@@ -677,6 +678,19 @@ async function addEmployeeSalaryBasis(): Promise<void> {
   await db.execute(sql`ALTER TABLE employees ADD COLUMN IF NOT EXISTS salary_basis TEXT NOT NULL DEFAULT 'gross'`);
 }
 
+async function addOrgRequiresPayrollApproval(): Promise<void> {
+  // Added nullable so the backfill can target rows that were never set. Every
+  // org that predates this feature keeps maker-checker (behaviour unchanged);
+  // new orgs default to FALSE (the streamlined single-actor flow). The UPDATE
+  // is a no-op on later boots because rows are never NULL again, and a later
+  // opt-out (setting it back to FALSE) is therefore never reverted.
+  await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS requires_payroll_approval BOOLEAN`);
+  await db.execute(sql`UPDATE organizations SET requires_payroll_approval = TRUE WHERE requires_payroll_approval IS NULL`);
+  // Converge with the fresh-schema shape once no NULLs remain (both idempotent).
+  await db.execute(sql`ALTER TABLE organizations ALTER COLUMN requires_payroll_approval SET DEFAULT FALSE`);
+  await db.execute(sql`ALTER TABLE organizations ALTER COLUMN requires_payroll_approval SET NOT NULL`);
+}
+
 export async function runStartupMigrations(): Promise<void> {
   // Each step is isolated: one failing migration must not skip the rest, and
   // the log names which one broke and why. All are idempotent, so a failed
@@ -700,6 +714,7 @@ export async function runStartupMigrations(): Promise<void> {
     ["addEmployeePersonalDetails", addEmployeePersonalDetails],
     ["addEmployeeBankBranchName", addEmployeeBankBranchName],
     ["addEmployeeSalaryBasis", addEmployeeSalaryBasis],
+    ["addOrgRequiresPayrollApproval", addOrgRequiresPayrollApproval],
   ];
 
   for (const [name, run] of steps) {
