@@ -6,6 +6,7 @@ import { organizations, statutoryConfigs, payrollRuns } from "@workspace/db/sche
 import { requireAuth, getIp, type AuthRequest } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { resolveConfig } from "../lib/statutory-resolve.js";
+import { accountReferenceFor } from "../lib/mpesa.js";
 import { HttpError } from "../lib/http-error.js";
 
 const router = Router();
@@ -59,6 +60,7 @@ router.get("/", requireAuth("org:admin"), async (req, res, next) => {
         shifEmployerNo: org.shifEmployerNo ?? "",
         plan: org.plan,
         status: org.status,
+        billingRef: accountReferenceFor(org.id),
         requiresPayrollApproval: org.requiresPayrollApproval,
         payrollStartPeriod: org.payrollStartPeriod,
         autoGeneratePayoutOnPay: org.autoGeneratePayoutOnPay,

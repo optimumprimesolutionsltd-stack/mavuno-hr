@@ -167,6 +167,7 @@ router.post("/:id/verify", ...requireSuperAdmin(), async (req, res, next) => {
           await sendReceiptEmail({
             to: email,
             orgName: row.org.name,
+            billingRef: accountReferenceFor(row.org.id),
             receiptNo: updated.receiptNo,
             period: updated.period,
             amountKes: formatKes(updated.amount),
@@ -219,6 +220,7 @@ router.post("/:id/resend", ...requireSuperAdmin(), async (req, res, next) => {
       await sendReceiptEmail({
         to: email,
         orgName: row.org.name,
+        billingRef: accountReferenceFor(row.org.id),
         receiptNo: row.payment.receiptNo,
         period: row.payment.period,
         amountKes: formatKes(row.payment.amount),
@@ -269,6 +271,8 @@ router.get("/my", requireAuth("org:admin"), async (req, res, next) => {
       seatLimit: orgRow?.seatLimit ?? 0,
       activeEmployees,
       billingCycle: cycle,
+      // Quote this as the reference for bank transfers and M-Pesa Paybill.
+      billingRef: accountReferenceFor(p.orgId),
       // What the org pays each month (override wins over the rate card).
       monthlyCharge,
       // The rate-card figure at the current headcount, for reference.
@@ -456,6 +460,7 @@ router.post("/mpesa/callback", async (req, res) => {
         await sendReceiptEmail({
           to: u.email,
           orgName: org?.name ?? "",
+          billingRef: accountReferenceFor(payment.orgId),
           receiptNo: `RCP-${now.getFullYear()}-${String(payment.id).padStart(5, "0")}`,
           period: payment.period,
           amountKes: `KES ${((amountPaid || payment.amount) / 100).toLocaleString("en-KE")}`,

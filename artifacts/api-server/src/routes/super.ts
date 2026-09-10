@@ -10,6 +10,7 @@ import {
   PLAN_IDS, BILLING_CYCLES,
   standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents,
 } from "../lib/pricing.js";
+import { accountReferenceFor, parseAccountReference } from "../lib/mpesa.js";
 import type { Request, Response, NextFunction } from "express";
 
 const router = Router();
@@ -130,6 +131,7 @@ router.get("/orgs", requireSuperAdminOrSyncKey(), async (_req, res, next) => {
           cycleCharge: cycleChargeCents(monthlyCharge, cycle),
           countryCode: o.countryCode,
           currencyCode: o.currencyCode,
+          billingRef: accountReferenceFor(o.id),
           trialEndsAt: o.trialEndsAt,
           payrollStartPeriod: o.payrollStartPeriod,
           createdAt: o.createdAt,
@@ -140,6 +142,33 @@ router.get("/orgs", requireSuperAdminOrSyncKey(), async (_req, res, next) => {
         };
       })
     );
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── GET /api/super/resolve-ref?ref=MHR-000042K ───────────────────────────────
+// Resolve a billing account number to its org — for reconciling a bank transfer
+// or Paybill payment, and the seam a future M-Pesa C2B callback would call.
+router.get("/resolve-ref", ...requireSuperAdmin(), async (req, res, next) => {
+  try {
+    const orgId = parseAccountReference(String(req.query.ref ?? ""));
+    if (orgId === null) {
+      throw new HttpError(422, "Not a valid billing account number", "BAD_BILLING_REF");
+    }
+    const [org] = await db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        slug: organizations.slug,
+        status: organizations.status,
+        plan: organizations.plan,
+      })
+      .from(organizations)
+      .where(eq(organizations.id, orgId))
+      .limit(1);
+    if (!org) throw new HttpError(404, "No organisation for that account number");
+    res.json({ ...org, billingRef: accountReferenceFor(org.id) });
   } catch (err) {
     next(err);
   }
