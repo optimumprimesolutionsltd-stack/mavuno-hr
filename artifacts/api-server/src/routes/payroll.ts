@@ -6,6 +6,7 @@ import { payrollRuns, payslips, employees, loans, payoutBatches, statutoryFiling
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { calculateRun, recalculateRun, applyLoanRepayments, finalizeRunInTx } from "../lib/payroll-run.js";
+import { runAutoOnPay, generatePayoutBatch, emailRunPayslips } from "../lib/payroll-dispatch.js";
 import { computePayslip } from "../lib/payroll.js";
 import { resolveConfig } from "../lib/statutory-resolve.js";
 import { canApproveRun, can } from "../lib/rbac.js";
@@ -215,7 +216,10 @@ router.patch("/:id", requireAuth(), async (req, res, next) => {
         throw new HttpError(409, "This organisation requires a separate approval step.", "APPROVAL_REQUIRED");
       }
       const finalized = await db.transaction((tx) => finalizeRunInTx(tx as any, p, id, getIp(req)));
-      res.json(finalized);
+      const autoOnPay = await runAutoOnPay({
+        orgId: p.orgId, runId: id, actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+      });
+      res.json({ ...finalized, autoOnPay });
       return;
     }
 
@@ -313,6 +317,14 @@ router.patch("/:id", requireAuth(), async (req, res, next) => {
         before: { status: run.status }, after: { status: updated.status },
       });
     });
+
+    if (action === "pay") {
+      const autoOnPay = await runAutoOnPay({
+        orgId: p.orgId, runId: id, actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+      });
+      res.json({ ...updated, autoOnPay });
+      return;
+    }
 
     res.json(updated);
   } catch (err) { next(err); }
@@ -659,26 +671,10 @@ router.post("/:id/payouts", requireAuth("payroll:disburse"), async (req, res, ne
     if (run.runType === "historical") throw new HttpError(409, "Historical runs are records only — no bank file.", "HISTORICAL_RUN_LOCKED");
     if (!["approved","paid"].includes(run.status)) throw new HttpError(409, "Run must be approved to generate payouts");
 
-    const slips = await db.select({ slip: payslips, emp: employees })
-      .from(payslips)
-      .innerJoin(employees, and(
-        eq(payslips.employeeId, employees.id),
-        eq(payslips.orgId, employees.orgId),
-      ))
-      .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
-
-    const channel = req.body?.channel ?? "bank_eft";
-    const format = req.body?.format ?? "csv";
-
-    const lines = slips.map((r) => `${r.emp.empNo},${fullName(r.emp)},${r.emp.bankAccount ?? ""},${r.slip.netPay}`).join("\n");
-    const checksum = createHash("sha256").update(lines).digest("hex");
-    const totalAmount = slips.reduce((a, r) => a + r.slip.netPay, 0);
-
-    const [batch] = await db.insert(payoutBatches).values({
-      orgId: p.orgId, runId: id, channel, format,
-      itemCount: slips.length, totalAmount, checksum,
-      generatedByUserId: p.userId, status: "generated",
-    }).returning();
+    const batch = await generatePayoutBatch({
+      orgId: p.orgId, runId: id, actorUserId: p.userId,
+      channel: req.body?.channel, format: req.body?.format,
+    });
 
     res.status(201).json(batch);
   } catch (err) { next(err); }
@@ -1414,66 +1410,12 @@ router.post("/:id/email-payslips", requireAuth("payroll:read"), async (req, res,
     if (!run) throw new HttpError(404, "Run not found");
     if (run.runType === "historical") throw new HttpError(409, "Historical runs are records only — payslips are not emailed.", "HISTORICAL_RUN_LOCKED");
 
-    const [org] = await db.select().from(organizations).where(eq(organizations.id, p.orgId));
-
-    const rows = await db
-      .select({ slip: payslips, emp: employees })
-      .from(payslips)
-        .innerJoin(employees, and(
-          eq(payslips.employeeId, employees.id),
-          eq(payslips.orgId, employees.orgId),
-        ))
-      .where(and(eq(payslips.runId, id), eq(payslips.orgId, p.orgId)));
-
-    const { generatePayslipPdf } = await import("../lib/pdf-payslip.js");
-    let sent = 0;
-    const errors: string[] = [];
-
-    for (const { slip, emp } of rows) {
-      const email = emp.email;
-      if (!email) { errors.push(`${emp.empNo}: no email`); continue; }
-      try {
-        const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number; insurancePremium?: number };
-        const pdfBuffer = await generatePayslipPdf({
-          orgName: org.name, orgKraPin: org.kraPin ?? undefined, orgNssfNo: org.nssfEmployerNo ?? undefined,
-          period: run.period, runName: run.name,
-          empNo: emp.empNo, empName: fullName(emp),
-          position: emp.position ?? "", employmentType: emp.employmentType ?? "permanent",
-          nationalId: emp.nationalId ?? undefined, kraPin: emp.kraPin ?? undefined,
-          nssfNo: emp.nssfNo ?? undefined, shifNo: emp.shifNo ?? undefined,
-          bankName: emp.bankName ?? undefined, bankAccount: emp.bankAccount ?? undefined,
-          mpesaPhone: emp.mpesaPhone ?? undefined,
-          daysPayable: slip.daysPayable ?? 0, daysInPeriod: slip.daysInPeriod ?? 30,
-          basic: slip.basic, allowances: slip.allowances, overtime: slip.overtime,
-          adjustmentEarnings: slip.adjustmentEarnings, nonCashBenefit: slip.nonCashBenefit,
-          gross: slip.gross, cashGross: slip.cashGross,
-          paye: slip.paye, nssfEmployee: slip.nssfEmployee,
-          nssfTier1: bd.nssfTier1 ?? 0, nssfTier2: bd.nssfTier2 ?? 0,
-          shif: slip.shif, housingLevyEmployee: slip.housingLevyEmployee,
-          pension: slip.pension, helb: slip.helb, sacco: slip.sacco,
-          loanDeduction: slip.loanDeduction, adjustmentDeductions: slip.adjustmentDeductions,
-           insurancePremium: bd.insurancePremium ?? 0,
-          totalDeductions: slip.totalDeductions, netPay: slip.netPay,
-          nssfEmployer: slip.nssfEmployer, housingLevyEmployer: slip.housingLevyEmployer,
-          pensionEmployer: slip.pensionEmployer,
-        });
-        await sendPayslipEmail({ to: email, empName: fullName(emp), period: run.period, orgName: org.name, pdfBuffer });
-        sent++;
-      } catch (e: any) {
-        logger.warn({ err: e, employeeNo: emp.empNo }, "payslip: failed to send email");
-        errors.push(`${emp.empNo}: ${getSafeResendError(e)}`);
-      }
-    }
-
-    await db.transaction(async (tx) => {
-      await writeAudit(tx as any, {
-        orgId: p.orgId, action: "PAYROLL_EMAIL_PAYSLIPS", entity: "payroll_runs", entityId: id,
-        detail: `Emailed ${sent}/${rows.length} payslips for run ${run.name}`,
-        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
-      });
+    const { sent, total, errors } = await emailRunPayslips({
+      orgId: p.orgId, runId: id,
+      actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
     });
 
-    res.json({ sent, total: rows.length, errors });
+    res.json({ sent, total, errors });
   } catch (err) { next(err); }
 });
 

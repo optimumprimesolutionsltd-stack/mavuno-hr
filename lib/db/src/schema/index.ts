@@ -33,6 +33,10 @@ export const organizations = pgTable("organizations", {
      stay silent for them and reports flag them. null = Mavuno has always been
      the system of record (a company that started payroll here). */
   payrollStartPeriod: text("payroll_start_period"),
+  /* When a run is paid, also generate the bank/M-Pesa payout batch. */
+  autoGeneratePayoutOnPay: boolean("auto_generate_payout_on_pay").notNull().default(false),
+  /* When a run is paid, also email each employee their payslip. */
+  autoEmailPayslipsOnPay: boolean("auto_email_payslips_on_pay").notNull().default(false),
   trialEndsAt: timestamp("trial_ends_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [uniqueIndex("orgs_slug_uq").on(t.slug)]);
