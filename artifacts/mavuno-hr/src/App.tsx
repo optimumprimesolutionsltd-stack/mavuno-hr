@@ -38,6 +38,10 @@ function App() {
             proxyUrl={clerkProxyUrl}
             signInUrl={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/sign-in`}
             signUpUrl={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/register`}
+            // After OAuth, return to /sign-in (not Clerk's "/" default, which is
+            // the marketing site) so the Clerk -> Mavuno bridge runs.
+            signInFallbackRedirectUrl={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/sign-in`}
+            signUpFallbackRedirectUrl={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/sign-in`}
             localization={{
               signIn: {
                 start: {
