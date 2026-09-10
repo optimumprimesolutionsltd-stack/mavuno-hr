@@ -39,6 +39,8 @@ async function createBaseSchema(): Promise<void> {
       status TEXT NOT NULL DEFAULT 'active',
       requires_payroll_approval BOOLEAN NOT NULL DEFAULT FALSE,
       payroll_start_period TEXT,
+      auto_generate_payout_on_pay BOOLEAN NOT NULL DEFAULT FALSE,
+      auto_email_payslips_on_pay BOOLEAN NOT NULL DEFAULT FALSE,
       trial_ends_at TIMESTAMP,
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     )`,
@@ -687,6 +689,11 @@ async function addOrgPayrollStartPeriod(): Promise<void> {
   await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS payroll_start_period TEXT`);
 }
 
+async function addOrgAutoOnPayToggles(): Promise<void> {
+  await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS auto_generate_payout_on_pay BOOLEAN NOT NULL DEFAULT FALSE`);
+  await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS auto_email_payslips_on_pay BOOLEAN NOT NULL DEFAULT FALSE`);
+}
+
 async function seedStatutoryConfigs(): Promise<void> {
   // The statutory packs (PAYE bands, NSSF tiers, SHIF, Housing Levy, …) live in
   // code but must be rows in statutory_configs for resolveConfig() to find them
@@ -731,6 +738,7 @@ export async function runStartupMigrations(): Promise<void> {
     ["createBaseSchema", createBaseSchema],
     ["createSessionsTable", createSessionsTable],
     ["addOrgPayrollStartPeriod", addOrgPayrollStartPeriod],
+    ["addOrgAutoOnPayToggles", addOrgAutoOnPayToggles],
     ["seedStatutoryConfigs", seedStatutoryConfigs],
     ["seedSuperAdmin", seedSuperAdmin],
     ["migrateAdminCredentials", migrateAdminCredentials],

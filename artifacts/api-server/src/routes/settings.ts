@@ -61,6 +61,8 @@ router.get("/", requireAuth("org:admin"), async (req, res, next) => {
         status: org.status,
         requiresPayrollApproval: org.requiresPayrollApproval,
         payrollStartPeriod: org.payrollStartPeriod,
+        autoGeneratePayoutOnPay: org.autoGeneratePayoutOnPay,
+        autoEmailPayslipsOnPay: org.autoEmailPayslipsOnPay,
       },
       activeConfig: cfg,
       tier2Provider: cfg?.socialSecurity?.tier2Provider ?? "nssf",
@@ -78,6 +80,8 @@ const updateOrgSchema = z.object({
   shifEmployerNo: z.string().max(50).nullable().optional(),
   requiresPayrollApproval: z.boolean().optional(),
   payrollStartPeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).nullable().optional(),
+  autoGeneratePayoutOnPay: z.boolean().optional(),
+  autoEmailPayslipsOnPay: z.boolean().optional(),
 });
 
 router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
@@ -101,6 +105,8 @@ router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
     if (body.nssfEmployerNo !== undefined) updates.nssfEmployerNo = body.nssfEmployerNo ?? null;
     if (body.shifEmployerNo !== undefined) updates.shifEmployerNo = body.shifEmployerNo ?? null;
     if (body.requiresPayrollApproval !== undefined) updates.requiresPayrollApproval = body.requiresPayrollApproval;
+    if (body.autoGeneratePayoutOnPay !== undefined) updates.autoGeneratePayoutOnPay = body.autoGeneratePayoutOnPay;
+    if (body.autoEmailPayslipsOnPay !== undefined) updates.autoEmailPayslipsOnPay = body.autoEmailPayslipsOnPay;
 
     if (body.payrollStartPeriod !== undefined) {
       const next = body.payrollStartPeriod ?? null;
@@ -145,6 +151,8 @@ router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
           shifEmployerNo: org.shifEmployerNo,
           requiresPayrollApproval: org.requiresPayrollApproval,
           payrollStartPeriod: org.payrollStartPeriod,
+          autoGeneratePayoutOnPay: org.autoGeneratePayoutOnPay,
+          autoEmailPayslipsOnPay: org.autoEmailPayslipsOnPay,
         },
         after: updates,
       });
