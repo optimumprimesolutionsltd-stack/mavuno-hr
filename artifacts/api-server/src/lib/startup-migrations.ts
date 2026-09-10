@@ -518,8 +518,10 @@ async function migrateAdminCredentials(): Promise<void> {
 
 /**
  * Sync the super-admin password from the SUPER_ADMIN_PASSWORD secret on every
- * startup. This means changing the secret and restarting the server is enough
- * to rotate the password — no manual DB update required.
+ * startup. Changing the secret and restarting the server is enough to rotate
+ * the password — no manual DB update required. A restart also clears any
+ * failed-login lockout on the account, so the platform owner is never stuck
+ * waiting out a lockout with no way in.
  */
 async function syncSuperAdminPassword(): Promise<void> {
   const password = process.env.SUPER_ADMIN_PASSWORD;
@@ -537,10 +539,10 @@ async function syncSuperAdminPassword(): Promise<void> {
   const hash = await hashPassword(password);
   await db
     .update(users)
-    .set({ passwordHash: hash, mustChangePassword: false })
+    .set({ passwordHash: hash, mustChangePassword: false, failedLoginCount: 0, lockedUntil: null })
     .where(eq(users.id, user.id));
 
-  logger.info({ email: TARGET_EMAIL }, "startup-migration: super-admin password synced from secret");
+  logger.info({ email: TARGET_EMAIL }, "startup-migration: super-admin password synced and lockout cleared");
 }
 
 async function createSessionsTable(): Promise<void> {
