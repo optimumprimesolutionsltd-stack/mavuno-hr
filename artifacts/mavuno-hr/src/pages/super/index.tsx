@@ -132,8 +132,8 @@ function EditOrgDialog({ org, open, onClose }: { org: OrgRow; open: boolean; onC
                   <SelectItem key={v} value={v}>
                     <span className="font-mono">{r.label}</span>
                     <span className="ml-2 text-muted-foreground text-xs">
-                      — {r.rateCents > 0
-                        ? `${kes(r.rateCents)}/employee, min ${kes(r.minCents)}/mo`
+                      — {r.minCents > 0
+                        ? `${kes(r.minCents)}/mo · covers ${r.includedSeats}`
                         : "Free"}
                     </span>
                   </SelectItem>
@@ -146,9 +146,10 @@ function EditOrgDialog({ org, open, onClose }: { org: OrgRow; open: boolean; onC
               <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
               <span>
                 <strong className="text-foreground">{rate.label}</strong> — {rate.bestFor}.{" "}
-                {rate.rateCents > 0
+                {rate.minCents > 0
                   ? <>
-                      {kes(rate.rateCents)}/employee/mo, minimum {kes(rate.minCents)}/mo. Rate card at{" "}
+                      Flat {kes(rate.minCents)}/mo covers {rate.includedSeats}
+                      {rate.overageCents > 0 && <>; then {kes(rate.overageCents)}/extra employee</>}. Rate card at{" "}
                       {org.activeEmployees} active {org.activeEmployees === 1 ? "employee" : "employees"}:{" "}
                       <strong className="text-foreground">{kes(standardAtHeadcount)}/mo</strong>.
                     </>

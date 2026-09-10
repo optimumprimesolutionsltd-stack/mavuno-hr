@@ -5,16 +5,20 @@
  * artifacts/mavuno-hr/src/lib/pricing.ts for live previews — keep the two in
  * step when the numbers change.
  *
- * Model: per active employee, per month (PEPM), with a monthly minimum.
- *   monthly charge = max( plan minimum, plan rate x active employees )
- * A positive per-org override (organizations.monthly_charge) wins over the
- * rate card — that is the negotiated Enterprise / bespoke price.
- * Annual billing charges 10 months for 12 (~16.7% off).
+ * Model: banded flat fee + grace overage.
+ *   monthly charge = plan flat fee
+ *                  + overage rate x (active employees over the plan's included seats)
+ * The overage only bites in the small buffer between a plan's included seats and
+ * its soft cap; past the soft cap the customer moves to the next plan
+ * (recommendPlan picks the cheapest that still fits). A positive per-org
+ * override (organizations.monthly_charge) wins over the rate card — that is the
+ * negotiated Enterprise / bespoke price. Annual billing charges 10 months for 12
+ * (~16.7% off).
  *
  * All amounts are KES *cents* to match the money() convention in the schema.
  */
 
-export const PLAN_IDS = ["trial", "starter", "growth", "enterprise"] as const;
+export const PLAN_IDS = ["trial", "free", "lite", "starter", "growth", "business", "enterprise"] as const;
 export type PlanId = (typeof PLAN_IDS)[number];
 
 export const BILLING_CYCLES = ["monthly", "annual"] as const;
@@ -25,42 +29,33 @@ export const ANNUAL_MONTHS_CHARGED = 10;
 
 export interface PlanRate {
   label: string;
-  /** Per active employee, per month — KES cents. */
-  rateCents: number;
-  /** Monthly minimum charge — KES cents. */
+  /** Flat monthly fee — KES cents. */
   minCents: number;
-  /** Marketing "best for" band, e.g. "1–40 employees". Display only. */
+  /** Active employees the flat fee covers. */
+  includedSeats: number;
+  /** Per active employee above includedSeats (the grace buffer) — KES cents. */
+  overageCents: number;
+  /** Above this headcount, recommendPlan points to the next plan. null = no cap. */
+  softCapSeats: number | null;
+  /** Marketing "best for" band, e.g. "11–20 employees". Display only. */
   bestFor: string;
 }
 
 const K = 100; // KES -> cents
 
 export const PLAN_RATES: Record<PlanId, PlanRate> = {
-  trial: {
-    label: "Trial",
-    rateCents: 0,
-    minCents: 0,
-    bestFor: "Up to 25 employees, 30 days",
-  },
-  starter: {
-    label: "Starter",
-    rateCents: 200 * K,
-    minCents: 3_500 * K,
-    bestFor: "1–40 employees",
-  },
-  growth: {
-    label: "Growth",
-    rateCents: 150 * K,
-    minCents: 12_000 * K,
-    bestFor: "40–150 employees",
-  },
-  enterprise: {
-    label: "Enterprise",
-    rateCents: 110 * K,
-    minCents: 75_000 * K,
-    bestFor: "150+ employees",
-  },
+  trial:      { label: "Trial",      minCents: 0,          includedSeats: 25,  overageCents: 0,       softCapSeats: 25,   bestFor: "Up to 25 employees, 30 days" },
+  free:       { label: "Free",       minCents: 0,          includedSeats: 5,   overageCents: 0,       softCapSeats: 5,    bestFor: "1–5 employees" },
+  lite:       { label: "Lite",       minCents: 1_500 * K,  includedSeats: 10,  overageCents: 150 * K, softCapSeats: 13,   bestFor: "6–10 employees" },
+  starter:    { label: "Starter",    minCents: 2_500 * K,  includedSeats: 20,  overageCents: 150 * K, softCapSeats: 25,   bestFor: "11–20 employees" },
+  growth:     { label: "Growth",     minCents: 4_000 * K,  includedSeats: 50,  overageCents: 130 * K, softCapSeats: 60,   bestFor: "21–50 employees" },
+  business:   { label: "Business",   minCents: 7_000 * K,  includedSeats: 150, overageCents: 90 * K,  softCapSeats: 180,  bestFor: "51–150 employees" },
+  enterprise: { label: "Enterprise", minCents: 10_000 * K, includedSeats: 250, overageCents: 70 * K,  softCapSeats: null, bestFor: "150+ employees" },
 };
+
+export const PLAN_LABELS: Record<string, string> = Object.fromEntries(
+  PLAN_IDS.map((id) => [id, PLAN_RATES[id].label]),
+);
 
 export function isPlanId(v: string): v is PlanId {
   return (PLAN_IDS as readonly string[]).includes(v);
@@ -70,14 +65,36 @@ export function isBillingCycle(v: string): v is BillingCycle {
   return (BILLING_CYCLES as readonly string[]).includes(v);
 }
 
-/**
- * Rate-card monthly charge for a plan at a given headcount, before any
- * per-org negotiated override. KES cents.
- */
+/** How many employees over the plan's included seats. */
+export function overageSeats(plan: string, activeEmployees: number): number {
+  const rate = PLAN_RATES[isPlanId(plan) ? plan : "trial"];
+  return Math.max(0, Math.floor(activeEmployees || 0) - rate.includedSeats);
+}
+
+/** Flat fee + overage, before any per-org negotiated override. KES cents. */
 export function standardMonthlyCents(plan: string, activeEmployees: number): number {
   const rate = PLAN_RATES[isPlanId(plan) ? plan : "trial"];
-  const seats = Math.max(0, Math.floor(activeEmployees || 0));
-  return Math.max(rate.minCents, rate.rateCents * seats);
+  return rate.minCents + rate.overageCents * overageSeats(plan, activeEmployees);
+}
+
+/** Breakdown for display: flat fee, chargeable overage count, overage total. */
+export function priceBreakdown(plan: string, activeEmployees: number): {
+  flatCents: number;
+  overageCount: number;
+  overageRateCents: number;
+  overageTotalCents: number;
+  totalCents: number;
+} {
+  const rate = PLAN_RATES[isPlanId(plan) ? plan : "trial"];
+  const overageCount = overageSeats(plan, activeEmployees);
+  const overageTotalCents = rate.overageCents * overageCount;
+  return {
+    flatCents: rate.minCents,
+    overageCount,
+    overageRateCents: rate.overageCents,
+    overageTotalCents,
+    totalCents: rate.minCents + overageTotalCents,
+  };
 }
 
 /**
@@ -100,13 +117,16 @@ export function cycleChargeCents(monthlyCents: number, cycle: string): number {
     : monthlyCents;
 }
 
-/** Cheapest paid plan for a headcount (ignores Trial). */
+/** Cheapest paid plan that fits a headcount (ignores Trial). */
 export function recommendPlan(activeEmployees: number): PlanId {
-  const paid: PlanId[] = ["starter", "growth", "enterprise"];
-  let best: PlanId = "starter";
+  const seats = Math.max(0, Math.floor(activeEmployees || 0));
+  const candidates: PlanId[] = ["free", "lite", "starter", "growth", "business", "enterprise"];
+  let best: PlanId = "enterprise";
   let bestCost = Number.POSITIVE_INFINITY;
-  for (const p of paid) {
-    const c = standardMonthlyCents(p, activeEmployees);
+  for (const p of candidates) {
+    const cap = PLAN_RATES[p].softCapSeats;
+    if (cap !== null && seats > cap) continue;
+    const c = standardMonthlyCents(p, seats);
     if (c < bestCost) {
       bestCost = c;
       best = p;

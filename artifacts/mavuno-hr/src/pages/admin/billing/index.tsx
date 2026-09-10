@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { PLAN_LABELS, PLAN_COLORS, PLAN_RATES } from "@/lib/pricing";
+import { PLAN_LABELS, PLAN_COLORS, PLAN_RATES, priceBreakdown } from "@/lib/pricing";
 import { CreditCard, CheckCircle2, Clock, Loader2, Receipt, Smartphone } from "lucide-react";
 
 interface BillingPayment {
@@ -175,6 +175,7 @@ export function AdminBilling() {
   const plan = org?.plan ?? "trial";
   const rate = PLAN_RATES[plan as keyof typeof PLAN_RATES] ?? PLAN_RATES.trial;
   const headcount = org?.activeEmployees ?? 0;
+  const bd = priceBreakdown(plan, headcount);
   const monthly = org?.monthlyCharge ?? 0;
   const perInvoice = org?.cycleCharge ?? monthly;
   const annual = (org?.billingCycle ?? "monthly") === "annual";
@@ -246,13 +247,15 @@ export function AdminBilling() {
                 ) : (
                   <>
                     <div className="flex justify-between">
-                      <span>{fmtKes(rate.rateCents)} × {headcount} employees</span>
-                      <span>{fmtKes(rate.rateCents * headcount)}</span>
+                      <span>{rate.label} plan — covers {rate.includedSeats} employees</span>
+                      <span>{fmtKes(bd.flatCents)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Plan minimum</span>
-                      <span>{fmtKes(rate.minCents)}</span>
-                    </div>
+                    {bd.overageCount > 0 && (
+                      <div className="flex justify-between">
+                        <span>{bd.overageCount} extra × {fmtKes(bd.overageRateCents)}</span>
+                        <span>{fmtKes(bd.overageTotalCents)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-foreground font-medium border-t border-border/40 pt-0.5 mt-0.5">
                       <span>Monthly charge</span>
                       <span>{fmtKes(monthly)}</span>
