@@ -46,6 +46,7 @@ interface OrgRow {
   cycleCharge: number;                // KES cents — per-invoice (annual = 10x monthly)
   countryCode: string;
   currencyCode: string;
+  billingRef: string;                 // account number the org quotes when paying
   trialEndsAt: string | null;
   createdAt: string;
   activeEmployees: number;

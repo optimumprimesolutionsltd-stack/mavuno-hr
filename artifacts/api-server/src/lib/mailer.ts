@@ -45,8 +45,9 @@ export async function sendReceiptEmail(opts: {
   reference: string | null;
   verifiedAt: string;       // formatted date string
   plan: string;
+  billingRef?: string;      // the org's billing account number, e.g. "MHR-000042K"
 }): Promise<void> {
-  const { to, orgName, receiptNo, period, amountKes, method, reference, verifiedAt, plan } = opts;
+  const { to, orgName, receiptNo, period, amountKes, method, reference, verifiedAt, plan, billingRef } = opts;
   const methodLabel: Record<string, string> = {
     mpesa: "M-Pesa",
     bank_transfer: "Bank Transfer",
@@ -99,6 +100,7 @@ export async function sendReceiptEmail(opts: {
     <table class="detail-table">
       <tr><td>Receipt No.</td><td>${receiptNo}</td></tr>
       <tr><td>Company</td><td>${orgName}</td></tr>
+      ${billingRef ? `<tr><td>Billing Account</td><td style="font-family:monospace">${billingRef}</td></tr>` : ""}
       <tr><td>Plan</td><td>${plan}</td></tr>
       <tr><td>Billing Period</td><td>${period}</td></tr>
       <tr><td>Payment Method</td><td>${methodLabel[method] ?? method}</td></tr>

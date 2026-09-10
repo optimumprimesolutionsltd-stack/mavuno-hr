@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { PLAN_LABELS, PLAN_COLORS, PLAN_RATES, priceBreakdown } from "@/lib/pricing";
-import { CreditCard, CheckCircle2, Clock, Loader2, Receipt, Smartphone } from "lucide-react";
+import { CreditCard, CheckCircle2, Clock, Loader2, Receipt, Smartphone, Copy } from "lucide-react";
 
 interface BillingPayment {
   id: number; orgId: number; receiptNo: string; amount: number;
@@ -27,6 +27,7 @@ interface BillingData {
     seatLimit: number;
     activeEmployees: number;
     billingCycle: string;          // "monthly" | "annual"
+    billingRef: string;            // account number to quote when paying, e.g. "MHR-000042K"
     monthlyCharge: number;         // KES cents — effective (override wins over rate card)
     standardMonthlyCharge: number; // KES cents — rate card at current headcount
     overrideCharge: number;        // KES cents — negotiated override (0 = none)
@@ -180,6 +181,8 @@ export function AdminBilling() {
   const perInvoice = org?.cycleCharge ?? monthly;
   const annual = (org?.billingCycle ?? "monthly") === "annual";
   const usingOverride = (org?.overrideCharge ?? 0) > 0;
+  const billingRef = org?.billingRef ?? "";
+  const { toast } = useToast();
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -271,6 +274,33 @@ export function AdminBilling() {
               </div>
             )}
           </div>
+
+          {/* Billing account number */}
+          {billingRef && (
+            <div className="rounded-lg border border-border/50 bg-card/30 p-5 flex items-center justify-between flex-wrap gap-3">
+              <div className="space-y-1">
+                <p className="text-xs font-mono text-muted-foreground">BILLING ACCOUNT NUMBER</p>
+                <p className="text-lg font-mono font-bold tracking-wider text-foreground select-all">{billingRef}</p>
+                <p className="text-xs text-muted-foreground">
+                  Quote this as the reference for bank transfers and M-Pesa Paybill. In-app M-Pesa
+                  payments already carry it.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  navigator.clipboard?.writeText(billingRef).then(
+                    () => toast({ title: "Copied", description: billingRef }),
+                    () => toast({ variant: "destructive", title: "Couldn't copy", description: billingRef }),
+                  );
+                }}
+              >
+                <Copy className="h-4 w-4" /> Copy
+              </Button>
+            </div>
+          )}
 
           {/* Payments table */}
           <div>

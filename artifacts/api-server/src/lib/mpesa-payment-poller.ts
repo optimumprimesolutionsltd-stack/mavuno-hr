@@ -14,7 +14,7 @@
 import { db } from "@workspace/db";
 import { billingPayments, organizations, users } from "@workspace/db/schema";
 import { eq, and, lt, isNotNull } from "drizzle-orm";
-import { queryTransactionStatus } from "./mpesa.js";
+import { queryTransactionStatus, accountReferenceFor } from "./mpesa.js";
 import { sendReceiptEmail } from "./mailer.js";
 import { logger } from "./logger.js";
 
@@ -88,6 +88,7 @@ async function pollPendingMpesaPayments(): Promise<void> {
           await sendReceiptEmail({
             to: u.email,
             orgName: org?.name ?? "",
+            billingRef: accountReferenceFor(payment.orgId),
             receiptNo,
             period: payment.period,
             amountKes: `KES ${(payment.amount / 100).toLocaleString("en-KE")}`,

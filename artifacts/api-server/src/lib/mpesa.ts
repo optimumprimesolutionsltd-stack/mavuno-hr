@@ -81,9 +81,43 @@ function darajaTimestamp(): string {
   );
 }
 
-/** Builds the short, Safaricom-safe (<=12 char) account reference for an org. */
+/**
+ * The customer's billing account number, e.g. "MHR-000042K". This is what they
+ * quote as the reference for a bank transfer or M-Pesa Paybill, and it is sent
+ * as the STK Push AccountReference so it shows on their M-Pesa statement.
+ *
+ * MHR- + the 6-digit org id + one check character (base-36). The check char
+ * makes a mistyped reference fail validation instead of silently pointing at
+ * another org. 11 chars — within Safaricom's 12-char AccountReference limit.
+ */
+const REF_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+function refCheckChar(digits: string): string {
+  // Weighted sum (weights 2,3,4,...) so a single-digit typo or an adjacent
+  // transposition changes the result.
+  let sum = 0;
+  for (let i = 0; i < digits.length; i++) sum += Number(digits[i]) * (i + 2);
+  return REF_ALPHABET[sum % 36];
+}
+
 export function accountReferenceFor(orgId: number): string {
-  return `MHR-${String(orgId).padStart(6, "0")}`;
+  const digits = String(orgId).padStart(6, "0");
+  return `MHR-${digits}${refCheckChar(digits)}`;
+}
+
+/**
+ * Parse a billing account number back to an org id. Case-insensitive; tolerates
+ * spaces and dashes ("mhr 000042 k" works). Returns null when the format is
+ * wrong or the check character doesn't match — i.e. a typo.
+ */
+export function parseAccountReference(raw: string): number | null {
+  const s = String(raw ?? "").toUpperCase().replace(/[\s-]+/g, "");
+  const m = /^MHR(\d{6})([0-9A-Z])$/.exec(s);
+  if (!m) return null;
+  const [, digits, chk] = m;
+  if (refCheckChar(digits) !== chk) return null;
+  const id = Number(digits);
+  return id > 0 ? id : null;
 }
 
 /** Normalizes a Kenyan phone number to the 2547XXXXXXXX format Daraja requires. */
