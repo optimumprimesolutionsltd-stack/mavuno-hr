@@ -4,7 +4,7 @@
  */
 import { eq, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { users } from "@workspace/db/schema";
+import { users, organizations } from "@workspace/db/schema";
 import { hashPassword } from "./password.js";
 import { logger } from "./logger.js";
 
@@ -442,6 +442,56 @@ async function createBaseSchema(): Promise<void> {
   }
 }
 
+/**
+ * Seed the super-admin account when the database has no users at all.
+ *
+ * `createBaseSchema` builds an empty schema; without this, there is no account
+ * to sign in with and `syncSuperAdminPassword` (which only updates an existing
+ * row) is a no-op — so the product is locked out. Creates a host organisation
+ * and the `optimumprimesolutionsltd@gmail.com` admin with the current
+ * SUPER_ADMIN_PASSWORD. Runs only on a genuinely empty database; once any user
+ * exists it does nothing.
+ */
+async function seedSuperAdmin(): Promise<void> {
+  const password = process.env.SUPER_ADMIN_PASSWORD;
+  if (!password) return; // nothing to seed a password from
+
+  const [{ n }] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(users);
+  if (n > 0) return; // database already has accounts — leave it alone
+
+  const TARGET_EMAIL = "optimumprimesolutionsltd@gmail.com";
+  const passwordHash = await hashPassword(password);
+
+  await db.transaction(async (tx) => {
+    let [org] = await tx
+      .select({ id: organizations.id })
+      .from(organizations)
+      .where(eq(organizations.slug, "optimum-prime"))
+      .limit(1);
+
+    if (!org) {
+      [org] = await tx
+        .insert(organizations)
+        .values({ name: "Optimum Prime Solutions", slug: "optimum-prime", status: "active" })
+        .returning({ id: organizations.id });
+    }
+
+    await tx.insert(users).values({
+      orgId: org.id,
+      email: TARGET_EMAIL,
+      name: "Optimum Prime",
+      role: "admin",
+      passwordHash,
+      mustChangePassword: false,
+      failedLoginCount: 0,
+    });
+  });
+
+  logger.info({ email: TARGET_EMAIL }, "startup-migration: seeded super-admin account on empty database");
+}
+
 /** Migrate the seeded demo admin to the configured production credentials. */
 async function migrateAdminCredentials(): Promise<void> {
   const SEED_EMAIL = "admin@zawadi.co.ke";
@@ -632,6 +682,7 @@ export async function runStartupMigrations(): Promise<void> {
   const steps: [string, () => Promise<void>][] = [
     ["createBaseSchema", createBaseSchema],
     ["createSessionsTable", createSessionsTable],
+    ["seedSuperAdmin", seedSuperAdmin],
     ["migrateAdminCredentials", migrateAdminCredentials],
     ["syncSuperAdminPassword", syncSuperAdminPassword],
     ["createPasswordResetTokensTable", createPasswordResetTokensTable],
