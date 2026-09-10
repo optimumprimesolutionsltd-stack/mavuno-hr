@@ -679,16 +679,15 @@ async function addEmployeeSalaryBasis(): Promise<void> {
 }
 
 async function addOrgRequiresPayrollApproval(): Promise<void> {
-  // Added nullable so the backfill can target rows that were never set. Every
-  // org that predates this feature keeps maker-checker (behaviour unchanged);
-  // new orgs default to FALSE (the streamlined single-actor flow). The UPDATE
-  // is a no-op on later boots because rows are never NULL again, and a later
-  // opt-out (setting it back to FALSE) is therefore never reverted.
-  await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS requires_payroll_approval BOOLEAN`);
-  await db.execute(sql`UPDATE organizations SET requires_payroll_approval = TRUE WHERE requires_payroll_approval IS NULL`);
-  // Converge with the fresh-schema shape once no NULLs remain (both idempotent).
-  await db.execute(sql`ALTER TABLE organizations ALTER COLUMN requires_payroll_approval SET DEFAULT FALSE`);
-  await db.execute(sql`ALTER TABLE organizations ALTER COLUMN requires_payroll_approval SET NOT NULL`);
+  // Mavuno's production DB is a fresh launch with no legacy orgs, so every org
+  // — existing and future — gets the streamlined single-actor default. The
+  // design's "migrate existing orgs to maker-checker" step does not apply here.
+  await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS requires_payroll_approval BOOLEAN NOT NULL DEFAULT FALSE`);
+  // #22 briefly backfilled orgs to TRUE before we knew this was from scratch.
+  // Undo that for anything created in the launch window. TEMPORARY: the fixed
+  // date self-disables this, and the frontend PR that adds the approval toggle
+  // + onboarding question must delete this line.
+  await db.execute(sql`UPDATE organizations SET requires_payroll_approval = FALSE WHERE created_at < TIMESTAMP '2026-10-01 00:00:00'`);
 }
 
 export async function runStartupMigrations(): Promise<void> {
