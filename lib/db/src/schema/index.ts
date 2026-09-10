@@ -24,6 +24,10 @@ export const organizations = pgTable("organizations", {
   /* "monthly" | "annual" — annual bills 10 months for 12. */
   billingCycle: text("billing_cycle").notNull().default("monthly"),
   status: text("status").notNull().default("active"),
+  /* Maker-checker for payroll. false (default for new orgs): whoever runs
+     payroll can take it draft -> paid in one action. true: a different person
+     with payroll:approve must sign off. Existing orgs are migrated to true. */
+  requiresPayrollApproval: boolean("requires_payroll_approval").notNull().default(false),
   trialEndsAt: timestamp("trial_ends_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [uniqueIndex("orgs_slug_uq").on(t.slug)]);

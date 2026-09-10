@@ -5,7 +5,7 @@ import { db } from "@workspace/db";
 import { payrollRuns, payslips, employees, loans, payoutBatches, statutoryFilings, organizations, departments } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
-import { calculateRun, recalculateRun, applyLoanRepayments } from "../lib/payroll-run.js";
+import { calculateRun, recalculateRun, applyLoanRepayments, finalizeRunInTx } from "../lib/payroll-run.js";
 import { computePayslip } from "../lib/payroll.js";
 import { resolveConfig } from "../lib/statutory-resolve.js";
 import { canApproveRun, can } from "../lib/rbac.js";
@@ -95,10 +95,14 @@ const calculateRunSchema = z.object({
   runType: z.enum(["regular","off_cycle","bonus","final"]).default("regular"),
   employeeIds: z.array(z.number().int().positive()).optional(),
   idempotencyKey: z.string().uuid().optional(),
+  // Single-actor "run & pay": calculate then take the run straight to paid.
+  // Only honoured when the org has approval turned off and the caller holds
+  // payroll:run_all (admin).
+  finalize: z.boolean().optional(),
 });
 
 const runActionSchema = z.object({
-  action: z.enum(["submit","approve","reject","pay","reverse"]),
+  action: z.enum(["submit","approve","reject","pay","reverse","run"]),
   note: z.string().max(500).optional(),
 });
 
@@ -118,12 +122,27 @@ router.post("/", requireAuth("payroll:calculate"), async (req, res, next) => {
     const parsed = calculateRunSchema.safeParse(req.body);
     if (!parsed.success) { res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return; }
 
+    const ip = getIp(req);
     const started = Date.now();
-    const { run, warnings } = await db.transaction(async (tx) =>
-      calculateRun(tx as any, p, parsed.data, getIp(req))
-    );
+    const result = await db.transaction(async (tx) => {
+      const { run, warnings } = await calculateRun(tx as any, p, parsed.data, ip);
 
-    res.status(201).json({ run, warnings, durationMs: Date.now() - started });
+      if (!parsed.data.finalize) return { run, warnings, finalized: false };
+
+      // Single-actor "run & pay" — only when the org has approval disabled and
+      // the caller can run payroll end-to-end.
+      const [org] = await tx.select().from(organizations).where(eq(organizations.id, p.orgId));
+      if (org?.requiresPayrollApproval) {
+        throw new HttpError(409, "This organisation requires a separate approval step.", "APPROVAL_REQUIRED");
+      }
+      if (!can(p.role, "payroll:run_all")) {
+        throw new HttpError(403, `Your role (${p.role}) cannot run payroll end-to-end.`);
+      }
+      const finalized = await finalizeRunInTx(tx as any, p, run.id, ip);
+      return { run: finalized, warnings, finalized: true };
+    });
+
+    res.status(201).json({ ...result, durationMs: Date.now() - started });
   } catch (err) { next(err); }
 });
 
@@ -169,6 +188,7 @@ router.patch("/:id", requireAuth(), async (req, res, next) => {
       approve: "payroll:approve",  // approver role can approve without payroll:submit
       pay: "payroll:disburse",
       reverse: "payroll:disburse",
+      run: "payroll:run_all",      // one-step run & pay — admin, approval-off orgs
     };
     const requiredPerm = actionPerm[action];
     if (!can(p.role, requiredPerm as any)) {
@@ -180,6 +200,19 @@ router.patch("/:id", requireAuth(), async (req, res, next) => {
       .where(and(eq(payrollRuns.id, id), eq(payrollRuns.orgId, p.orgId)));
     if (!run) { res.status(404).json({ error: "Payroll run not found" }); return; }
 
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, p.orgId));
+    const requiresApproval = org?.requiresPayrollApproval ?? true;
+
+    // One-step run & pay: finalize a draft straight to paid (own tx + audit).
+    if (action === "run") {
+      if (requiresApproval) {
+        throw new HttpError(409, "This organisation requires a separate approval step.", "APPROVAL_REQUIRED");
+      }
+      const finalized = await db.transaction((tx) => finalizeRunInTx(tx as any, p, id, getIp(req)));
+      res.json(finalized);
+      return;
+    }
+
     let update: Record<string, unknown> = {};
     const now = new Date();
 
@@ -190,10 +223,20 @@ router.patch("/:id", requireAuth(), async (req, res, next) => {
         break;
       }
       case "approve": {
-        if (run.status !== "pending_approval") throw new HttpError(409, "Run is not pending approval");
-        const check = canApproveRun(p.role, p.userId, run);
+        // With approval off, approve directly from draft (submit is implicit).
+        const validFrom = requiresApproval ? ["pending_approval"] : ["draft", "pending_approval"];
+        if (!validFrom.includes(run.status)) {
+          throw new HttpError(409, `Run cannot be approved from status '${run.status}'`);
+        }
+        const check = canApproveRun(p.role, p.userId, run, requiresApproval);
         if (!check.ok) throw new HttpError(403, check.reason);
-        update = { status: "approved", approvedByUserId: p.userId, approvedAt: now };
+        update = {
+          status: "approved",
+          submittedByUserId: run.submittedByUserId ?? p.userId,
+          submittedAt: run.submittedAt ?? now,
+          approvedByUserId: p.userId,
+          approvedAt: now,
+        };
         break;
       }
       case "reject": {
