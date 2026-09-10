@@ -59,7 +59,7 @@ function safeRedirect(value: string | null, role: string, employeeId: number | n
 }
 
 export function GoogleSignIn() {
-  const { isLoaded, isSignedIn, sessionId } = useClerkAuth();
+  const { isLoaded, isSignedIn, sessionId, signOut } = useClerkAuth();
   const [, setLocation] = useLocation();
   const [bridgeError, setBridgeError] = useState<string | null>(null);
 
@@ -90,21 +90,35 @@ export function GoogleSignIn() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-[440px] space-y-4">
-        {bridgeError && (
-          <div role="alert" className="rounded-lg border border-red-500/40 bg-red-950/40 px-4 py-3 text-sm text-red-200">
-            {bridgeError}
-          </div>
-        )}
-        {isSignedIn && !bridgeError ? (
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Verifying your Mavuno HR access…
-          </div>
+        {isSignedIn ? (
+          // Already through Clerk — only ever show the bridge state here, never
+          // <SignIn>. Rendering <SignIn> while Clerk-signed-in is what let the
+          // reverted #16 loop; keeping it out removes that vector entirely.
+          bridgeError ? (
+            <div className="space-y-3">
+              <div role="alert" className="rounded-lg border border-red-500/40 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+                {bridgeError}
+              </div>
+              <button
+                type="button"
+                onClick={() => { void signOut(() => setLocation("/admin/login")); }}
+                className="text-sm text-emerald-400 hover:text-emerald-300"
+              >
+                Back to login
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Verifying your Mavuno HR access…
+            </div>
+          )
         ) : (
           <SignIn
             routing="path"
             path={`${basePath}/sign-in`}
             signUpUrl={`${basePath}/register`}
+            fallbackRedirectUrl={`${basePath}/sign-in`}
             appearance={clerkAppearance}
           />
         )}
