@@ -166,7 +166,7 @@ the DDL added to `createBaseSchema()`.
 | Phase | Scope | Value |
 |---|---|---|
 | **1** | `billing_charges` table + `scheduleBillingRun` (snapshot only, **no repricing yet**) + `charge_id` link + `currentCharge` in `GET /billing/my` + `POST /api/super/billing-run` | deterministic, frozen monthly bill; foundation for receipts/dunning |
-| **2** | Repricing in the run: `recommendPlan` → move plan → audit → notify. `nextChargeProjection` + the "next month" banner | plan stays right; no surprise bills |
+| **2** | Plan onboarding (§9): `PATCH /api/billing/plan` + plan picker + trial-end assignment. Repricing in the run: `recommendPlan` → move plan → audit → notify. `nextChargeProjection` + the "next month" banner | customers can reach a paid band; plan stays right; no surprise bills |
 | **3** | Annual renewal handling (charge only in the renewal month, true-up) | correct annual behaviour |
 | **4** | `currentPeriodStatus` in super `/orgs`, `void` a charge, overdue flag | ops visibility |
 | **5** | Dunning: reminder notifications at +3 / +7 / +14 days overdue; auto-suspend at +30 (super-admin-configurable, off by default) | revenue collection |
@@ -192,7 +192,48 @@ Phase 1 is safe to ship alone — it only records what's already computed.
 
 ---
 
-## 9. Open questions
+## 9. Plan onboarding — prerequisite for the bands to do anything
+
+The banded rate card (Free / Lite / Starter / Growth / Business) is defined but
+**a customer cannot land on any of it**. Today:
+
+- `POST /api/auth/register` hardcodes `plan: 'trial'`.
+- `trial_ends_at` passing does nothing — no gate, no transition, no charge.
+- Only the super-admin can set a paid plan (`PATCH /api/super/orgs/:id`).
+- There is no plan-picker anywhere in the customer app.
+
+So the billing run (§3) has nothing to bill until this exists. Needed:
+
+1. **`PATCH /api/billing/plan`** (`org:admin`) — a customer sets their own plan.
+   Constrained: the chosen plan's `softCapSeats` must fit current headcount
+   (can't pick Free with 30 employees). Rejects when `monthly_charge` override
+   is set (that's negotiated — talk to us). Audited `PLAN_SELECTED`.
+
+2. **Plan picker UI** on the billing screen — the bands as cards/rows, current
+   headcount → recommended band highlighted (`recommendPlan`), each showing
+   "KES X/mo from `<next period>`". Admin confirms or changes. On confirm →
+   `PATCH /api/billing/plan`.
+
+3. **Trial-end transition** (open question #3): when `trial_ends_at` passes and
+   plan is still `trial`, the billing run assigns `recommendPlan(headcount)`,
+   audits `PLAN_AUTO_ASSIGNED`, and notifies:
+   *"Your trial ended — you're on `<plan>`, KES X/mo. Change anytime in Billing."*
+   The app is not hard-gated; the first `billing_charges` row for the following
+   period makes it real. A persistent banner nudges payment.
+
+4. **Registration** keeps `plan: 'trial'`, but the signup form captures expected
+   team size so the billing screen can pre-select the right band on day one.
+
+5. This is the *first-assignment* half of repricing — §3 step 2 is the ongoing
+   version. Same `recommendPlan` call, same audit/notify shape.
+
+Suggested placement: **Phase 2** of the rollout (§7), alongside repricing —
+they share the plumbing. `PATCH /api/billing/plan` + the picker could ship in
+Phase 1 if a manual paid-plan path is wanted before the run exists.
+
+---
+
+## 10. Open questions
 
 1. Headcount basis — **last day of the billed period** (proposed) vs max vs
    average during it? Last-day is simplest and hardest to game in the customer's
