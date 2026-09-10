@@ -38,6 +38,7 @@ async function createBaseSchema(): Promise<void> {
       billing_cycle TEXT NOT NULL DEFAULT 'monthly',
       status TEXT NOT NULL DEFAULT 'active',
       requires_payroll_approval BOOLEAN NOT NULL DEFAULT FALSE,
+      payroll_start_period TEXT,
       trial_ends_at TIMESTAMP,
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     )`,
@@ -679,6 +680,13 @@ async function addEmployeeSalaryBasis(): Promise<void> {
   await db.execute(sql`ALTER TABLE employees ADD COLUMN IF NOT EXISTS salary_basis TEXT NOT NULL DEFAULT 'gross'`);
 }
 
+async function addOrgPayrollStartPeriod(): Promise<void> {
+  // Nullable, no backfill: null means "Mavuno has always been the system of
+  // record". New self-registered orgs get the current month set by the
+  // register handler; the super-admin / settings set it for migrations.
+  await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS payroll_start_period TEXT`);
+}
+
 async function seedStatutoryConfigs(): Promise<void> {
   // The statutory packs (PAYE bands, NSSF tiers, SHIF, Housing Levy, …) live in
   // code but must be rows in statutory_configs for resolveConfig() to find them
@@ -722,6 +730,7 @@ export async function runStartupMigrations(): Promise<void> {
   const steps: [string, () => Promise<void>][] = [
     ["createBaseSchema", createBaseSchema],
     ["createSessionsTable", createSessionsTable],
+    ["addOrgPayrollStartPeriod", addOrgPayrollStartPeriod],
     ["seedStatutoryConfigs", seedStatutoryConfigs],
     ["seedSuperAdmin", seedSuperAdmin],
     ["migrateAdminCredentials", migrateAdminCredentials],

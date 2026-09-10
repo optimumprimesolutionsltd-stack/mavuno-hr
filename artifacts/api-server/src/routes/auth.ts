@@ -224,6 +224,9 @@ router.post("/register", async (req, res, next) => {
         plan: "trial",
         seatLimit: 25,
         status: "active",
+        // Mavuno is this company's payroll system of record from signup. The
+        // onboarding step can move it earlier if they migrated mid-year.
+        payrollStartPeriod: new Date().toISOString().slice(0, 7),
         ...(kraPin ? { kraPin: kraPin.toUpperCase() } : {}),
       }).returning({ id: organizations.id });
 

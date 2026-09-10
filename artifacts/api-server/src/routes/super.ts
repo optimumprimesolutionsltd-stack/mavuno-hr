@@ -131,6 +131,7 @@ router.get("/orgs", requireSuperAdminOrSyncKey(), async (_req, res, next) => {
           countryCode: o.countryCode,
           currencyCode: o.currencyCode,
           trialEndsAt: o.trialEndsAt,
+          payrollStartPeriod: o.payrollStartPeriod,
           createdAt: o.createdAt,
           activeEmployees,
           payrollRuns: runMap[o.id]?.cnt ?? 0,
@@ -153,6 +154,7 @@ const patchOrgSchema = z.object({
   billingCycle: z.enum(BILLING_CYCLES).optional(),
   status: z.enum(["active", "suspended"]).optional(),
   trialEndsAt: z.string().datetime().nullable().optional(),
+  payrollStartPeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).nullable().optional(),
 });
 
 router.patch("/orgs/:id", ...requireSuperAdmin(), async (req, res, next) => {
@@ -175,6 +177,7 @@ router.patch("/orgs/:id", ...requireSuperAdmin(), async (req, res, next) => {
     if (d.status !== undefined) updates.status = d.status;
     if (d.trialEndsAt !== undefined)
       updates.trialEndsAt = d.trialEndsAt ? new Date(d.trialEndsAt) : null;
+    if (d.payrollStartPeriod !== undefined) updates.payrollStartPeriod = d.payrollStartPeriod ?? null;
 
     if (Object.keys(updates).length === 0) {
       res.status(422).json({ error: "Nothing to update" });
