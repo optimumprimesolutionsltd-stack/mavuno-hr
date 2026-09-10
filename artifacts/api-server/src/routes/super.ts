@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import crypto from "node:crypto";
-import { eq, count, max, sql } from "drizzle-orm";
+import { eq, ne, count, max, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { organizations, employees, payrollRuns, users } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest } from "../middlewares/require-auth.js";
@@ -85,6 +85,7 @@ router.get("/orgs", requireSuperAdminOrSyncKey(), async (_req, res, next) => {
       db
         .select({ orgId: payrollRuns.orgId, cnt: count(), lastRun: max(payrollRuns.createdAt) })
         .from(payrollRuns)
+        .where(ne(payrollRuns.runType, "historical"))
         .groupBy(payrollRuns.orgId),
       db
         .select({ orgId: users.orgId, email: users.email, name: users.name })
