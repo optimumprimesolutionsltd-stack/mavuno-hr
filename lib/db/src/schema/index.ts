@@ -28,6 +28,11 @@ export const organizations = pgTable("organizations", {
      take it draft -> paid in one action. true: a different person with
      payroll:approve must sign off. */
   requiresPayrollApproval: boolean("requires_payroll_approval").notNull().default(false),
+  /* 'YYYY-MM' — the first month Mavuno is the payroll system of record. Months
+     before this are historical (migrated from a prior system): filing reminders
+     stay silent for them and reports flag them. null = Mavuno has always been
+     the system of record (a company that started payroll here). */
+  payrollStartPeriod: text("payroll_start_period"),
   trialEndsAt: timestamp("trial_ends_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [uniqueIndex("orgs_slug_uq").on(t.slug)]);

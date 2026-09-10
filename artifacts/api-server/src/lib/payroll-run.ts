@@ -60,9 +60,17 @@ export async function calculateRun(
 
   if (input.runType === "historical") {
     // A historical (migration) run reconstructs a month already run elsewhere.
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    if (input.period >= currentMonth) {
-      throw new HttpError(422, `A historical run must be for a month before ${currentMonth}.`, "HISTORICAL_PERIOD_NOT_PAST");
+    // It must be strictly before the org's payroll-start month — or, if that is
+    // not set, before the current month.
+    const cutoff = org.payrollStartPeriod ?? new Date().toISOString().slice(0, 7);
+    if (input.period >= cutoff) {
+      throw new HttpError(
+        422,
+        org.payrollStartPeriod
+          ? `A historical run must be before ${cutoff}, the month Mavuno became your payroll system of record.`
+          : `A historical run must be for a month before ${cutoff}.`,
+        "HISTORICAL_PERIOD_NOT_PAST",
+      );
     }
   }
 

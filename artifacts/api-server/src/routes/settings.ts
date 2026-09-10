@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
-import { eq, and, desc, isNull, lte } from "drizzle-orm";
+import { eq, ne, and, gte, desc, isNull, lte } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { organizations, statutoryConfigs } from "@workspace/db/schema";
+import { organizations, statutoryConfigs, payrollRuns } from "@workspace/db/schema";
 import { requireAuth, getIp, type AuthRequest } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { resolveConfig } from "../lib/statutory-resolve.js";
@@ -60,6 +60,7 @@ router.get("/", requireAuth("org:admin"), async (req, res, next) => {
         plan: org.plan,
         status: org.status,
         requiresPayrollApproval: org.requiresPayrollApproval,
+        payrollStartPeriod: org.payrollStartPeriod,
       },
       activeConfig: cfg,
       tier2Provider: cfg?.socialSecurity?.tier2Provider ?? "nssf",
@@ -76,6 +77,7 @@ const updateOrgSchema = z.object({
   nssfEmployerNo: z.string().max(50).nullable().optional(),
   shifEmployerNo: z.string().max(50).nullable().optional(),
   requiresPayrollApproval: z.boolean().optional(),
+  payrollStartPeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).nullable().optional(),
 });
 
 router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
@@ -98,6 +100,29 @@ router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
     if (body.shifEmployerNo !== undefined) updates.shifEmployerNo = body.shifEmployerNo ?? null;
     if (body.requiresPayrollApproval !== undefined) updates.requiresPayrollApproval = body.requiresPayrollApproval;
 
+    if (body.payrollStartPeriod !== undefined) {
+      const next = body.payrollStartPeriod ?? null;
+      if (next) {
+        // A historical run for a month >= the new cutover would be nonsense
+        // ("migrated" data for a month Mavuno supposedly owns). Block it.
+        const [clash] = await db.select({ period: payrollRuns.period }).from(payrollRuns).where(and(
+          eq(payrollRuns.orgId, p.orgId),
+          eq(payrollRuns.runType, "historical"),
+          ne(payrollRuns.status, "reversed"),
+          gte(payrollRuns.period, next),
+        )).limit(1);
+        if (clash) {
+          throw new HttpError(
+            422,
+            `Cannot set the payroll start month to ${next}: a historical run already exists for ${clash.period}. ` +
+              `Reverse it first, or choose an earlier month.`,
+            "HISTORICAL_RUNS_AFTER_CUTOFF",
+          );
+        }
+      }
+      updates.payrollStartPeriod = next;
+    }
+
     if (Object.keys(updates).length === 0) return void res.json({ ok: true });
 
     await db.transaction(async (tx) => {
@@ -117,6 +142,7 @@ router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
           nssfEmployerNo: org.nssfEmployerNo,
           shifEmployerNo: org.shifEmployerNo,
           requiresPayrollApproval: org.requiresPayrollApproval,
+          payrollStartPeriod: org.payrollStartPeriod,
         },
         after: updates,
       });

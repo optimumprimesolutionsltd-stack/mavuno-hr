@@ -5,8 +5,8 @@
  * payroll run for the current month — once per org per month.
  */
 import { db } from "@workspace/db";
-import { notifications, users, payrollRuns } from "@workspace/db/schema";
-import { eq, ne, and, gte, lt, inArray } from "drizzle-orm";
+import { notifications, users, payrollRuns, organizations } from "@workspace/db/schema";
+import { eq, ne, and, gte, lt, gt, inArray } from "drizzle-orm";
 import { logger } from "./logger.js";
 
 const REMINDER_TYPE = "FILING_REMINDER";
@@ -33,7 +33,19 @@ async function sendFilingReminders(): Promise<void> {
 
   if (paidRuns.length === 0) return;
 
-  const orgIds = [...new Set(paidRuns.map((r) => r.orgId))];
+  let orgIds = [...new Set(paidRuns.map((r) => r.orgId))];
+
+  // Don't remind an org about filing a month that predates the month Mavuno
+  // became its payroll system of record.
+  const preCutover = await db
+    .select({ orgId: organizations.id })
+    .from(organizations)
+    .where(and(inArray(organizations.id, orgIds), gt(organizations.payrollStartPeriod, period)));
+  if (preCutover.length > 0) {
+    const skip = new Set(preCutover.map((o) => o.orgId));
+    orgIds = orgIds.filter((id) => !skip.has(id));
+  }
+  if (orgIds.length === 0) return;
 
   // For each org, check if a reminder was already sent this month
   const monthStart = new Date(year, now.getMonth(), 1);
