@@ -2,11 +2,12 @@
  * Idempotent startup migrations — run once at process start.
  * Each migration checks its own precondition so it is safe to run repeatedly.
  */
-import { eq, sql } from "drizzle-orm";
+import { eq, and, isNull, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { users, organizations } from "@workspace/db/schema";
+import { users, organizations, statutoryConfigs } from "@workspace/db/schema";
 import { hashPassword } from "./password.js";
 import { logger } from "./logger.js";
+import { ALL_PACKS } from "./statutory-packs.js";
 
 /**
  * Create the entire base schema if it is not already there.
@@ -678,6 +679,30 @@ async function addEmployeeSalaryBasis(): Promise<void> {
   await db.execute(sql`ALTER TABLE employees ADD COLUMN IF NOT EXISTS salary_basis TEXT NOT NULL DEFAULT 'gross'`);
 }
 
+async function seedStatutoryConfigs(): Promise<void> {
+  // The statutory packs (PAYE bands, NSSF tiers, SHIF, Housing Levy, …) live in
+  // code but must be rows in statutory_configs for resolveConfig() to find them
+  // — otherwise every payroll run 422s NO_STATUTORY_CONFIG. scripts/seed.ts
+  // does this, but only when run by hand; Render never runs it. Idempotent:
+  // one global row (org_id NULL) per (country, effective_from).
+  for (const pack of ALL_PACKS) {
+    const existing = await db.select({ id: statutoryConfigs.id }).from(statutoryConfigs).where(and(
+      eq(statutoryConfigs.countryCode, pack.countryCode),
+      eq(statutoryConfigs.effectiveFrom, pack.effectiveFrom),
+      isNull(statutoryConfigs.orgId),
+    ));
+    if (existing.length) continue;
+    await db.insert(statutoryConfigs).values({
+      countryCode: pack.countryCode,
+      name: pack.name,
+      effectiveFrom: pack.effectiveFrom,
+      config: pack as unknown as Record<string, unknown>,
+      orgId: null,
+    });
+    logger.info({ pack: pack.name }, "startup-migration: seeded statutory pack");
+  }
+}
+
 async function addOrgRequiresPayrollApproval(): Promise<void> {
   // Mavuno's production DB is a fresh launch with no legacy orgs, so every org
   // — existing and future — gets the streamlined single-actor default. The
@@ -697,6 +722,7 @@ export async function runStartupMigrations(): Promise<void> {
   const steps: [string, () => Promise<void>][] = [
     ["createBaseSchema", createBaseSchema],
     ["createSessionsTable", createSessionsTable],
+    ["seedStatutoryConfigs", seedStatutoryConfigs],
     ["seedSuperAdmin", seedSuperAdmin],
     ["migrateAdminCredentials", migrateAdminCredentials],
     ["syncSuperAdminPassword", syncSuperAdminPassword],
