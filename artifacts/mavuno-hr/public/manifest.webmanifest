@@ -16,18 +16,6 @@
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
-    },
-    {
-      "src": "./branding/mavuno-mark-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "./branding/mavuno-mark-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
     }
   ],
   "shortcuts": [
@@ -36,14 +24,14 @@
       "short_name": "HR",
       "description": "Open the HR and payroll login",
       "url": "./admin/login",
-      "icons": [{ "src": "./branding/mavuno-mark-192.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [{ "src": "./branding/mavuno-mark.svg", "sizes": "any", "type": "image/svg+xml" }]
     },
     {
       "name": "Employee Portal",
       "short_name": "Portal",
       "description": "Open the employee self-service login",
       "url": "./portal/login",
-      "icons": [{ "src": "./branding/mavuno-mark-192.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [{ "src": "./branding/mavuno-mark.svg", "sizes": "any", "type": "image/svg+xml" }]
     }
   ]
 }

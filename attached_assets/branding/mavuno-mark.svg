@@ -1,17 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150">
-<!-- SVG created with Arrow, by QuiverAI (https://quiver.ai) -->
-  <style type="text/css">.cls-0 {fill:#049756;}
-.cls-1 {fill:#182C5B;}
-.cls-2 {fill:#0BB463;}
-.cls-3 {fill:url(#SVGID_1_);}</style>
-  <polygon class="cls-0" points="87.3 10.7 79.9 21.5 99 26.4 114.6 26.4 124.7 10.7"/>
-  <path class="cls-1" d="m21.7 42.7 16.1 26.8 14.7-21-3.1-5.8h-27.7z"/>
-  <path class="cls-0" d="m66.1 42.7s-12.8 19.3-16.7 24.1c-10.1 13.2-38.6 49.3-38.6 49.3l14.3 23.1 15.6-23.1 47.4-73.4h-22z"/>
-  <polygon class="cls-2" points="36.4 21.4 21.7 42.7 88.1 42.8 102.2 21.4"/>
-  <linearGradient id="SVGID_1_" x1="97.12" x2="128.8" y1="99.61" y2="99.61" gradientUnits="userSpaceOnUse">
-    <stop stop-color="#1A2E5D" offset="0"/>
-    <stop stop-color="#1D2F5C" offset="1"/>
-  </linearGradient>
-  <path class="cls-3" d="m126.9 106.5-13.9-23.5-15.9 22.2 6.2 10.8h25.2c0.6-5.4-1.6-9.5-1.6-9.5z"/>
-  <path class="cls-2" d="m124.7 10.7-61.6 93.9v0.1h23.6l25.8-29.7 26.2-40.8-14-23.5zm-84 105.3-15.6 23.2h87.5l15.9-23.2h-87.8z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="18 38 264 264" role="img" aria-label="Mavuno HR mark">
+  <defs>
+    <linearGradient id="mkTile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#33A63F"/><stop offset=".55" stop-color="#1E8034"/><stop offset="1" stop-color="#14652A"/>
+    </linearGradient>
+    <linearGradient id="mkHi" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".18"/><stop offset=".45" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="mkGold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7CE4B"/><stop offset="1" stop-color="#E2A62B"/>
+    </linearGradient>
+    <clipPath id="mkTc"><rect x="24" y="44" width="252" height="252" rx="54"/></clipPath>
+  </defs>
+  <rect x="24" y="44" width="252" height="252" rx="54" fill="url(#mkTile)"/>
+  <g clip-path="url(#mkTc)">
+    <path d="M24 252 C 96 206 176 206 276 244 L276 296 L24 296 Z" fill="#3FAE49"/>
+    <path d="M24 276 C 104 242 172 252 276 274 L276 296 L24 296 Z" fill="#82C243"/>
+  </g>
+  <rect x="24" y="44" width="252" height="252" rx="54" fill="url(#mkHi)"/>
+  <path d="M150 262 C147 224 148 194 150 168 C152 194 153 224 150 262 Z" fill="url(#mkGold)"/>
+  <path d="M150 220 C114 226 84 206 70 168 C108 164 141 184 150 220 Z" fill="url(#mkGold)"/>
+  <path d="M150 220 C186 226 216 206 230 168 C192 164 159 184 150 220 Z" fill="url(#mkGold)"/>
+  <path d="M150 192 C126 184 104 156 98 120 C128 128 148 154 150 192 Z" fill="url(#mkGold)"/>
+  <path d="M150 192 C174 184 196 156 202 120 C172 128 152 154 150 192 Z" fill="url(#mkGold)"/>
+  <circle cx="150" cy="112" r="23" fill="url(#mkGold)"/>
 </svg>
