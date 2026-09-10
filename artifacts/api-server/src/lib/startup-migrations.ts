@@ -8,6 +8,440 @@ import { users } from "@workspace/db/schema";
 import { hashPassword } from "./password.js";
 import { logger } from "./logger.js";
 
+/**
+ * Create the entire base schema if it is not already there.
+ *
+ * The schema is normally applied with `drizzle-kit push`, run by hand. On this
+ * database it never was, so every table was missing and every login 500ed.
+ * This mirrors `lib/db/src/schema/index.ts` as idempotent DDL so the app
+ * bootstraps its own database on first boot and can never come up schemaless
+ * again. Tables are ordered by foreign-key dependency. Statements run one at a
+ * time — node-postgres uses the extended protocol, which rejects multi-command
+ * strings. Additive `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` steps below stay
+ * as-is for databases created before those columns existed.
+ */
+async function createBaseSchema(): Promise<void> {
+  const statements: string[] = [
+    `CREATE TABLE IF NOT EXISTS organizations (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL,
+      country_code TEXT NOT NULL DEFAULT 'KE',
+      currency_code TEXT NOT NULL DEFAULT 'KES',
+      kra_pin TEXT,
+      nssf_employer_no TEXT,
+      shif_employer_no TEXT,
+      plan TEXT NOT NULL DEFAULT 'trial',
+      seat_limit INTEGER NOT NULL DEFAULT 20,
+      monthly_charge BIGINT NOT NULL DEFAULT 0,
+      billing_cycle TEXT NOT NULL DEFAULT 'monthly',
+      status TEXT NOT NULL DEFAULT 'active',
+      trial_ends_at TIMESTAMP,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS orgs_slug_uq ON organizations(slug)`,
+
+    `CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      email TEXT NOT NULL,
+      name TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'employee',
+      employee_id INTEGER,
+      must_change_password BOOLEAN NOT NULL DEFAULT TRUE,
+      failed_login_count INTEGER NOT NULL DEFAULT 0,
+      locked_until TIMESTAMP,
+      last_login_at TIMESTAMP,
+      disabled_at TIMESTAMP,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS users_org_email_uq ON users(org_id, email)`,
+    `CREATE INDEX IF NOT EXISTS users_org_idx ON users(org_id)`,
+
+    `CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      user_agent TEXT,
+      ip TEXT,
+      expires_at TIMESTAMP NOT NULL,
+      revoked_at TIMESTAMP,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions(user_id)`,
+
+    `CREATE TABLE IF NOT EXISTS statutory_configs (
+      id SERIAL PRIMARY KEY,
+      country_code TEXT NOT NULL,
+      name TEXT NOT NULL,
+      effective_from DATE NOT NULL,
+      effective_to DATE,
+      config JSONB NOT NULL,
+      org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS statcfg_country_from_idx ON statutory_configs(country_code, effective_from)`,
+
+    `CREATE TABLE IF NOT EXISTS departments (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      code TEXT NOT NULL,
+      cost_center TEXT,
+      manager_id INTEGER
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS depts_org_code_uq ON departments(org_id, code)`,
+    `CREATE INDEX IF NOT EXISTS depts_org_idx ON departments(org_id)`,
+
+    `CREATE TABLE IF NOT EXISTS employees (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      emp_no TEXT NOT NULL,
+      first_name TEXT NOT NULL,
+      middle_name TEXT,
+      last_name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      phone TEXT,
+      gender TEXT NOT NULL DEFAULT 'male',
+      national_id TEXT,
+      kra_pin TEXT,
+      nssf_no TEXT,
+      shif_no TEXT,
+      pay_method TEXT NOT NULL DEFAULT 'bank',
+      bank_name TEXT,
+      bank_code TEXT,
+      bank_branch_code TEXT,
+      bank_branch_name TEXT,
+      bank_account TEXT,
+      mpesa_phone TEXT,
+      department_id INTEGER REFERENCES departments(id),
+      position TEXT NOT NULL,
+      employment_type TEXT NOT NULL DEFAULT 'permanent',
+      resident_status TEXT NOT NULL DEFAULT 'resident',
+      salary_basis TEXT NOT NULL DEFAULT 'gross',
+      disability_exemption BOOLEAN NOT NULL DEFAULT FALSE,
+      basic_salary BIGINT NOT NULL,
+      house_allowance BIGINT NOT NULL DEFAULT 0,
+      transport_allowance BIGINT NOT NULL DEFAULT 0,
+      other_allowance BIGINT NOT NULL DEFAULT 0,
+      non_cash_benefit BIGINT NOT NULL DEFAULT 0,
+      insurance_premium BIGINT NOT NULL DEFAULT 0,
+      pension_employee BIGINT NOT NULL DEFAULT 0,
+      pension_employer BIGINT NOT NULL DEFAULT 0,
+      mortgage_interest BIGINT NOT NULL DEFAULT 0,
+      helb_monthly BIGINT NOT NULL DEFAULT 0,
+      sacco_monthly BIGINT NOT NULL DEFAULT 0,
+      work_days_per_week INTEGER NOT NULL DEFAULT 5,
+      works_on_holidays BOOLEAN NOT NULL DEFAULT FALSE,
+      date_of_birth DATE,
+      region TEXT,
+      education_level TEXT,
+      nok_name TEXT,
+      nok_relationship TEXT,
+      nok_phone TEXT,
+      nok_email TEXT,
+      hire_date DATE NOT NULL,
+      termination_date DATE,
+      status TEXT NOT NULL DEFAULT 'active',
+      leave_balance INTEGER NOT NULL DEFAULT 210,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS emp_org_empno_uq ON employees(org_id, emp_no)`,
+    `CREATE INDEX IF NOT EXISTS emp_org_idx ON employees(org_id)`,
+    `CREATE INDEX IF NOT EXISTS emp_org_status_idx ON employees(org_id, status)`,
+
+    `CREATE TABLE IF NOT EXISTS timesheets (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      period TEXT NOT NULL,
+      days_worked INTEGER NOT NULL DEFAULT 0,
+      normal_hours INTEGER NOT NULL DEFAULT 0,
+      overtime_hours INTEGER NOT NULL DEFAULT 0,
+      holiday_hours INTEGER NOT NULL DEFAULT 0,
+      approved_by INTEGER,
+      approved_at TIMESTAMP
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS ts_org_emp_period_uq ON timesheets(org_id, employee_id, period)`,
+
+    `CREATE TABLE IF NOT EXISTS pay_adjustments (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      period TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      code TEXT NOT NULL,
+      label TEXT NOT NULL,
+      amount BIGINT NOT NULL,
+      taxable BOOLEAN NOT NULL DEFAULT TRUE,
+      consumed_by_run_id INTEGER,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS adj_org_period_idx ON pay_adjustments(org_id, period)`,
+
+    `CREATE TABLE IF NOT EXISTS payroll_runs (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      period TEXT NOT NULL,
+      name TEXT NOT NULL,
+      run_type TEXT NOT NULL DEFAULT 'regular',
+      status TEXT NOT NULL DEFAULT 'draft',
+      statutory_config_id INTEGER NOT NULL REFERENCES statutory_configs(id),
+      statutory_snapshot JSONB NOT NULL,
+      employee_count INTEGER NOT NULL DEFAULT 0,
+      gross_total BIGINT NOT NULL DEFAULT 0,
+      net_total BIGINT NOT NULL DEFAULT 0,
+      paye_total BIGINT NOT NULL DEFAULT 0,
+      nssf_employee_total BIGINT NOT NULL DEFAULT 0,
+      nssf_employer_total BIGINT NOT NULL DEFAULT 0,
+      shif_total BIGINT NOT NULL DEFAULT 0,
+      housing_levy_employee_total BIGINT NOT NULL DEFAULT 0,
+      housing_levy_employer_total BIGINT NOT NULL DEFAULT 0,
+      employer_cost_total BIGINT NOT NULL DEFAULT 0,
+      created_by_user_id INTEGER REFERENCES users(id),
+      submitted_by_user_id INTEGER REFERENCES users(id),
+      approved_by_user_id INTEGER REFERENCES users(id),
+      paid_by_user_id INTEGER REFERENCES users(id),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      submitted_at TIMESTAMP,
+      approved_at TIMESTAMP,
+      paid_at TIMESTAMP,
+      reversed_at TIMESTAMP
+    )`,
+    `CREATE INDEX IF NOT EXISTS runs_org_period_idx ON payroll_runs(org_id, period)`,
+    `CREATE INDEX IF NOT EXISTS runs_org_status_idx ON payroll_runs(org_id, status)`,
+
+    `CREATE TABLE IF NOT EXISTS payslips (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      run_id INTEGER NOT NULL REFERENCES payroll_runs(id) ON DELETE CASCADE,
+      employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      basic BIGINT NOT NULL,
+      allowances BIGINT NOT NULL,
+      overtime BIGINT NOT NULL DEFAULT 0,
+      adjustment_earnings BIGINT NOT NULL DEFAULT 0,
+      non_cash_benefit BIGINT NOT NULL DEFAULT 0,
+      gross BIGINT NOT NULL,
+      cash_gross BIGINT NOT NULL,
+      nssf_employee BIGINT NOT NULL,
+      nssf_employer BIGINT NOT NULL,
+      shif BIGINT NOT NULL,
+      housing_levy_employee BIGINT NOT NULL,
+      housing_levy_employer BIGINT NOT NULL,
+      pension BIGINT NOT NULL,
+      pension_employer BIGINT NOT NULL DEFAULT 0,
+      mortgage_interest BIGINT NOT NULL DEFAULT 0,
+      taxable_income BIGINT NOT NULL,
+      paye_before_relief BIGINT NOT NULL,
+      personal_relief BIGINT NOT NULL,
+      insurance_relief BIGINT NOT NULL,
+      paye BIGINT NOT NULL,
+      helb BIGINT NOT NULL,
+      sacco BIGINT NOT NULL DEFAULT 0,
+      loan_deduction BIGINT NOT NULL,
+      adjustment_deductions BIGINT NOT NULL DEFAULT 0,
+      total_deductions BIGINT NOT NULL,
+      net_pay BIGINT NOT NULL,
+      employer_cost BIGINT NOT NULL,
+      days_in_period INTEGER NOT NULL DEFAULT 30,
+      days_payable INTEGER NOT NULL DEFAULT 30,
+      breakdown JSONB
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS slip_run_emp_uq ON payslips(run_id, employee_id)`,
+    `CREATE INDEX IF NOT EXISTS slip_org_emp_idx ON payslips(org_id, employee_id)`,
+
+    `CREATE TABLE IF NOT EXISTS payout_batches (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      run_id INTEGER NOT NULL REFERENCES payroll_runs(id) ON DELETE CASCADE,
+      channel TEXT NOT NULL,
+      format TEXT NOT NULL,
+      item_count INTEGER NOT NULL,
+      total_amount BIGINT NOT NULL,
+      checksum TEXT NOT NULL,
+      storage_key TEXT,
+      status TEXT NOT NULL DEFAULT 'generated',
+      generated_by_user_id INTEGER REFERENCES users(id),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS payout_org_run_idx ON payout_batches(org_id, run_id)`,
+
+    `CREATE TABLE IF NOT EXISTS statutory_filings (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      run_id INTEGER REFERENCES payroll_runs(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,
+      period TEXT NOT NULL,
+      item_count INTEGER NOT NULL DEFAULT 0,
+      total_amount BIGINT NOT NULL DEFAULT 0,
+      checksum TEXT,
+      storage_key TEXT,
+      status TEXT NOT NULL DEFAULT 'generated',
+      filed_at TIMESTAMP,
+      confirmed_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      confirmed_by_email TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS filing_org_period_idx ON statutory_filings(org_id, period)`,
+
+    `CREATE TABLE IF NOT EXISTS leave_requests (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      start_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      days INTEGER NOT NULL,
+      reason TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      decided_by_user_id INTEGER REFERENCES users(id),
+      decided_at TIMESTAMP,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS leave_org_emp_idx ON leave_requests(org_id, employee_id)`,
+
+    `CREATE TABLE IF NOT EXISTS leave_documents (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      leave_request_id INTEGER NOT NULL REFERENCES leave_requests(id) ON DELETE CASCADE,
+      file_name TEXT NOT NULL,
+      storage_key TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      checksum TEXT NOT NULL,
+      uploaded_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS ldoc_org_req_idx ON leave_documents(org_id, leave_request_id)`,
+
+    `CREATE TABLE IF NOT EXISTS loan_requests (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      amount BIGINT NOT NULL,
+      months INTEGER NOT NULL DEFAULT 12,
+      reason TEXT,
+      interest_rate_bps INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'pending',
+      review_note TEXT,
+      loan_id INTEGER,
+      decided_by_user_id INTEGER REFERENCES users(id),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      reviewed_at TIMESTAMP
+    )`,
+    `CREATE INDEX IF NOT EXISTS loanreq_org_idx ON loan_requests(org_id)`,
+
+    `CREATE TABLE IF NOT EXISTS loans (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      principal BIGINT NOT NULL,
+      balance BIGINT NOT NULL,
+      monthly_installment BIGINT NOT NULL,
+      interest_rate_bps INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'active',
+      start_date DATE NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS loans_org_emp_idx ON loans(org_id, employee_id)`,
+
+    `CREATE TABLE IF NOT EXISTS loan_repayments (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      loan_id INTEGER NOT NULL REFERENCES loans(id) ON DELETE CASCADE,
+      run_id INTEGER REFERENCES payroll_runs(id) ON DELETE SET NULL,
+      amount BIGINT NOT NULL,
+      balance_after BIGINT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS repay_loan_run_uq ON loan_repayments(loan_id, run_id)`,
+
+    `CREATE TABLE IF NOT EXISTS audit_logs (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      seq INTEGER NOT NULL,
+      action TEXT NOT NULL,
+      entity TEXT NOT NULL,
+      entity_id TEXT,
+      detail TEXT,
+      actor_user_id INTEGER REFERENCES users(id),
+      actor_email TEXT NOT NULL,
+      actor_ip TEXT,
+      before JSONB,
+      after JSONB,
+      prev_hash TEXT NOT NULL,
+      hash TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS audit_org_seq_uq ON audit_logs(org_id, seq)`,
+    `CREATE INDEX IF NOT EXISTS audit_org_created_idx ON audit_logs(org_id, created_at)`,
+
+    `CREATE TABLE IF NOT EXISTS idempotency_keys (
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      key TEXT NOT NULL,
+      endpoint TEXT NOT NULL,
+      response_status INTEGER,
+      response_body JSONB,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (org_id, key)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS billing_payments (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      receipt_no TEXT NOT NULL,
+      amount BIGINT NOT NULL,
+      period TEXT NOT NULL,
+      method TEXT NOT NULL DEFAULT 'bank_transfer',
+      reference TEXT,
+      description TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      verified_by_user_id INTEGER REFERENCES users(id),
+      verified_at TIMESTAMP,
+      receipt_sent_at TIMESTAMP,
+      checkout_request_id TEXT,
+      merchant_request_id TEXT,
+      mpesa_receipt_number TEXT,
+      phone_number TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS billing_org_idx ON billing_payments(org_id)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS billing_receipt_no_uq ON billing_payments(receipt_no)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS billing_checkout_request_uq ON billing_payments(checkout_request_id)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS billing_mpesa_receipt_uq ON billing_payments(mpesa_receipt_number)`,
+
+    `CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token TEXT NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      used_at TIMESTAMP,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS prt_token_uq ON password_reset_tokens(token)`,
+    `CREATE INDEX IF NOT EXISTS prt_user_idx ON password_reset_tokens(user_id)`,
+
+    `CREATE TABLE IF NOT EXISTS notifications (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      link TEXT,
+      read_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS notifications_user_idx ON notifications(user_id, read_at)`,
+  ];
+
+  for (const stmt of statements) {
+    await db.execute(sql.raw(stmt));
+  }
+}
+
 /** Migrate the seeded demo admin to the configured production credentials. */
 async function migrateAdminCredentials(): Promise<void> {
   const SEED_EMAIL = "admin@zawadi.co.ke";
@@ -196,6 +630,7 @@ export async function runStartupMigrations(): Promise<void> {
   // the log names which one broke and why. All are idempotent, so a failed
   // step simply retries on the next boot.
   const steps: [string, () => Promise<void>][] = [
+    ["createBaseSchema", createBaseSchema],
     ["createSessionsTable", createSessionsTable],
     ["migrateAdminCredentials", migrateAdminCredentials],
     ["syncSuperAdminPassword", syncSuperAdminPassword],
