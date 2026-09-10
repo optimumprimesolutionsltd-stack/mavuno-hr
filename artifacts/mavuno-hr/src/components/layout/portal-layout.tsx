@@ -80,7 +80,7 @@ export function PortalLayout({ children }: PortalLayoutProps) {
     <>
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-border shrink-0">
-        <img src="/branding/mavuno-mark.svg" alt="" className="h-7 w-7 mr-3" />
+        <img src={`${import.meta.env.BASE_URL}branding/mavuno-mark.svg`} alt="" className="h-7 w-7 mr-3" />
         <span className="font-bold text-lg tracking-tight font-mono">
            Mavuno<span className="text-primary"> HR Portal</span>
         </span>
@@ -174,7 +174,7 @@ export function PortalLayout({ children }: PortalLayoutProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <img src="/branding/mavuno-mark.svg" alt="" className="h-6 w-6" />
+        <img src={`${import.meta.env.BASE_URL}branding/mavuno-mark.svg`} alt="" className="h-6 w-6" />
         <span className="font-bold tracking-tight font-mono text-base">
          Mavuno<span className="text-primary"> HR Portal</span>
         </span>

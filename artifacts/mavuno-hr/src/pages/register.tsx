@@ -141,7 +141,7 @@ export function Register() {
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="mx-auto w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
-            <img src="/branding/mavuno-mark.svg" alt="" className="w-7 h-7" />
+            <img src={`${import.meta.env.BASE_URL}branding/mavuno-mark.svg`} alt="" className="w-7 h-7" />
           </div>
           <h1 className="text-2xl font-mono font-bold tracking-tight">
              Mavuno<span className="text-primary"> HR</span>
