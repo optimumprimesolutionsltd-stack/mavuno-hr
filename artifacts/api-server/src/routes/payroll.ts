@@ -92,7 +92,9 @@ function createP9EmployeeRow(
 
 const calculateRunSchema = z.object({
   period,
-  runType: z.enum(["regular","off_cycle","bonus","final"]).default("regular"),
+  // "historical" reconstructs a month already run on a previous system — it
+  // feeds the year-to-date / P9A but is never filed, paid, or emailed here.
+  runType: z.enum(["regular","off_cycle","bonus","final","historical"]).default("regular"),
   employeeIds: z.array(z.number().int().positive()).optional(),
   idempotencyKey: z.string().uuid().optional(),
   // Single-actor "run & pay": calculate then take the run straight to paid.
@@ -102,7 +104,7 @@ const calculateRunSchema = z.object({
 });
 
 const runActionSchema = z.object({
-  action: z.enum(["submit","approve","reject","pay","reverse","run"]),
+  action: z.enum(["submit","approve","reject","pay","reverse","run","finalize"]),
   note: z.string().max(500).optional(),
 });
 
@@ -189,6 +191,7 @@ router.patch("/:id", requireAuth(), async (req, res, next) => {
       pay: "payroll:disburse",
       reverse: "payroll:disburse",
       run: "payroll:run_all",      // one-step run & pay — admin, approval-off orgs
+      finalize: "payroll:calculate", // record a historical (migration) run as paid
     };
     const requiredPerm = actionPerm[action];
     if (!can(p.role, requiredPerm as any)) {
@@ -205,12 +208,51 @@ router.patch("/:id", requireAuth(), async (req, res, next) => {
 
     // One-step run & pay: finalize a draft straight to paid (own tx + audit).
     if (action === "run") {
+      if (run.runType === "historical") {
+        throw new HttpError(409, "Use the 'finalize' action for a historical run.", "HISTORICAL_RUN_LOCKED");
+      }
       if (requiresApproval) {
         throw new HttpError(409, "This organisation requires a separate approval step.", "APPROVAL_REQUIRED");
       }
       const finalized = await db.transaction((tx) => finalizeRunInTx(tx as any, p, id, getIp(req)));
       res.json(finalized);
       return;
+    }
+
+    // Record a historical (migration) run as paid: no loans, no payout, no
+    // filing, no email — it only feeds the year-to-date / P9A.
+    if (action === "finalize") {
+      if (run.runType !== "historical") {
+        throw new HttpError(409, "Only a historical run can be finalized.", "NOT_HISTORICAL");
+      }
+      if (run.status !== "draft") {
+        throw new HttpError(409, `A historical run can only be finalized from draft (is '${run.status}').`);
+      }
+      const [y, m] = run.period.split("-").map(Number);
+      const stamped = new Date();
+      const paidAt = new Date(Date.UTC(y, m, 0, 12, 0, 0)); // last day of run.period
+      const [updated] = await db.update(payrollRuns).set({
+        status: "paid",
+        submittedByUserId: run.submittedByUserId ?? p.userId,
+        submittedAt: run.submittedAt ?? stamped,
+        approvedByUserId: p.userId, approvedAt: stamped,
+        paidByUserId: p.userId, paidAt,
+      }).where(and(eq(payrollRuns.id, id), eq(payrollRuns.orgId, p.orgId))).returning();
+      await db.transaction(async (tx) => {
+        await writeAudit(tx as any, {
+          orgId: p.orgId, action: "PAYROLL_HISTORICAL_FINALIZED", entity: "payroll_runs", entityId: id,
+          detail: note ?? "Historical run recorded as paid (migrated from prior system)",
+          actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+          before: { status: run.status }, after: { status: "paid" },
+        });
+      });
+      res.json(updated);
+      return;
+    }
+
+    // Historical runs use only draft -> finalize -> paid (or reverse).
+    if (run.runType === "historical" && action !== "reverse") {
+      throw new HttpError(409, "Use the 'finalize' action for a historical run.", "HISTORICAL_RUN_LOCKED");
     }
 
     let update: Record<string, unknown> = {};
@@ -614,6 +656,7 @@ router.post("/:id/payouts", requireAuth("payroll:disburse"), async (req, res, ne
     const [run] = await db.select().from(payrollRuns)
       .where(and(eq(payrollRuns.id, id), eq(payrollRuns.orgId, p.orgId)));
     if (!run) { res.status(404).json({ error: "Payroll run not found" }); return; }
+    if (run.runType === "historical") throw new HttpError(409, "Historical runs are records only — no bank file.", "HISTORICAL_RUN_LOCKED");
     if (!["approved","paid"].includes(run.status)) throw new HttpError(409, "Run must be approved to generate payouts");
 
     const slips = await db.select({ slip: payslips, emp: employees })
@@ -732,7 +775,9 @@ router.get("/:id/compare", requireAuth("payroll:read"), async (req, res, next) =
       .orderBy(desc(payrollRuns.period), desc(payrollRuns.id));
 
     // Find the immediately previous run (period < current period)
-    const previousRun = allRuns.find((r) => r.period < run.period && r.id !== run.id) ?? null;
+    const previousRun = allRuns.find(
+      (r) => r.period < run.period && r.id !== run.id && r.runType !== "historical",
+    ) ?? null;
 
     if (!previousRun) {
       res.json({ current: run, previous: null, rows: [], totals: { currentGross: 0, previousGross: 0, currentNet: 0, previousNet: 0, currentPaye: 0, previousPaye: 0 } });
@@ -1367,6 +1412,7 @@ router.post("/:id/email-payslips", requireAuth("payroll:read"), async (req, res,
     const [run] = await db.select().from(payrollRuns)
       .where(and(eq(payrollRuns.id, id), eq(payrollRuns.orgId, p.orgId)));
     if (!run) throw new HttpError(404, "Run not found");
+    if (run.runType === "historical") throw new HttpError(409, "Historical runs are records only — payslips are not emailed.", "HISTORICAL_RUN_LOCKED");
 
     const [org] = await db.select().from(organizations).where(eq(organizations.id, p.orgId));
 
@@ -1872,6 +1918,7 @@ router.post("/:id/filings", requireAuth("payroll:submit"), async (req, res, next
     const [run] = await db.select().from(payrollRuns)
       .where(and(eq(payrollRuns.id, id), eq(payrollRuns.orgId, p.orgId)));
     if (!run) { res.status(404).json({ error: "Payroll run not found" }); return; }
+    if (run.runType === "historical") throw new HttpError(409, "Historical runs are records only — not filed via Mavuno.", "HISTORICAL_RUN_LOCKED");
 
     const kind = req.body?.kind ?? "P10";
     const [filing] = await db.insert(statutoryFilings).values({

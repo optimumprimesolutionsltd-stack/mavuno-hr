@@ -48,7 +48,7 @@ function payableDays(
 export async function calculateRun(
   tx: Tx,
   principal: Principal,
-  input: { period: string; runType: "regular" | "off_cycle" | "bonus" | "final"; employeeIds?: number[] },
+  input: { period: string; runType: "regular" | "off_cycle" | "bonus" | "final" | "historical"; employeeIds?: number[] },
   ip: string | null,
 ) {
   const { orgId } = principal;
@@ -58,15 +58,32 @@ export async function calculateRun(
 
   const { id: configId, config } = await resolveConfig(tx, orgId, org.countryCode, input.period);
 
-  if (input.runType === "regular") {
-    const [dupe] = await tx.select({ id: payrollRuns.id }).from(payrollRuns)
+  if (input.runType === "historical") {
+    // A historical (migration) run reconstructs a month already run elsewhere.
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    if (input.period >= currentMonth) {
+      throw new HttpError(422, `A historical run must be for a month before ${currentMonth}.`, "HISTORICAL_PERIOD_NOT_PAST");
+    }
+  }
+
+  // At most one regular/historical run per period — both feed the year-to-date
+  // and P9A, so two for the same month would double-count. off_cycle / bonus /
+  // final are legitimately repeatable.
+  if (input.runType === "regular" || input.runType === "historical") {
+    const [dupe] = await tx.select({ id: payrollRuns.id, runType: payrollRuns.runType }).from(payrollRuns)
       .where(and(
         eq(payrollRuns.orgId, orgId),
         eq(payrollRuns.period, input.period),
-        eq(payrollRuns.runType, "regular"),
+        inArray(payrollRuns.runType, ["regular", "historical"]),
         ne(payrollRuns.status, "reversed"),
       ));
-    if (dupe) throw new HttpError(409, `A regular payroll run for ${input.period} already exists.`, "RUN_EXISTS");
+    if (dupe) {
+      throw new HttpError(
+        409,
+        `A ${dupe.runType} payroll run for ${input.period} already exists.`,
+        dupe.runType === "historical" ? "HISTORICAL_RUN_EXISTS" : "RUN_EXISTS",
+      );
+    }
   }
 
   const staff = await tx.select().from(employees).where(and(

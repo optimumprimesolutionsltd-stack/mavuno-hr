@@ -6,7 +6,7 @@
  */
 import { db } from "@workspace/db";
 import { notifications, users, payrollRuns } from "@workspace/db/schema";
-import { eq, and, gte, lt, inArray } from "drizzle-orm";
+import { eq, ne, and, gte, lt, inArray } from "drizzle-orm";
 import { logger } from "./logger.js";
 
 const REMINDER_TYPE = "FILING_REMINDER";
@@ -20,11 +20,16 @@ async function sendFilingReminders(): Promise<void> {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const period = `${year}-${month}`;
 
-  // Find orgs with at least one paid run this period
+  // Find orgs with at least one paid run this period (historical/migration runs
+  // are records only — never filed via Mavuno, so they don't trigger reminders)
   const paidRuns = await db
     .select({ orgId: payrollRuns.orgId })
     .from(payrollRuns)
-    .where(and(eq(payrollRuns.period, period), eq(payrollRuns.status, "paid")));
+    .where(and(
+      eq(payrollRuns.period, period),
+      eq(payrollRuns.status, "paid"),
+      ne(payrollRuns.runType, "historical"),
+    ));
 
   if (paidRuns.length === 0) return;
 
