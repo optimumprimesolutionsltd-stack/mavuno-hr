@@ -83,7 +83,9 @@ const updateOrgSchema = z.object({
 router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
-    const body = updateOrgSchema.parse(req.body);
+    const parsed = updateOrgSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return; }
+    const body = parsed.data;
 
     const [org] = await db
       .select()
@@ -161,7 +163,9 @@ const statutoryOverrideSchema = z.object({
 router.post("/statutory-override", requireAuth("org:admin"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
-    const body = statutoryOverrideSchema.parse(req.body);
+    const parsed = statutoryOverrideSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return; }
+    const body = parsed.data;
 
     const [org] = await db
       .select()
