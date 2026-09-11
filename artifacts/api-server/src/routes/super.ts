@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import crypto from "node:crypto";
-import { eq, ne, and, isNull, count, max, sql } from "drizzle-orm";
+import { eq, ne, and, isNull, inArray, count, max, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { organizations, employees, payrollRuns, users, passwordResetTokens, statutoryConfigs, billingCredits } from "@workspace/db/schema";
 import { requireAuth, getIp, type AuthRequest } from "../middlewares/require-auth.js";
@@ -559,6 +559,121 @@ router.post("/credits/:id/void", ...requireSuperAdmin(), async (req, res, next) 
     });
 
     res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── POST /api/super/outage-credits — bulk SLA credit across affected orgs ───
+// docs/design/super-admin-org-lifecycle.md §4 "Downtime → credits" (Phase 5).
+// credit = round(monthly_charge × outage_minutes ÷ minutes_in_month × multiplier).
+// "One audit event per org + one summary event" per the design doesn't map
+// cleanly onto audit_logs' per-org hash chain (org_id is NOT NULL, chained by
+// org) — there is no org-less row to hold a cross-org summary. Instead every
+// per-org row shares one runId (in its `detail`/`after`), so the whole batch
+// is findable by filtering the audit log for that id; the API response itself
+// is the immediate summary.
+function minutesInMonthOf(d: Date): number {
+  const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  return daysInMonth * 24 * 60;
+}
+
+const outageCreditSchema = z.object({
+  startAt: z.string().datetime(),
+  endAt: z.string().datetime(),
+  multiplier: z.number().positive().max(10).default(1),
+  scope: z.enum(["all_active_paid", "selected"]).default("all_active_paid"),
+  orgIds: z.array(z.number().int().positive()).optional(),
+  reason: z.string().max(500).optional(),
+  bumpAccessUntil: z.boolean().default(false),
+});
+
+router.post("/outage-credits", ...requireSuperAdmin(), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const parsed = outageCreditSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() });
+      return;
+    }
+    const d = parsed.data;
+
+    const startAt = new Date(d.startAt);
+    const endAt = new Date(d.endAt);
+    const outageMinutes = Math.round((endAt.getTime() - startAt.getTime()) / 60_000);
+    if (outageMinutes <= 0) throw new HttpError(422, "endAt must be after startAt");
+
+    if (d.scope === "selected" && (!d.orgIds || d.orgIds.length === 0)) {
+      throw new HttpError(422, "orgIds is required when scope is 'selected'");
+    }
+
+    const minutesInMonth = minutesInMonthOf(startAt);
+    const reason = d.reason?.trim() || `Service disruption ${startAt.toLocaleString("en-KE", { timeZone: "Africa/Nairobi", dateStyle: "medium", timeStyle: "short" })}–${endAt.toLocaleString("en-KE", { timeZone: "Africa/Nairobi", timeStyle: "short" })} EAT`;
+    const runId = `outage-${startAt.toISOString()}-${crypto.randomBytes(4).toString("hex")}`;
+
+    // Candidate orgs: explicit list, or every active org (headcount/override
+    // decide below whether each one actually owes anything to be pro-rated).
+    const candidates = d.scope === "selected"
+      ? await db.select().from(organizations).where(inArray(organizations.id, d.orgIds!))
+      : await db.select().from(organizations).where(eq(organizations.status, "active"));
+
+    const empCounts = await db.select({ orgId: employees.orgId, cnt: count() }).from(employees)
+      .where(eq(employees.status, "active")).groupBy(employees.orgId);
+    const empMap = new Map(empCounts.map((r) => [r.orgId, r.cnt]));
+
+    const results: { orgId: number; orgName: string; creditCents: number; skipped?: string }[] = [];
+    let totalCreditedCents = 0;
+
+    await db.transaction(async (tx) => {
+      for (const org of candidates) {
+        const activeEmployees = empMap.get(org.id) ?? 0;
+        const monthlyCents = effectiveMonthlyCents({
+          plan: org.plan, activeEmployees, overrideCents: org.monthlyCharge ?? 0,
+        });
+        if (monthlyCents <= 0) {
+          results.push({ orgId: org.id, orgName: org.name, creditCents: 0, skipped: "no active monthly charge" });
+          continue;
+        }
+
+        const creditCents = Math.round(monthlyCents * outageMinutes / minutesInMonth * d.multiplier);
+        if (creditCents <= 0) {
+          results.push({ orgId: org.id, orgName: org.name, creditCents: 0, skipped: "computed credit is zero" });
+          continue;
+        }
+
+        const [credit] = await tx.insert(billingCredits).values({
+          orgId: org.id, amountCents: creditCents, kind: "sla", reason,
+          createdByUserId: p.userId,
+          note: `Outage run ${runId}: ${outageMinutes} min × KES ${(monthlyCents / 100).toLocaleString("en-KE")}/mo ÷ ${minutesInMonth} min/mo × ${d.multiplier}×`,
+        }).returning();
+
+        let accessUntilBumped: string | null = null;
+        if (d.bumpAccessUntil) {
+          const base = org.accessUntil && org.accessUntil.getTime() > Date.now() ? org.accessUntil : new Date();
+          const bumped = new Date(base.getTime() + outageMinutes * 60_000);
+          await tx.update(organizations).set({ accessUntil: bumped }).where(eq(organizations.id, org.id));
+          accessUntilBumped = bumped.toISOString();
+        }
+
+        await writeAudit(tx, {
+          orgId: org.id, action: "SUPER_OUTAGE_CREDIT_RUN", entity: "billing_credits", entityId: credit.id,
+          actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+          detail: `${runId}: ${outageMinutes} min outage, ${d.multiplier}× — KES ${(creditCents / 100).toLocaleString("en-KE")} credit${accessUntilBumped ? `, access extended to ${accessUntilBumped}` : ""}`,
+          after: { runId, creditCents, outageMinutes, multiplier: d.multiplier, accessUntilBumped },
+        });
+
+        totalCreditedCents += creditCents;
+        results.push({ orgId: org.id, orgName: org.name, creditCents });
+      }
+    });
+
+    res.status(201).json({
+      runId, outageMinutes, minutesInMonth, multiplier: d.multiplier, reason,
+      orgsConsidered: candidates.length,
+      orgsCredited: results.filter((r) => r.creditCents > 0).length,
+      totalCreditedCents,
+      results,
+    });
   } catch (err) {
     next(err);
   }
