@@ -27,6 +27,7 @@ export function Footer() {
               <li><Link href="/features" className="hover:text-primary transition-colors">Features</Link></li>
               <li><Link href="/compliance" className="hover:text-primary transition-colors">Compliance</Link></li>
               <li><Link href="/pricing" className="hover:text-primary transition-colors">Pricing</Link></li>
+              <li><Link href="/paye-calculator" className="hover:text-primary transition-colors">PAYE Calculator</Link></li>
             </ul>
           </div>
 

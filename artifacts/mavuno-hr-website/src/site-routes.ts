@@ -27,6 +27,13 @@ export interface SiteRoute {
   breadcrumb?: string;
   /** Whether the SoftwareApplication offer graph belongs on this page. */
   offers?: boolean;
+  /**
+   * Questions rendered on the page AND emitted as FAQPage structured data.
+   * Deliberately one array rather than two: schema that describes something the
+   * visitor cannot see is a guidelines violation, so the only safe way to ship
+   * FAQ markup is to make the page and the schema read from the same source.
+   */
+  faq?: { q: string; a: string }[];
 }
 
 export const SITE_ROUTES: SiteRoute[] = [
@@ -59,6 +66,42 @@ export const SITE_ROUTES: SiteRoute[] = [
       "PAYE, NSSF Tier I and II, SHIF and the Affordable Housing Levy — calculated, then filed.",
     priority: "0.9",
     breadcrumb: "Compliance",
+  },
+  {
+    path: "/paye-calculator",
+    title: "Kenya PAYE Calculator — Net Pay After NSSF, SHIF & Housing Levy",
+    description:
+      "Free Kenyan PAYE calculator. Enter a monthly gross salary to see PAYE, NSSF, SHIF and Housing Levy deductions, take-home pay, and total employer cost.",
+    social:
+      "Enter a monthly gross salary and see PAYE, NSSF, SHIF, Housing Levy, net pay and the employer's total cost.",
+    priority: "0.9",
+    breadcrumb: "PAYE Calculator",
+    faq: [
+      {
+        q: "How is PAYE calculated in Kenya?",
+        a: "PAYE is charged on taxable income using progressive bands: each slice of income is taxed at its own rate rather than the whole salary being taxed at the top rate. Personal relief is then subtracted from the result. Taxable income is your gross pay less the deductions that are allowed before tax, which is why NSSF and SHIF change the PAYE figure rather than just sitting alongside it.",
+      },
+      {
+        q: "Is NSSF deducted before PAYE?",
+        a: "Yes. NSSF is treated as tax deductible, so the employee contribution reduces taxable income before PAYE is worked out. NSSF itself is split into Tier I and Tier II against the current earnings limits, and the employer pays a matching contribution on top of gross pay.",
+      },
+      {
+        q: "Does SHIF reduce my taxable pay?",
+        a: "Under the rules this calculator applies, the SHIF deduction is tax deductible, so it lowers taxable income in the same way NSSF does. SHIF replaced NHIF, and it is calculated on gross pay rather than from a band table.",
+      },
+      {
+        q: "What is the Affordable Housing Levy?",
+        a: "The Affordable Housing Levy is deducted from the employee and matched by the employer. The employee side is tax deductible, so it also reduces taxable income. The employer's matching contribution is a cost on top of gross pay and is included in the employer total shown above.",
+      },
+      {
+        q: "Does this include HELB, pension or insurance relief?",
+        a: "No. The figures above assume a resident employee on a full month with no HELB repayment, no pension contribution and no insurance relief. Any of those would change the result, and Mavuno HR handles all of them on a real payroll run.",
+      },
+      {
+        q: "Is this an official KRA calculator?",
+        a: "No. It is an estimate produced by the same payroll engine Mavuno HR runs on, using the statutory rules currently on file. It is not tax advice, and the filing obligation stays with you as the employer.",
+      },
+    ],
   },
   {
     path: "/pricing",

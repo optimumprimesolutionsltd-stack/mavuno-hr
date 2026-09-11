@@ -6,6 +6,7 @@ import { Home } from '@/pages/home';
 import FeaturesPage from '@/pages/features';
 import CompliancePage from '@/pages/compliance';
 import PricingPage from '@/pages/pricing';
+import PayeCalculatorPage from '@/pages/paye-calculator';
 import { SITE_ROUTES } from '@/site-routes';
 
 const queryClient = new QueryClient();
@@ -19,6 +20,7 @@ const PAGES: Record<string, ComponentType> = {
   '/': Home,
   '/features': FeaturesPage,
   '/compliance': CompliancePage,
+  '/paye-calculator': PayeCalculatorPage,
   '/pricing': PricingPage,
 };
 
