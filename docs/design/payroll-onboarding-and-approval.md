@@ -195,11 +195,15 @@ Audit `LOAN_MIGRATED`. Until this ships, the workaround is: create the loan with
 `amount` = the **remaining** balance and `months` = the remaining term (interest
 re‑derives, approximate), and leave loan deductions **off** the backfilled runs.
 
-### 3.7 CSV bulk import (Phase 4 — large migrations only)
+### 3.7 CSV bulk import (Phase 5 — large migrations only) ✅ shipped
 
-`POST /api/payroll/historical/import`, multipart CSV, one historical run per
-distinct `period`, payslip rows inserted **verbatim from the CSV** (no
-recompute — trust the prior system), run totals rolled up, marked `paid`.
+`POST /api/payroll/historical/import`, JSON body `{ rows: [...], dryRun? }`
+— **not** multipart; the admin UI parses the CSV client-side (same pattern
+as the employee bulk importer) and posts rows as JSON, so no new upload
+middleware was needed. One historical run per distinct `period`, payslip
+rows inserted **verbatim from the CSV** (no recompute — trust the prior
+system), run totals rolled up, run created directly at `paid` (no separate
+finalize step — CSV import trusts the source fully).
 
 ```
 period,empNo,daysPayable,basic,allowances,nonCashBenefit,gross,
@@ -208,8 +212,25 @@ taxableIncome,payeBeforeRelief,personalRelief,insuranceRelief,paye,
 helb,sacco,otherDeductions,netPay
 ```
 
-`resolveConfig` requirement relaxed for imported runs. Template download +
-dry‑run validation (unknown `empNo`, period ≥ cutover, duplicate period).
+`resolveConfig` requirement relaxed: falls back to the oldest config on file
+for the country (the snapshot is informational only — CSV rows are never
+recomputed against it) rather than blocking the import.
+
+`dryRun: true` runs the full validation (unknown `empNo`, period ≥ cutover,
+duplicate `(period, empNo)` in the same file, a run already existing for
+the period) without writing anything, returning the same `{ imported,
+skipped, errors, runs }` shape the real import would. The admin UI always
+dry-runs first and shows the per-period breakdown before the user commits.
+Template download: `GET /api/payroll/historical/import/template`.
+
+**Known gap, not addressed here:** the single-run "Historical / migration"
+option specified in §3.5 for the New Payroll Run dialog, and the
+draft-editable / finalize UI on the run detail page, were never actually
+wired up on the frontend — only the backend (`calculateRun`, the `finalize`
+action, the `HISTORICAL_RUN_LOCKED` guards) shipped in Phase 2. Today there
+is no UI path to create a **single** historical run by hand; only this CSV
+importer (which always finalizes immediately) can create one. Flagged as a
+follow-up, out of scope for Phase 5.
 
 ### 3.8 Edge cases
 
@@ -335,8 +356,8 @@ Two questions, both writing org settings:
 | **1** | `requires_payroll_approval` column + `canApproveRun` bypass + `approve`‑from‑draft + `run` action + `finalize` audit chain | small‑org approval pain |
 | **2** | `run_type = "historical"` + `finalize` action (skip loans) + block payout/filing/email on historical + filing‑reminder exclusion + same‑period guard + new‑run UI toggle + run‑detail suppression | **mid‑year migration (e.g. current Ujenzi onboarding)** |
 | **3** | `payroll_start_period` + reminders/reports/CRM‑signal awareness + `auto_*_on_pay` toggles | clean multi‑customer onboarding, fewer clicks |
-| **4** | loan `openingBalance` on `POST /api/loans` | customers with running loans |
-| **5** | `employee_ytd_opening` summary entry **or** CSV historical import + template | 50+ staff migrations |
+| **4** | loan `openingBalance` on `POST /api/loans` — shipped separately, see PR #35 | customers with running loans |
+| **5** ✅ (CSV half) | `employee_ytd_opening` summary entry **or** CSV historical import + template | 50+ staff migrations |
 
 Phases 1 and 2 are independent and can ship in either order.
 
