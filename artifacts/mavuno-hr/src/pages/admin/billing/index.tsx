@@ -11,8 +11,12 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { PLAN_LABELS, PLAN_COLORS, PLAN_RATES, priceBreakdown } from "@/lib/pricing";
-import { CreditCard, CheckCircle2, Clock, Loader2, Receipt, Smartphone, Copy } from "lucide-react";
+import { PLAN_LABELS, PLAN_COLORS, PLAN_RATES, priceBreakdown, recommendPlan, standardMonthlyCents } from "@/lib/pricing";
+import { CreditCard, CheckCircle2, Clock, Loader2, Receipt, Smartphone, Copy, Check } from "lucide-react";
+
+// Self-service plans — "trial" is assigned at registration, never picked back
+// into, and "enterprise" pricing here is still a real flat rate, not a quote.
+const SELECTABLE_PLANS = ["free", "lite", "starter", "growth", "business", "enterprise"] as const;
 
 interface BillingPayment {
   id: number; orgId: number; receiptNo: string; amount: number;
@@ -164,9 +168,112 @@ function PayNowDialog({ open, onOpenChange, defaultAmountCents }: {
   );
 }
 
+function ChangePlanDialog({ open, onOpenChange, currentPlan, headcount }: {
+  open: boolean; onOpenChange: (open: boolean) => void; currentPlan: string; headcount: number;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selected, setSelected] = useState(currentPlan);
+
+  useEffect(() => { if (open) setSelected(currentPlan); }, [open, currentPlan]);
+
+  const recommended = recommendPlan(headcount);
+
+  const mutation = useMutation({
+    mutationFn: (plan: string) =>
+      customFetch("/api/billing/plan", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      }) as Promise<{ plan: string; monthlyCharge?: number; unchanged?: boolean }>,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["billing-my"] });
+      toast({
+        title: data.unchanged ? "Already on this plan" : "Plan updated",
+        description: data.unchanged ? undefined : `You're now on ${PLAN_LABELS[data.plan] ?? data.plan}.`,
+      });
+      onOpenChange(false);
+    },
+    onError: (err: any) => {
+      toast({ variant: "destructive", title: "Couldn't change plan", description: err?.data?.error ?? err?.message });
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !mutation.isPending && onOpenChange(v)}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Choose your plan</DialogTitle>
+          <DialogDescription>
+            Based on your {headcount} active {headcount === 1 ? "employee" : "employees"}, we recommend{" "}
+            <strong>{PLAN_LABELS[recommended] ?? recommended}</strong>.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-2 py-1 max-h-[60vh] overflow-y-auto">
+          {SELECTABLE_PLANS.map((id) => {
+            const rate = PLAN_RATES[id];
+            const tooSmall = rate.softCapSeats !== null && headcount > rate.softCapSeats;
+            const price = standardMonthlyCents(id, headcount);
+            const isSelected = selected === id;
+            const isCurrent = currentPlan === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                disabled={tooSmall}
+                onClick={() => setSelected(id)}
+                className={`w-full flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-left transition ${
+                  tooSmall
+                    ? "opacity-40 cursor-not-allowed border-border/40"
+                    : isSelected
+                      ? "border-primary bg-primary/5"
+                      : "border-border/50 hover:border-border"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-sm">{rate.label}</span>
+                    {id === recommended && (
+                      <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">Recommended</span>
+                    )}
+                    {isCurrent && (
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Current</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {tooSmall
+                      ? `Covers up to ${rate.softCapSeats} employees — you have ${headcount}`
+                      : rate.bestFor}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-mono font-bold text-sm">{price > 0 ? fmtKes(price) : "Free"}</span>
+                  {isSelected && !tooSmall && <Check className="h-4 w-4 text-primary" />}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={mutation.isPending}>Cancel</Button>
+          <Button
+            onClick={() => mutation.mutate(selected)}
+            disabled={mutation.isPending || selected === currentPlan}
+          >
+            {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm plan"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function AdminBilling() {
   const { data, isLoading } = useBillingMy();
   const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [planDialogOpen, setPlanDialogOpen] = useState(false);
 
   const totalPaid = (data?.payments ?? [])
     .filter((r) => r.payment.status === "verified")
@@ -219,6 +326,11 @@ export function AdminBilling() {
                 <p className="text-xs text-muted-foreground font-mono pt-1">
                   {headcount} active {headcount === 1 ? "employee" : "employees"}
                 </p>
+                {!usingOverride && (
+                  <Button size="sm" variant="outline" className="mt-1" onClick={() => setPlanDialogOpen(true)}>
+                    Change plan
+                  </Button>
+                )}
               </div>
               <div className="space-y-1 text-right">
                 <p className="text-xs font-mono text-muted-foreground">
@@ -375,6 +487,12 @@ export function AdminBilling() {
         open={payDialogOpen}
         onOpenChange={setPayDialogOpen}
         defaultAmountCents={perInvoice}
+      />
+      <ChangePlanDialog
+        open={planDialogOpen}
+        onOpenChange={setPlanDialogOpen}
+        currentPlan={plan}
+        headcount={headcount}
       />
     </div>
   );

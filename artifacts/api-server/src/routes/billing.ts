@@ -8,11 +8,12 @@ import {
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
 import { sendReceiptEmail } from "../lib/mailer.js";
+import { writeAudit } from "../lib/audit.js";
 import {
   initiateStkPush, queryTransactionStatus, isAllowedCallbackIp, accountReferenceFor,
 } from "../lib/mpesa.js";
 import {
-  standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents,
+  PLAN_RATES, standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents,
 } from "../lib/pricing.js";
 import { logger } from "../lib/logger.js";
 import type { Request, Response, NextFunction } from "express";
@@ -297,6 +298,67 @@ router.get("/my", requireAuth("org:admin"), async (req, res, next) => {
       .orderBy(desc(billingPayments.createdAt));
 
     res.json({ org, payments });
+  } catch (err) { next(err); }
+});
+
+// ── PATCH /api/billing/plan — a customer picks their own plan ─────────────────
+// "trial" is assigned automatically at registration, never self-selected back
+// into. Blocked while a negotiated monthly_charge override is active — that
+// price was agreed directly, so a plan switch here would silently undercut it.
+const SELECTABLE_PLAN_IDS = ["free", "lite", "starter", "growth", "business", "enterprise"] as const;
+const selectPlanSchema = z.object({
+  plan: z.enum(SELECTABLE_PLAN_IDS),
+});
+
+router.patch("/plan", requireAuth("org:admin"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const parsed = selectPlanSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return; }
+    const { plan } = parsed.data;
+
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, p.orgId)).limit(1);
+    if (!org) throw new HttpError(404, "Organization not found");
+
+    if ((org.monthlyCharge ?? 0) > 0) {
+      throw new HttpError(
+        409,
+        "Your account is on a negotiated price. Contact support to change your plan.",
+        "OVERRIDE_ACTIVE",
+      );
+    }
+
+    const [{ cnt: activeEmployees }] = await db
+      .select({ cnt: count() })
+      .from(employees)
+      .where(and(eq(employees.orgId, p.orgId), eq(employees.status, "active")));
+
+    const cap = PLAN_RATES[plan].softCapSeats;
+    if (cap !== null && activeEmployees > cap) {
+      throw new HttpError(
+        422,
+        `${PLAN_RATES[plan].label} covers up to ${cap} employees; you have ${activeEmployees}. Choose a bigger plan.`,
+        "PLAN_TOO_SMALL",
+      );
+    }
+
+    if (plan === org.plan) { res.json({ ok: true, plan, unchanged: true }); return; }
+
+    await db.transaction(async (tx) => {
+      await tx.update(organizations).set({ plan }).where(eq(organizations.id, p.orgId));
+      await writeAudit(tx as any, {
+        orgId: p.orgId, action: "PLAN_SELECTED", entity: "organization", entityId: String(p.orgId),
+        detail: `${org.plan} -> ${plan} (self-service, ${activeEmployees} active employees)`,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        before: { plan: org.plan }, after: { plan },
+      });
+    });
+
+    res.json({
+      ok: true,
+      plan,
+      monthlyCharge: standardMonthlyCents(plan, activeEmployees),
+    });
   } catch (err) { next(err); }
 });
 
