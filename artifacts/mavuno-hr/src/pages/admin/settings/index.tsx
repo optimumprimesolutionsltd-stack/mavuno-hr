@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  Building2, Save, Loader2, ShieldCheck, Settings2, RefreshCw, CheckCircle2,
+  Building2, Save, Loader2, ShieldCheck, Settings2, RefreshCw, CheckCircle2, History,
 } from "lucide-react";
 
 interface OrgSettings {
@@ -25,6 +25,7 @@ interface OrgSettings {
     shifEmployerNo: string;
     plan: string;
     status: string;
+    payrollStartPeriod: string | null;
   };
   activeConfig: {
     name: string;
@@ -87,6 +88,34 @@ export function AdminSettings() {
       }),
     onSuccess: () => {
       toast({ title: "Saved", description: "Organisation profile updated." });
+      qc.invalidateQueries({ queryKey: ["admin-settings"] });
+    },
+    onError: (e: any) => {
+      toast({ variant: "destructive", title: "Save failed", description: e?.data?.error ?? e?.message });
+    },
+  });
+
+  // ── Payroll migration cutover ───────────────────────────────────────────────
+  const [payrollStartPeriod, setPayrollStartPeriod] = useState("");
+
+  useEffect(() => {
+    if (data?.org) setPayrollStartPeriod(data.org.payrollStartPeriod ?? "");
+  }, [data?.org]);
+
+  const saveCutover = useMutation({
+    mutationFn: () =>
+      customFetch("/api/settings/org", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payrollStartPeriod: payrollStartPeriod || null }),
+      }),
+    onSuccess: () => {
+      toast({
+        title: "Saved",
+        description: payrollStartPeriod
+          ? `Months before ${payrollStartPeriod} can now be recorded as historical.`
+          : "Cleared — Mavuno is treated as the system of record from the start.",
+      });
       qc.invalidateQueries({ queryKey: ["admin-settings"] });
     },
     onError: (e: any) => {
@@ -222,6 +251,49 @@ export function AdminSettings() {
                 ? <Loader2 className="h-4 w-4 animate-spin" />
                 : <Save className="h-4 w-4" />}
               SAVE PROFILE
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Panel 1b: Payroll Migration ── */}
+      <Card className="border-border/50 shadow-sm bg-card/30">
+        <CardHeader className="pb-4">
+          <CardTitle className="font-mono flex items-center gap-2 text-base">
+            <History className="h-4 w-4 text-primary" />
+            PAYROLL MIGRATION
+          </CardTitle>
+          <CardDescription>
+            Mavuno is our payroll system of record from this month onward. Earlier months can be
+            recorded as historical runs — via a single run or the CSV bulk importer — so your
+            year-to-date and P9A stay complete, without Mavuno filing, paying out, or emailing
+            payslips for them.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="max-w-xs space-y-1.5">
+            <Label className="text-xs font-mono text-muted-foreground">MAVUNO IS OUR PAYROLL SYSTEM FROM</Label>
+            <Input
+              type="month"
+              value={payrollStartPeriod}
+              onChange={(e) => setPayrollStartPeriod(e.target.value)}
+              className="bg-background/50 font-mono"
+            />
+            <p className="text-xs text-muted-foreground">
+              Leave blank if Mavuno has always been your payroll system — nothing will be treated as historical.
+            </p>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              onClick={() => saveCutover.mutate()}
+              disabled={saveCutover.isPending}
+              variant="outline"
+              className="font-mono gap-1.5"
+            >
+              {saveCutover.isPending
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Save className="h-4 w-4" />}
+              SAVE CUTOVER MONTH
             </Button>
           </div>
         </CardContent>
