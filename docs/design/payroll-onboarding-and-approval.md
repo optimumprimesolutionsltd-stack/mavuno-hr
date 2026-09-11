@@ -182,18 +182,19 @@ when choosing the "previous run" for a regular run (cosmetic).
   (`payroll_start_period`); warn if set at/after a month that already has
   historical runs.
 
-### 3.6 Loans (Phase 3)
+### 3.6 Loans (Phase 4) ✅ shipped
 
-`POST /api/loans` currently forces `balance = principal`. Add optional body:
+`POST /api/loans` gained optional body:
 
 | field | type | effect |
 |---|---|---|
-| `openingBalance` | money string | `loans.balance = openingBalance`; `loans.principal = amount` (original) |
-| `disbursedOn` | ISO date, past allowed | `loans.start_date` |
+| `openingBalance` | money string | `loans.balance = openingBalance`; `loans.principal = amount` (original); rejected with `422` if it exceeds `amount` |
 
-Audit `LOAN_MIGRATED`. Until this ships, the workaround is: create the loan with
-`amount` = the **remaining** balance and `months` = the remaining term (interest
-re‑derives, approximate), and leave loan deductions **off** the backfilled runs.
+Audit `LOAN_MIGRATED` (instead of `LOAN_ISSUED`) when `openingBalance` is set.
+`disbursedOn` was not added as a separate field — the existing `startDate`
+already accepts any past date, so it doubles as the disbursement date for
+migrated loans. Surfaced in the admin "Issue loan" dialog as a "this loan was
+already partially repaid" checkbox that reveals the outstanding-balance field.
 
 ### 3.7 CSV bulk import (Phase 5 — large migrations only) ✅ shipped
 
@@ -356,7 +357,7 @@ Two questions, both writing org settings:
 | **1** | `requires_payroll_approval` column + `canApproveRun` bypass + `approve`‑from‑draft + `run` action + `finalize` audit chain | small‑org approval pain |
 | **2** | `run_type = "historical"` + `finalize` action (skip loans) + block payout/filing/email on historical + filing‑reminder exclusion + same‑period guard + new‑run UI toggle + run‑detail suppression | **mid‑year migration (e.g. current Ujenzi onboarding)** |
 | **3** | `payroll_start_period` + reminders/reports/CRM‑signal awareness + `auto_*_on_pay` toggles | clean multi‑customer onboarding, fewer clicks |
-| **4** | loan `openingBalance` on `POST /api/loans` — shipped separately, see PR #35 | customers with running loans |
+| **4** ✅ | loan `openingBalance` on `POST /api/loans` | customers with running loans |
 | **5** ✅ (CSV half) | `employee_ytd_opening` summary entry **or** CSV historical import + template | 50+ staff migrations |
 
 Phases 1 and 2 are independent and can ship in either order.

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Coins } from "lucide-react";
 
 interface Props {
@@ -22,6 +23,8 @@ const DEFAULTS = {
   months: "12",
   interestRateBps: "0",
   startDate: new Date().toISOString().slice(0, 10),
+  isMigrated: false,
+  openingBalance: "",
 };
 
 export function IssueLoanDialog({ open, onOpenChange }: Props) {
@@ -52,6 +55,12 @@ export function IssueLoanDialog({ open, onOpenChange }: Props) {
     if (!form.employeeId) { toast({ variant: "destructive", title: "Select an employee" }); return; }
     if (!form.amount || Number(form.amount) <= 0) { toast({ variant: "destructive", title: "Enter a valid amount" }); return; }
     if (!form.months || Number(form.months) < 1) { toast({ variant: "destructive", title: "Enter valid term (months)" }); return; }
+    if (form.isMigrated && (!form.openingBalance || Number(form.openingBalance) <= 0)) {
+      toast({ variant: "destructive", title: "Enter the current outstanding balance" }); return;
+    }
+    if (form.isMigrated && Number(form.openingBalance) > Number(form.amount)) {
+      toast({ variant: "destructive", title: "Outstanding balance can't exceed the original amount" }); return;
+    }
 
     createLoan.mutate({
       data: {
@@ -61,6 +70,7 @@ export function IssueLoanDialog({ open, onOpenChange }: Props) {
         months: Number(form.months),
         interestRateBps: Number(form.interestRateBps) || 0,
         startDate: form.startDate,
+        ...(form.isMigrated ? { openingBalance: form.openingBalance } : {}),
       } as any,
     }, {
       onSuccess: () => {
@@ -137,6 +147,36 @@ export function IssueLoanDialog({ open, onOpenChange }: Props) {
             <div className="col-span-2 p-3 rounded-lg bg-primary/5 border border-primary/20 font-mono text-sm flex justify-between">
               <span className="text-muted-foreground">EST. MONTHLY INSTALLMENT</span>
               <span className="text-primary font-bold">KES {Number(est).toLocaleString('en-KE', { minimumFractionDigits: 2 })}</span>
+            </div>
+          )}
+
+          <div className="col-span-2 flex items-start gap-2 pt-2 border-t border-border/30">
+            <Checkbox
+              id="isMigrated"
+              checked={form.isMigrated}
+              onCheckedChange={(v) => setForm(f => ({ ...f, isMigrated: !!v }))}
+              className="mt-0.5"
+            />
+            <Label htmlFor="isMigrated" className="text-xs font-mono text-muted-foreground leading-snug cursor-pointer">
+              This loan was already partially repaid on a prior system — record it at its
+              current outstanding balance instead of the full amount.
+            </Label>
+          </div>
+
+          {form.isMigrated && (
+            <div className="col-span-2 space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">CURRENT OUTSTANDING BALANCE (KES) *</Label>
+              <Input
+                type="number"
+                value={form.openingBalance}
+                onChange={set("openingBalance")}
+                placeholder="e.g. 20000 of a 50000 principal"
+                className="bg-background/50"
+              />
+              <p className="text-xs text-muted-foreground font-mono">
+                The principal above stays the original loan amount for records; deductions
+                will run against this balance until it's cleared.
+              </p>
             </div>
           )}
         </div>
