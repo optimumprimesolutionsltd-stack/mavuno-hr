@@ -281,6 +281,31 @@ fast-follow.
 `GET /api/billing/my` returns open credits; the billing page shows
 *"KES 4,500 credit — applies to your next payment"* with the reason.
 
+### Shipped (Phase 3) ✅ — table + issue/list/void + display only
+
+Built exactly as specified: `billing_credits` table (both in
+`createBaseSchema()` and its own `createBillingCreditsTable()` startup-migration
+step, matching the dual pattern already used for `billing_payments`), the
+three super-admin endpoints, and `GET /api/billing/my` gaining `credits: []`
++ `openCreditCents`. The super console's org actions row gained a "Billing
+credits" (gift icon) button opening a dialog with the open balance, an issue
+form, and a void action per open credit — all three `BILLING_CREDIT_*` audit
+actions are written (`APPLIED` is defined and used nowhere yet — see below).
+
+**Not shipped: consumption.** The "How a credit gets consumed" steps 1–4
+above — computing `netExpected` at payment-verification time, auto-marking
+credits `applied`, splitting a credit larger than the payment — are **all**
+still open, including the "advisory only" v1 the design suggested (step
+1–2: showing "expected KES X, credits KES Y, collect KES Z" to the
+super-admin during manual verification). Today `openCreditCents` is purely
+informational on both the super console and the customer billing page; nothing
+reads it during `POST /api/billing/:id/verify` or the M-Pesa callback, so a
+verified payment does **not** currently account for open credits before
+pushing `access_until` forward (Phase 1's `extendAccessUntil()` runs
+unconditionally). A super-admin issuing a credit today must still manually
+remember to collect less, or issue/verify a payment for the reduced amount
+by hand. This is Phase 4, not started.
+
 ### Downtime → credits (Feature C+, later)
 
 A super-admin **"Apply outage credit"** tool:
@@ -345,7 +370,7 @@ users            no change  (unique index already (org_id, email))
 |---|---|---|
 | **1** ✅ | `organizations.access_until` + `requireActiveAccess()` middleware + super `PATCH accessUntil` + `accessState` in `GET /orgs`. Registration sets it to now+14d. | trials that actually end; grace periods; a meaningful "let them keep using it" lever |
 | **2** ✅ | `POST /api/super/orgs` + invite email + "New organisation" modal in the super console | provisioning for customers who can't self-serve |
-| **3** | `billing_credits` table + issue / list / void endpoints + `GET /api/billing/my` credit display | recorded, customer-visible credits |
+| **3** ✅ | `billing_credits` table + issue / list / void endpoints + `GET /api/billing/my` credit display | recorded, customer-visible credits |
 | **4** | advisory `netExpected` at payment-verify + auto-mark `applied` | credits actually reduce what's collected |
 | **5** | "Apply outage credit" bulk tool | one-click SLA make-good across the customer base |
 

@@ -420,6 +420,31 @@ export const billingPayments = pgTable("billing_payments", {
   uniqueIndex("billing_mpesa_receipt_uq").on(t.mpesaReceiptNumber),
 ]);
 
+/* docs/design/super-admin-org-lifecycle.md §4 — SLA / goodwill / refund /
+   correction / promo credits, issued by the super-admin and consumed at
+   payment-verification time (billing.ts). No invoice engine exists, so
+   "consumed" means: the next verified payment for this org nets these open
+   credits off what it owed before pushing access_until forward. */
+export const billingCredits = pgTable("billing_credits", {
+  id: serial("id").primaryKey(),
+  orgId: integer("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  amountCents: money("amount_cents").notNull(),      // positive = owed TO the customer
+  currency: text("currency").notNull().default("KES"),
+  kind: text("kind").notNull(),                      // sla | goodwill | refund | correction | promo
+  reason: text("reason").notNull(),
+  period: text("period"),                            // 'YYYY-MM' this offsets, or null = any period
+  status: text("status").notNull().default("open"),  // open | applied | void
+  appliedToPaymentId: integer("applied_to_payment_id").references(() => billingPayments.id),
+  createdByUserId: integer("created_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  appliedAt: timestamp("applied_at"),
+  voidedAt: timestamp("voided_at"),
+  voidedByUserId: integer("voided_by_user_id").references(() => users.id),
+  note: text("note"),
+}, (t) => [
+  index("billing_credits_org_status_idx").on(t.orgId, t.status),
+]);
+
 export const passwordResetTokens = pgTable("password_reset_tokens", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),

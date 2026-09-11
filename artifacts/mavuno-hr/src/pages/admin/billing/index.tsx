@@ -40,6 +40,8 @@ interface BillingData {
     accessState: "active" | "expiring_soon" | "expired" | "unlimited";
   };
   payments: { payment: BillingPayment; verifierEmail: string | null }[];
+  credits: { id: number; amountCents: number; kind: string; reason: string; period: string | null; createdAt: string }[];
+  openCreditCents: number;
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -328,6 +330,23 @@ export function AdminBilling() {
               <div className="text-sm">
                 <span className="font-medium text-amber-400">Access ends {fmtDate(org.accessUntil)}.</span>{" "}
                 <span className="text-muted-foreground">Pay before then to avoid an interruption.</span>
+              </div>
+            </div>
+          )}
+
+          {/* Open credits — applied automatically at your next verified payment */}
+          {(data?.credits.length ?? 0) > 0 && (
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-emerald-400">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                {fmtKes(data!.openCreditCents)} credit — applies to your next payment
+              </div>
+              <div className="space-y-1 pl-6">
+                {data!.credits.map((c) => (
+                  <p key={c.id} className="text-xs text-muted-foreground">
+                    {fmtKes(c.amountCents)} — {c.reason}{c.period ? ` (${c.period})` : ""}
+                  </p>
+                ))}
               </div>
             </div>
           )}
