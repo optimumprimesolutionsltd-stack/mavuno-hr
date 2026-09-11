@@ -1,3 +1,26 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="18 38 264 264" role="img" aria-label="Mavuno HR mark">
+  <defs>
+    <linearGradient id="mkTile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#33A63F"/><stop offset=".55" stop-color="#1E8034"/><stop offset="1" stop-color="#14652A"/>
+    </linearGradient>
+    <linearGradient id="mkHi" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".18"/><stop offset=".45" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="mkGold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7CE4B"/><stop offset="1" stop-color="#E2A62B"/>
+    </linearGradient>
+    <clipPath id="mkTc"><rect x="24" y="44" width="252" height="252" rx="54"/></clipPath>
+  </defs>
+  <rect x="24" y="44" width="252" height="252" rx="54" fill="url(#mkTile)"/>
+  <g clip-path="url(#mkTc)">
+    <path d="M24 252 C 96 206 176 206 276 244 L276 296 L24 296 Z" fill="#3FAE49"/>
+    <path d="M24 276 C 104 242 172 252 276 274 L276 296 L24 296 Z" fill="#82C243"/>
+  </g>
+  <rect x="24" y="44" width="252" height="252" rx="54" fill="url(#mkHi)"/>
+  <path d="M150 262 C147 224 148 194 150 168 C152 194 153 224 150 262 Z" fill="url(#mkGold)"/>
+  <path d="M150 220 C114 226 84 206 70 168 C108 164 141 184 150 220 Z" fill="url(#mkGold)"/>
+  <path d="M150 220 C186 226 216 206 230 168 C192 164 159 184 150 220 Z" fill="url(#mkGold)"/>
+  <path d="M150 192 C126 184 104 156 98 120 C128 128 148 154 150 192 Z" fill="url(#mkGold)"/>
+  <path d="M150 192 C174 184 196 156 202 120 C172 128 152 154 150 192 Z" fill="url(#mkGold)"/>
+  <circle cx="150" cy="112" r="23" fill="url(#mkGold)"/>
 </svg>

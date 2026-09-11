@@ -1,2 +1,18 @@
+# https://mavunohr.co.ke/robots.txt
+# Served from the marketing site's dist/ at the origin root, which is the only
+# place a crawler will look for it.
+
 User-agent: *
 Allow: /
+
+# The API is not content. It has no way to carry a noindex, so keep crawlers
+# out of it entirely.
+Disallow: /api/
+
+# NOTE: /app (the admin + employee portal SPA) is deliberately NOT disallowed
+# here. It is marked noindex by both a <meta robots> tag and an X-Robots-Tag
+# response header, and a crawler has to be allowed to fetch a page in order to
+# see that it is noindex. Blocking it here instead would let an externally
+# linked /app URL sit in the index with no way to drop out.
+
+Sitemap: https://mavunohr.co.ke/sitemap.xml

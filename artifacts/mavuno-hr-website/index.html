@@ -1,21 +1,149 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-KE">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>Mavuno HR — Payroll and HR for Kenya</title>
-    <meta name="description" content="Mavuno HR — payroll, people management and statutory compliance for Kenyan businesses." />
-    <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="Mavuno HR — Payroll and HR for Kenya" />
-    <meta property="og:description" content="Payroll, people management and statutory compliance for Kenyan businesses." />
+    <!-- No maximum-scale: pinch-zoom must stay available. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Mavuno HR — Payroll &amp; HR Software for Kenya | PAYE, NSSF, SHIF</title>
+    <meta
+      name="description"
+      content="Kenyan payroll and HR software. Automated PAYE, NSSF, SHIF and Housing Levy, P9 and P10 filing, employee self-service and Tally sync. Free up to 5 staff."
+    />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+
+    <!-- Single canonical host. www. and http:// both 301 here; this stops any
+         other spelling of the URL (utm params, trailing junk) splitting signals. -->
+    <link rel="canonical" href="https://mavunohr.co.ke/" />
+
+    <meta property="og:site_name" content="Mavuno HR" />
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_KE" />
+    <meta property="og:url" content="https://mavunohr.co.ke/" />
+    <meta property="og:title" content="Mavuno HR — Payroll &amp; HR Software for Kenya" />
+    <meta
+      property="og:description"
+      content="Automated PAYE, NSSF, SHIF and Housing Levy. Payslips, P9s, self-service and Tally sync, built for Kenyan businesses."
+    />
+    <!-- Absolute URL and a real PNG: WhatsApp and LinkedIn will not render an
+         SVG or a relative path, and WhatsApp is how this link actually travels. -->
+    <meta property="og:image" content="https://mavunohr.co.ke/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Mavuno HR — payroll, people and statutory compliance, built for Kenyan businesses." />
+
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Mavuno HR — Payroll and HR for Kenya" />
-    <meta name="twitter:description" content="Payroll, people management and statutory compliance for Kenyan businesses." />
+    <meta name="twitter:title" content="Mavuno HR — Payroll &amp; HR Software for Kenya" />
+    <meta
+      name="twitter:description"
+      content="Automated PAYE, NSSF, SHIF and Housing Levy. Payslips, P9s, self-service and Tally sync, built for Kenyan businesses."
+    />
+    <meta name="twitter:image" content="https://mavunohr.co.ke/og-image.png" />
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#049756" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Structured data. Only describes things that are actually on the page:
+         the plan prices below mirror PLAN_RATES in api-server/src/lib/pricing.ts
+         and the pricing section, so keep them in step when the rate card moves. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://mavunohr.co.ke/#organization",
+          "name": "Mavuno HR",
+          "url": "https://mavunohr.co.ke/",
+          "email": "info@mavunohr.co.ke",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://mavunohr.co.ke/og-image.png",
+            "width": 1200,
+            "height": 630
+          },
+          "areaServed": { "@type": "Country", "name": "Kenya" },
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Nairobi",
+            "addressCountry": "KE"
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://mavunohr.co.ke/#website",
+          "url": "https://mavunohr.co.ke/",
+          "name": "Mavuno HR",
+          "inLanguage": "en-KE",
+          "publisher": { "@id": "https://mavunohr.co.ke/#organization" }
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://mavunohr.co.ke/#software",
+          "name": "Mavuno HR",
+          "url": "https://mavunohr.co.ke/",
+          "applicationCategory": "BusinessApplication",
+          "applicationSubCategory": "Payroll and HR software",
+          "operatingSystem": "Web browser",
+          "inLanguage": "en-KE",
+          "description": "Payroll, people management and statutory compliance for Kenyan businesses. Automates PAYE, NSSF, SHIF and the Affordable Housing Levy, generates payslips and P9, P10 and P10A returns, and syncs journal entries to Tally ERP 9 and TallyPrime.",
+          "publisher": { "@id": "https://mavunohr.co.ke/#organization" },
+          "featureList": [
+            "Automated payroll runs and payslips",
+            "PAYE, NSSF, SHIF and Affordable Housing Levy calculation",
+            "P9, P10, P10A, SHIF and NSSF returns",
+            "Employee self-service portal",
+            "Leave, loans and timesheets",
+            "Bank and M-Pesa payment files",
+            "Audit trail and Tally sync"
+          ],
+          "offers": [
+            {
+              "@type": "Offer",
+              "name": "Free",
+              "price": "0",
+              "priceCurrency": "KES",
+              "description": "Up to 5 employees."
+            },
+            {
+              "@type": "Offer",
+              "name": "Lite",
+              "price": "1500",
+              "priceCurrency": "KES",
+              "description": "6-10 employees. Flat monthly fee, excludes 16% VAT."
+            },
+            {
+              "@type": "Offer",
+              "name": "Starter",
+              "price": "2500",
+              "priceCurrency": "KES",
+              "description": "11-20 employees. Flat monthly fee, excludes 16% VAT."
+            },
+            {
+              "@type": "Offer",
+              "name": "Growth",
+              "price": "4000",
+              "priceCurrency": "KES",
+              "description": "21-50 employees. Flat monthly fee, excludes 16% VAT."
+            },
+            {
+              "@type": "Offer",
+              "name": "Business",
+              "price": "7000",
+              "priceCurrency": "KES",
+              "description": "51-150 employees. Flat monthly fee, excludes 16% VAT."
+            }
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

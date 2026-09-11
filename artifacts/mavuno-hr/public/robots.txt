@@ -1,2 +1,10 @@
+# This file is NOT the site's robots.txt. This bundle is served under /app, so
+# this ends up at /app/robots.txt, and crawlers only ever read the one at the
+# origin root — that one lives in artifacts/mavuno-hr-website/public/robots.txt.
+#
+# The portal is kept out of the index by a <meta name="robots" content="noindex">
+# in index.html plus an X-Robots-Tag header the api-server sets on every /app
+# response. It is intentionally left crawlable at the root so those are seen.
+
 User-agent: *
-Allow: /
+Disallow: /
