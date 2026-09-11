@@ -272,6 +272,17 @@ export function Register() {
                   </Button>
                 </form>
               </Form>
+
+              <div className="relative my-5">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+                <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-card px-2 text-muted-foreground">or</span></div>
+              </div>
+              <Link
+                href="/sign-up"
+                className="flex h-10 w-full items-center justify-center rounded-md border border-border bg-background/50 text-sm font-medium transition-colors hover:bg-accent"
+              >
+                Sign up with Google
+              </Link>
             </CardContent>
           </Card>
         )}

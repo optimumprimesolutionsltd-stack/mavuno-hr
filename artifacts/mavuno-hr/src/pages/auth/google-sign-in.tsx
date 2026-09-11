@@ -9,7 +9,7 @@ import { Loader2 } from "lucide-react";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-const clerkAppearance = {
+export const clerkAppearance = {
   theme: shadcn,
   cssLayerName: "clerk",
   options: {
@@ -52,7 +52,7 @@ const clerkAppearance = {
   },
 };
 
-function safeRedirect(value: string | null, role: string, employeeId: number | null): string {
+export function safeRedirect(value: string | null, role: string, employeeId: number | null): string {
   if (role === "admin" || role === "hr") return value === "/admin" ? "/admin" : "/admin";
   if (employeeId) return value === "/portal" ? "/portal" : "/portal";
   return "/admin/login";
@@ -117,7 +117,7 @@ export function GoogleSignIn() {
           <SignIn
             routing="path"
             path={`${basePath}/sign-in`}
-            signUpUrl={`${basePath}/register`}
+            signUpUrl={`${basePath}/sign-up`}
             fallbackRedirectUrl={`${basePath}/sign-in`}
             appearance={clerkAppearance}
           />

@@ -4,13 +4,13 @@ import { eq, and, lt } from "drizzle-orm";
 import crypto from "crypto";
 import { db } from "@workspace/db";
 import { users, organizations, passwordResetTokens } from "@workspace/db/schema";
-import { verifyPassword, hashPassword, validatePasswordStrength } from "../lib/password.js";
+import { verifyPassword, hashPassword, validatePasswordStrength, generateTempPassword } from "../lib/password.js";
 import { createSession, destroySession, revokeAllUserSessions } from "../lib/session.js";
 import { requireAuth, getIp, type AuthRequest } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { HttpError } from "../lib/http-error.js";
 import { sendPasswordResetEmail } from "../lib/mailer.js";
-import { getAuth } from "@clerk/express";
+import { getAuth, clerkClient } from "@clerk/express";
 
 const router = Router();
 
@@ -114,8 +114,13 @@ router.post("/login", async (req, res, next) => {
 
 /**
  * Exchange a verified Clerk session for a normal Mavuno session.
- * Google identity alone never creates an organization, role, or employee link.
- * An administrator must first create the local account with the same email.
+ * This endpoint itself never creates an organization, role, or employee link
+ * — a local account with the same email must already exist (created by an
+ * administrator, by POST /register, or by POST /clerk/register below).
+ * That invariant stays true here; a brand-new org from a fresh Google
+ * identity is handled by the sibling /clerk/register endpoint instead of by
+ * loosening this one, so the sign-in path a returning user relies on never
+ * changes behaviour.
  */
 router.post("/clerk/session", async (req, res, next) => {
   try {
@@ -145,8 +150,20 @@ router.post("/clerk/session", async (req, res, next) => {
       .where(eq(users.email, email));
     const row = rows.length === 1 ? rows[0] : undefined;
 
+    // No local account at all for this email — the one case the sign-up
+    // bridge (GoogleSignUp) is allowed to treat as "offer to create one".
+    // Kept as its own branch, before the disabled/suspended checks below,
+    // so a disabled user or a suspended org's admin never gets funnelled
+    // into re-creating an account instead of being told the real reason.
+    if (!row) {
+      res.status(403).json({
+        error: "This Google account is not authorized for a Mavuno HR organization. Ask your administrator to create or enable your user account.",
+        code: "NOT_REGISTERED",
+      });
+      return;
+    }
     // Do not reveal whether an email exists in a different organization.
-    if (!row || row.u.disabledAt || row.o.status === "suspended") {
+    if (row.u.disabledAt || row.o.status === "suspended") {
       res.status(403).json({
         error: "This Google account is not authorized for a Mavuno HR organization. Ask your administrator to create or enable your user account.",
       });
@@ -179,6 +196,139 @@ router.post("/clerk/session", async (req, res, next) => {
       employeeId: row.u.employeeId, mustChangePassword: row.u.mustChangePassword,
       orgSlug: row.o.slug, countryCode: row.o.countryCode, currencyCode: row.o.currencyCode,
       sessionToken,
+    });
+  } catch (err) { next(err); }
+});
+
+/**
+ * Create a brand-new org + admin user from a verified Clerk (Google)
+ * identity — the sign-up counterpart to /clerk/session above. The caller
+ * must already have a live Clerk session (real Google OAuth, not a claim we
+ * trust blindly); this only ever creates an org for the email Clerk itself
+ * verified, and only when that email has no Mavuno account anywhere yet —
+ * it never attaches to or modifies an existing one. Company details (name,
+ * slug, country, KRA PIN) can't come from Google, so the frontend collects
+ * them in a short form before calling this.
+ */
+const clerkRegisterSchema = z.object({
+  companyName:  z.string().min(2).max(120),
+  slug:         z.string().min(2).max(64).regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers, and hyphens only"),
+  countryCode:  z.string().length(2).default("KE"),
+  currencyCode: z.string().min(3).max(4).default("KES"),
+  kraPin:       z.string().max(20).optional(),
+});
+
+router.post("/clerk/register", async (req, res, next) => {
+  try {
+    const origin = req.headers.origin;
+    if (!origin) {
+      res.status(403).json({ error: "Authentication origin is required." });
+      return;
+    }
+    const originUrl = new URL(origin);
+    const forwardedHost = String(req.headers["x-forwarded-host"] ?? req.headers.host ?? "").split(",")[0].trim();
+    if (originUrl.host !== forwardedHost || !["http:", "https:"].includes(originUrl.protocol)) {
+      res.status(403).json({ error: "Invalid authentication origin." });
+      return;
+    }
+    const auth = getAuth(req);
+    const clerkUserId = auth.userId;
+    const email = String(auth.sessionClaims?.email ?? "").trim().toLowerCase();
+    if (!clerkUserId || !email) {
+      res.status(401).json({ error: "Google sign-up could not be verified." });
+      return;
+    }
+
+    const parsed = clerkRegisterSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() });
+      return;
+    }
+    const { companyName, slug, countryCode, currencyCode, kraPin } = parsed.data;
+
+    // Never silently attach to or duplicate an existing account for this
+    // email — including a disabled user or a suspended org's admin. Send
+    // them to sign in instead, same as a person who mistakenly used the
+    // sign-up button for an account they already have.
+    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
+    if (existing) {
+      res.status(409).json({
+        error: "An account already exists for this email. Please sign in instead.",
+        code: "ALREADY_REGISTERED",
+      });
+      return;
+    }
+
+    const [slugTaken] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.slug, slug));
+    if (slugTaken) { res.status(409).json({ error: "That company URL is already taken. Please choose another slug." }); return; }
+
+    // Session claims here only reliably carry email (see the custom Clerk
+    // Dashboard claim that /clerk/session depends on) — fetch the verified
+    // name from Clerk's own API rather than trusting client-supplied input
+    // for who the admin is. Best-effort: an admin can always rename
+    // themselves later, so a lookup failure is not worth failing sign-up over.
+    let adminName = email.split("@")[0];
+    try {
+      const clerkUser = await clerkClient.users.getUser(clerkUserId);
+      const full = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ").trim();
+      if (full) adminName = full;
+    } catch (err) {
+      req.log?.warn?.({ err }, "clerk/register: could not fetch Clerk profile for name, using email-derived fallback");
+    }
+
+    // Unusable local password — this account only ever authenticates via
+    // Google, same trick used for a super-admin-provisioned invite.
+    const passwordHash = await hashPassword(generateTempPassword());
+
+    // Same 14-day trial as POST /register.
+    const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+    const { orgId, userId } = await db.transaction(async (tx) => {
+      const [org] = await tx.insert(organizations).values({
+        name: companyName,
+        slug,
+        countryCode: countryCode.toUpperCase(),
+        currencyCode: currencyCode.toUpperCase(),
+        plan: "trial",
+        seatLimit: 25,
+        status: "active",
+        payrollStartPeriod: new Date().toISOString().slice(0, 7),
+        trialEndsAt: trialEnd,
+        accessUntil: trialEnd,
+        ...(kraPin ? { kraPin: kraPin.toUpperCase() } : {}),
+      }).returning({ id: organizations.id });
+
+      const [user] = await tx.insert(users).values({
+        orgId: org.id,
+        email,
+        name: adminName,
+        role: "admin",
+        passwordHash,
+        mustChangePassword: false,
+        failedLoginCount: 0,
+      }).returning({ id: users.id });
+
+      return { orgId: org.id, userId: user.id };
+    });
+
+    const ip = getIp(req);
+    const sessionToken = await createSession(res, userId, orgId, ip, req.headers["user-agent"] ?? null);
+
+    await db.transaction(async (tx) => {
+      await writeAudit(tx as any, {
+        orgId, action: "REGISTER", entity: "organizations", entityId: orgId,
+        actorUserId: userId, actorEmail: email, actorIp: ip,
+        detail: "Signed up via Google",
+        after: { provider: "google", clerkUserId },
+      });
+    });
+
+    res.status(201).json({
+      ok: true,
+      sessionToken,
+      orgSlug: slug,
+      countryCode: countryCode.toUpperCase(),
+      currencyCode: currencyCode.toUpperCase(),
     });
   } catch (err) { next(err); }
 });

@@ -37,12 +37,14 @@ function App() {
             publishableKey={clerkPubKey}
             proxyUrl={clerkProxyUrl}
             signInUrl={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/sign-in`}
-            signUpUrl={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/register`}
-            // After OAuth, fall back to /sign-in (not Clerk's "/" default, which
-            // is the marketing site) so the Clerk -> Mavuno bridge in
-            // GoogleSignIn runs. Passive fallback only — no forceRedirectUrl.
+            signUpUrl={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/sign-up`}
+            // After OAuth, fall back to /sign-in or /sign-up (not Clerk's "/"
+            // default, which is the marketing site) so the Clerk -> Mavuno
+            // bridge in GoogleSignIn / GoogleSignUp runs. Passive fallback
+            // only — no forceRedirectUrl (see GoogleSignIn's own comment on
+            // why that matters).
             signInFallbackRedirectUrl={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/sign-in`}
-            signUpFallbackRedirectUrl={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/sign-in`}
+            signUpFallbackRedirectUrl={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/sign-up`}
             localization={{
               signIn: {
                 start: {
