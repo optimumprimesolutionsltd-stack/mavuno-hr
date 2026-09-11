@@ -42,6 +42,7 @@ async function createBaseSchema(): Promise<void> {
       auto_generate_payout_on_pay BOOLEAN NOT NULL DEFAULT FALSE,
       auto_email_payslips_on_pay BOOLEAN NOT NULL DEFAULT FALSE,
       trial_ends_at TIMESTAMP,
+      access_until TIMESTAMP,
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     )`,
     `CREATE UNIQUE INDEX IF NOT EXISTS orgs_slug_uq ON organizations(slug)`,
@@ -718,6 +719,12 @@ async function seedStatutoryConfigs(): Promise<void> {
   }
 }
 
+async function addOrgAccessUntil(): Promise<void> {
+  // Nullable, no backfill: null means unlimited access — existing orgs are
+  // unaffected until a super-admin (or a future payment) sets a date.
+  await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS access_until TIMESTAMP`);
+}
+
 async function addOrgRequiresPayrollApproval(): Promise<void> {
   // Mavuno's production DB is a fresh launch with no legacy orgs, so every org
   // — existing and future — gets the streamlined single-actor default. The
@@ -757,6 +764,7 @@ export async function runStartupMigrations(): Promise<void> {
     ["addEmployeeBankBranchName", addEmployeeBankBranchName],
     ["addEmployeeSalaryBasis", addEmployeeSalaryBasis],
     ["addOrgRequiresPayrollApproval", addOrgRequiresPayrollApproval],
+    ["addOrgAccessUntil", addOrgAccessUntil],
   ];
 
   for (const [name, run] of steps) {

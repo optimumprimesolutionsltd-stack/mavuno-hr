@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { PLAN_LABELS, PLAN_COLORS, PLAN_RATES, priceBreakdown, recommendPlan, standardMonthlyCents } from "@/lib/pricing";
-import { CreditCard, CheckCircle2, Clock, Loader2, Receipt, Smartphone, Copy, Check } from "lucide-react";
+import { CreditCard, CheckCircle2, Clock, Loader2, Receipt, Smartphone, Copy, Check, AlertTriangle } from "lucide-react";
 
 // Self-service plans — "trial" is assigned at registration, never picked back
 // into, and "enterprise" pricing here is still a real flat rate, not a quote.
@@ -36,6 +36,8 @@ interface BillingData {
     standardMonthlyCharge: number; // KES cents — rate card at current headcount
     overrideCharge: number;        // KES cents — negotiated override (0 = none)
     cycleCharge: number;           // KES cents — amount on each invoice
+    accessUntil: string | null;    // hard cut-off; null = unlimited
+    accessState: "active" | "expiring_soon" | "expired" | "unlimited";
   };
   payments: { payment: BillingPayment; verifierEmail: string | null }[];
 }
@@ -310,6 +312,26 @@ export function AdminBilling() {
         </div>
       ) : (
         <>
+          {/* Access window banner */}
+          {org?.accessState === "expired" && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+              <div className="text-sm">
+                <span className="font-medium text-destructive">Access expired {fmtDate(org.accessUntil)}.</span>{" "}
+                <span className="text-muted-foreground">Payroll, employees, leave, timesheets and loans are locked. Pay below to restore access.</span>
+              </div>
+            </div>
+          )}
+          {org?.accessState === "expiring_soon" && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0" />
+              <div className="text-sm">
+                <span className="font-medium text-amber-400">Access ends {fmtDate(org.accessUntil)}.</span>{" "}
+                <span className="text-muted-foreground">Pay before then to avoid an interruption.</span>
+              </div>
+            </div>
+          )}
+
           {/* Plan card */}
           <div className="rounded-lg border border-border/50 bg-card/30 p-5 space-y-4">
             <div className="flex items-start justify-between flex-wrap gap-4">

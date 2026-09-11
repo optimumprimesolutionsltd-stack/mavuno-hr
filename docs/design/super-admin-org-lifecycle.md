@@ -88,6 +88,44 @@ derived `accessState: "active" | "expiring_soon" | "expired" | "unlimited"`.
 No separate concept — a grace period *is* `access_until` pushed a few days past
 the paid-through date. The super console can offer a "＋7 days grace" quick action.
 
+### Shipped (Phase 1) ✅
+
+Built as specified, plus one addition beyond the Phase 1 table row: **a
+verified payment now pushes `access_until` forward automatically** —
+`extendAccessUntil(current, cycle)` in `lib/pricing.ts` (+1 month / +1 year
+from the later of "now" or the current `access_until`, so paying early never
+wastes days), wired into both `POST /api/billing/:id/verify` (super-admin
+manual verification) and the M-Pesa callback path in `POST
+/api/billing/mpesa/callback`. Without this, Phase 1 would ship an expiry
+mechanism with no way for an actual payment to clear it — only a manual
+super-admin edit. Both paths write `ORG_ACCESS_UNTIL_SET` audit rows (the
+M-Pesa one with `actorUserId: null`, `actorEmail: "mpesa@system"` — no human
+initiated it).
+
+`GET /api/billing/my` also gained `accessUntil` / `accessState`, and the
+customer billing page (`src/pages/admin/billing/index.tsx`) shows a banner
+when `expiring_soon` or `expired` — the "everything is read-only / locked,
+here's how to pay" experience the design calls for. The super console's
+company table swapped its "Trial ends" column for "Access" (state-colored),
+and the edit dialog gained an "Access until" date field + a "+7 days grace"
+button that pre-fills the date (still requires hitting Save).
+
+**Decision on Open question #1** (block mutations only vs. the whole
+router): shipped as **whole-router** lock, matching §2's literal
+"Applied to the feature routers" wording rather than splitting by verb — the
+read/write split stays an open question, not implemented.
+
+Gated routers, exactly as listed: `payroll`, `employees`, `timesheets`,
+`leaves`, `loans`, `departments`. `audit`, `calculator`, `portal`, `users`,
+and `filings` were **not** gated — they're not in §2's explicit list, and
+`portal` in particular (employee self-service payslip viewing) seemed wrong
+to lock over the org's own non-payment. `requireActiveAccess()`
+(`middlewares/require-auth.ts`) does its own `getPrincipal()` lookup rather
+than reusing `req.principal`, because it runs at the router-mount level in
+`routes/index.ts`, before each route's own `requireAuth()` populates that —
+a second cheap, indexed session lookup per gated request, not a schema or
+behavior compromise.
+
 ---
 
 ## 3. Feature B — super-admin provisioning (`POST /api/super/orgs`)
@@ -277,7 +315,7 @@ users            no change  (unique index already (org_id, email))
 
 | Phase | Scope | Unblocks |
 |---|---|---|
-| **1** | `organizations.access_until` + `requireActiveAccess()` middleware + super `PATCH accessUntil` + `accessState` in `GET /orgs`. Registration sets it to now+14d. | trials that actually end; grace periods; a meaningful "let them keep using it" lever |
+| **1** ✅ | `organizations.access_until` + `requireActiveAccess()` middleware + super `PATCH accessUntil` + `accessState` in `GET /orgs`. Registration sets it to now+14d. | trials that actually end; grace periods; a meaningful "let them keep using it" lever |
 | **2** | `POST /api/super/orgs` + invite email + "New organisation" modal in the super console | provisioning for customers who can't self-serve |
 | **3** | `billing_credits` table + issue / list / void endpoints + `GET /api/billing/my` credit display | recorded, customer-visible credits |
 | **4** | advisory `netExpected` at payment-verify + auto-mark `applied` | credits actually reduce what's collected |

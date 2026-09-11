@@ -20,6 +20,19 @@ requireSecret();
 const tokenHash = (raw: string) =>
   createHash("sha256").update(raw + requireSecret()).digest("hex");
 
+// docs/design/super-admin-org-lifecycle.md §2 — derived, not stored. Shared by
+// the super console (GET /api/super/orgs) and the org's own billing page
+// (GET /api/billing/my).
+const EXPIRING_SOON_DAYS = 7;
+export type AccessState = "active" | "expiring_soon" | "expired" | "unlimited";
+export function accessStateOf(accessUntil: Date | null): AccessState {
+  if (!accessUntil) return "unlimited";
+  const msLeft = accessUntil.getTime() - Date.now();
+  if (msLeft < 0) return "expired";
+  if (msLeft < EXPIRING_SOON_DAYS * 24 * 60 * 60 * 1000) return "expiring_soon";
+  return "active";
+}
+
 export interface Principal {
   userId: number;
   orgId: number;
@@ -31,6 +44,10 @@ export interface Principal {
   orgSlug: string;
   countryCode: string;
   currencyCode: string;
+  /* NULL = unlimited access. Not enforced here — see requireActiveAccess()
+     in middlewares/require-auth.ts. A lapsed org must still be able to log
+     in, read its billing page, and pay. */
+  accessUntil: Date | null;
 }
 
 export async function createSession(
@@ -129,5 +146,6 @@ export async function getPrincipal(req: Request): Promise<Principal | null> {
     orgSlug: row.o.slug,
     countryCode: row.o.countryCode,
     currencyCode: row.o.currencyCode,
+    accessUntil: row.o.accessUntil,
   };
 }

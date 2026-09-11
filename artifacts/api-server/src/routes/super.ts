@@ -4,13 +4,15 @@ import crypto from "node:crypto";
 import { eq, ne, count, max, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { organizations, employees, payrollRuns, users } from "@workspace/db/schema";
-import { requireAuth, type AuthRequest } from "../middlewares/require-auth.js";
+import { requireAuth, getIp, type AuthRequest } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
+import { writeAudit } from "../lib/audit.js";
 import {
   PLAN_IDS, BILLING_CYCLES,
   standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents,
 } from "../lib/pricing.js";
 import { accountReferenceFor, parseAccountReference } from "../lib/mpesa.js";
+import { accessStateOf } from "../lib/session.js";
 import type { Request, Response, NextFunction } from "express";
 
 const router = Router();
@@ -133,6 +135,8 @@ router.get("/orgs", requireSuperAdminOrSyncKey(), async (_req, res, next) => {
           currencyCode: o.currencyCode,
           billingRef: accountReferenceFor(o.id),
           trialEndsAt: o.trialEndsAt,
+          accessUntil: o.accessUntil,
+          accessState: accessStateOf(o.accessUntil),
           payrollStartPeriod: o.payrollStartPeriod,
           createdAt: o.createdAt,
           activeEmployees,
@@ -184,10 +188,12 @@ const patchOrgSchema = z.object({
   status: z.enum(["active", "suspended"]).optional(),
   trialEndsAt: z.string().datetime().nullable().optional(),
   payrollStartPeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).nullable().optional(),
+  accessUntil: z.string().datetime().nullable().optional(),
 });
 
 router.patch("/orgs/:id", ...requireSuperAdmin(), async (req, res, next) => {
   try {
+    const p = (req as AuthRequest).principal;
     const id = parseInt(String(req.params.id));
     if (isNaN(id)) throw new HttpError(400, "Invalid org id");
 
@@ -196,6 +202,10 @@ router.patch("/orgs/:id", ...requireSuperAdmin(), async (req, res, next) => {
       res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() });
       return;
     }
+
+    const [before] = await db.select({ accessUntil: organizations.accessUntil })
+      .from(organizations).where(eq(organizations.id, id));
+    if (!before) throw new HttpError(404, "Organization not found");
 
     const updates: Partial<typeof organizations.$inferInsert> = {};
     const d = parsed.data;
@@ -207,6 +217,8 @@ router.patch("/orgs/:id", ...requireSuperAdmin(), async (req, res, next) => {
     if (d.trialEndsAt !== undefined)
       updates.trialEndsAt = d.trialEndsAt ? new Date(d.trialEndsAt) : null;
     if (d.payrollStartPeriod !== undefined) updates.payrollStartPeriod = d.payrollStartPeriod ?? null;
+    if (d.accessUntil !== undefined)
+      updates.accessUntil = d.accessUntil ? new Date(d.accessUntil) : null;
 
     if (Object.keys(updates).length === 0) {
       res.status(422).json({ error: "Nothing to update" });
@@ -220,7 +232,19 @@ router.patch("/orgs/:id", ...requireSuperAdmin(), async (req, res, next) => {
       .returning();
 
     if (!updated) throw new HttpError(404, "Organization not found");
-    res.json(updated);
+
+    if (d.accessUntil !== undefined) {
+      await db.transaction(async (tx) => {
+        await writeAudit(tx as any, {
+          orgId: id, action: "ORG_ACCESS_UNTIL_SET", entity: "organizations", entityId: id,
+          actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+          before: { accessUntil: before.accessUntil },
+          after: { accessUntil: updated.accessUntil },
+        });
+      });
+    }
+
+    res.json({ ...updated, accessState: accessStateOf(updated.accessUntil) });
   } catch (err) {
     next(err);
   }

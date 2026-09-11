@@ -18,6 +18,7 @@ import filingsRouter from "./filings.js";
 import notificationsRouter from "./notifications.js";
 import departmentsRouter from "./departments.js";
 import { HttpError } from "../lib/http-error.js";
+import { requireActiveAccess } from "../middlewares/require-auth.js";
 import type { Request, Response, NextFunction } from "express";
 
 const router: IRouter = Router();
@@ -25,11 +26,14 @@ const router: IRouter = Router();
 router.use(healthRouter);
 router.use("/auth", authRouter);
 router.use("/dashboard", dashboardRouter);
-router.use("/employees", employeesRouter);
-router.use("/payroll", payrollRouter);
-router.use("/leaves", leavesRouter);
-router.use("/timesheets", timesheetsRouter);
-router.use("/loans", loansRouter);
+// Feature routers: locked (402 ACCESS_EXPIRED) once organizations.access_until
+// has passed. See docs/design/super-admin-org-lifecycle.md §2 for what is and
+// isn't gated — billing, settings reads, and auth stay open on purpose.
+router.use("/employees", requireActiveAccess(), employeesRouter);
+router.use("/payroll", requireActiveAccess(), payrollRouter);
+router.use("/leaves", requireActiveAccess(), leavesRouter);
+router.use("/timesheets", requireActiveAccess(), timesheetsRouter);
+router.use("/loans", requireActiveAccess(), loansRouter);
 router.use("/audit", auditRouter);
 router.use("/calculator", calculatorRouter);
 router.use("/portal", portalRouter);
@@ -39,7 +43,7 @@ router.use("/settings", settingsRouter);
 router.use("/billing", billingRouter);
 router.use("/filings", filingsRouter);
 router.use("/notifications", notificationsRouter);
-router.use("/departments", departmentsRouter);
+router.use("/departments", requireActiveAccess(), departmentsRouter);
 
 // Global error handler
 router.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
