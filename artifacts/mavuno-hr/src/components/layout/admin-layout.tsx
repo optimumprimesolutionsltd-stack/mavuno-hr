@@ -265,7 +265,10 @@ function AccessBanner() {
             ? "Your trial ends today."
             : `Your trial ends in ${left} day${left === 1 ? "" : "s"}.`}
       </span>
-      <Link href="/admin/billing" className="font-medium underline underline-offset-2 shrink-0">
+      {/* ?pay=1 tells the Billing page to jump straight to the payment/plan
+          dialog on load, instead of landing the customer on a page where
+          a still-on-trial org has no visible "Pay Now" button at all. */}
+      <Link href="/admin/billing?pay=1" className="font-medium underline underline-offset-2 shrink-0">
         {expired ? "Renew now" : "View plans"}
       </Link>
       {!expired && dismissKey && (
