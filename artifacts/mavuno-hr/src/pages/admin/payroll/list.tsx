@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Wallet, Search, Loader2, Zap } from "lucide-react";
+import { Plus, Wallet, Search, Loader2, Zap, History } from "lucide-react";
+import { HistoricalImportDialog } from "./historical-import-dialog";
 
 export function PayrollList() {
   const { data: runs, isLoading } = useListPayrollRuns();
@@ -24,6 +25,7 @@ export function PayrollList() {
 
   const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [runType, setRunType] = useState<"regular" | "off_cycle" | "bonus" | "final">("regular");
+  const [importOpen, setImportOpen] = useState(false);
 
   // Off-cycle form state
   const [offCycleName, setOffCycleName] = useState("");
@@ -96,6 +98,12 @@ export function PayrollList() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button variant="outline" className="font-mono" onClick={() => setImportOpen(true)}>
+            <History className="h-4 w-4 mr-2" />
+            IMPORT HISTORICAL
+          </Button>
+          <HistoricalImportDialog open={importOpen} onOpenChange={setImportOpen} />
+
           {/* Off-Cycle Run Dialog */}
           <Dialog open={offCycleOpen} onOpenChange={setOffCycleOpen}>
             <DialogTrigger asChild>
