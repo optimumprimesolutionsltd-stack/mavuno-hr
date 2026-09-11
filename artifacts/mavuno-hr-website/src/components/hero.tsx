@@ -40,10 +40,6 @@ export function Hero() {
               <CheckCircle2 className="h-5 w-5 text-primary" />
               <span>Self-Service Portal</span>
             </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-primary" />
-              <span>Tally Ready</span>
-            </div>
           </div>
         </div>
       </div>
