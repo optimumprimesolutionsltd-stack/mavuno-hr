@@ -118,6 +118,19 @@ function jsonLd(route) {
     });
   }
 
+  // Rendered on the page from the same array, so the markup describes content
+  // the visitor can actually see.
+  if (route.faq?.length) {
+    graph.push({
+      "@type": "FAQPage",
+      mainEntity: route.faq.map(({ q, a }) => ({
+        "@type": "Question",
+        name: q,
+        acceptedAnswer: { "@type": "Answer", text: a },
+      })),
+    });
+  }
+
   if (route.breadcrumb) {
     graph.push({
       "@type": "BreadcrumbList",

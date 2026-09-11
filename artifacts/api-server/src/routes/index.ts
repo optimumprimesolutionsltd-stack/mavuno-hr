@@ -9,6 +9,7 @@ import timesheetsRouter from "./timesheets.js";
 import loansRouter from "./loans.js";
 import auditRouter from "./audit.js";
 import calculatorRouter from "./calculator.js";
+import publicRouter from "./public.js";
 import portalRouter from "./portal.js";
 import usersRouter from "./users.js";
 import superRouter from "./super.js";
@@ -24,6 +25,9 @@ import type { Request, Response, NextFunction } from "express";
 const router: IRouter = Router();
 
 router.use(healthRouter);
+// Unauthenticated, for the marketing site. Mounted before everything that
+// assumes a principal so it is obvious nothing here is tenant-scoped.
+router.use("/public", publicRouter);
 router.use("/auth", authRouter);
 router.use("/dashboard", dashboardRouter);
 // Feature routers: locked (402 ACCESS_EXPIRED) once organizations.access_until
