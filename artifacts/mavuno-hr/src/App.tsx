@@ -25,7 +25,8 @@ function redirectToBilling() {
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   const billingPath = `${base}/admin/billing`;
   if (window.location.pathname !== billingPath) {
-    window.location.assign(billingPath);
+    // ?pay=1 — jump straight to the payment/plan dialog, same as the access banner's CTA.
+    window.location.assign(`${billingPath}?pay=1`);
   }
 }
 

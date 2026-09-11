@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { PLAN_LABELS, PLAN_COLORS, PLAN_RATES, priceBreakdown, recommendPlan, standardMonthlyCents } from "@/lib/pricing";
-import { CreditCard, CheckCircle2, Clock, Loader2, Receipt, Smartphone, Copy, Check, AlertTriangle } from "lucide-react";
+import { CreditCard, CheckCircle2, Clock, Loader2, Receipt, Smartphone, Copy, Check, AlertTriangle, TrendingUp } from "lucide-react";
 
 // Self-service plans — "trial" is assigned at registration, never picked back
 // into, and "enterprise" pricing here is still a real flat rate, not a quote.
@@ -73,6 +73,13 @@ function PayNowDialog({ open, onOpenChange, defaultAmountCents }: {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [amountKes, setAmountKes] = useState(defaultAmountCents > 0 ? String(defaultAmountCents / 100) : "");
   const [pollingPaymentId, setPollingPaymentId] = useState<number | null>(null);
+
+  // defaultAmountCents can change after this dialog is first mounted (e.g.
+  // chained open right after a plan change) — re-seed the amount whenever
+  // it opens, same pattern ChangePlanDialog uses for `selected`.
+  useEffect(() => {
+    if (open) setAmountKes(defaultAmountCents > 0 ? String(defaultAmountCents / 100) : "");
+  }, [open, defaultAmountCents]);
 
   const initiate = useMutation({
     mutationFn: () =>
@@ -172,14 +179,21 @@ function PayNowDialog({ open, onOpenChange, defaultAmountCents }: {
   );
 }
 
-function ChangePlanDialog({ open, onOpenChange, currentPlan, headcount }: {
+function ChangePlanDialog({ open, onOpenChange, currentPlan, headcount, onConfirmed, initialSelected }: {
   open: boolean; onOpenChange: (open: boolean) => void; currentPlan: string; headcount: number;
+  /** Called after a plan change actually takes effect (not on "unchanged"),
+   * with the new monthly charge — lets the caller chain straight into
+   * payment instead of leaving a would-be payer on the plan picker. */
+  onConfirmed?: (monthlyCharge: number) => void;
+  /** Pre-highlight a specific plan on open (e.g. the upgrade nudge's
+   * recommendation) instead of defaulting to the current plan. */
+  initialSelected?: string;
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState(currentPlan);
 
-  useEffect(() => { if (open) setSelected(currentPlan); }, [open, currentPlan]);
+  useEffect(() => { if (open) setSelected(initialSelected ?? currentPlan); }, [open, currentPlan, initialSelected]);
 
   const recommended = recommendPlan(headcount);
 
@@ -197,6 +211,7 @@ function ChangePlanDialog({ open, onOpenChange, currentPlan, headcount }: {
         description: data.unchanged ? undefined : `You're now on ${PLAN_LABELS[data.plan] ?? data.plan}.`,
       });
       onOpenChange(false);
+      if (!data.unchanged && (data.monthlyCharge ?? 0) > 0) onConfirmed?.(data.monthlyCharge!);
     },
     onError: (err: any) => {
       toast({ variant: "destructive", title: "Couldn't change plan", description: err?.data?.error ?? err?.message });
@@ -278,6 +293,14 @@ export function AdminBilling() {
   const { data, isLoading } = useBillingMy();
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
+  // Set right after a plan change, from the PATCH response — not from the
+  // (still-stale-until-refetch) cached org.monthlyCharge — so the Pay Now
+  // dialog that opens immediately after shows the correct new amount.
+  const [payAmountOverrideCents, setPayAmountOverrideCents] = useState<number | null>(null);
+  // Which plan to pre-highlight when the plan dialog opens — set when the
+  // upgrade nudge's CTA is what opened it, so the recommendation is already
+  // selected instead of making the customer find and click it themselves.
+  const [planDialogPreselect, setPlanDialogPreselect] = useState<string | undefined>(undefined);
 
   const totalPaid = (data?.payments ?? [])
     .filter((r) => r.payment.status === "verified")
@@ -294,6 +317,30 @@ export function AdminBilling() {
   const usingOverride = (org?.overrideCharge ?? 0) > 0;
   const billingRef = org?.billingRef ?? "";
   const { toast } = useToast();
+
+  // Growth nudge: recommendPlan() picks the cheapest plan that still fits
+  // the current headcount. Only worth surfacing when it points to a plan
+  // that costs the same or more than the current one — i.e. an upgrade,
+  // because the org has grown past what it's on. A cheaper-fitting plan
+  // (the org shrank) is deliberately not nudged here.
+  const recommended = recommendPlan(headcount);
+  const recommendedMonthly = standardMonthlyCents(recommended, headcount);
+  const showUpgradeNudge = !usingOverride && recommended !== plan && recommendedMonthly >= monthly;
+
+  // ?pay=1 (from the access-expiry banner / redirect) jumps straight to the
+  // right dialog instead of landing on a page where a still-on-trial org
+  // (monthly === 0) has no visible "Pay Now" button at all.
+  useEffect(() => {
+    if (isLoading || !org) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("pay") !== "1") return;
+    if (monthly > 0) setPayDialogOpen(true);
+    else { setPlanDialogPreselect(recommended); setPlanDialogOpen(true); }
+    params.delete("pay");
+    const rest = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, org, monthly]);
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -331,6 +378,33 @@ export function AdminBilling() {
                 <span className="font-medium text-amber-400">Access ends {fmtDate(org.accessUntil)}.</span>{" "}
                 <span className="text-muted-foreground">Pay before then to avoid an interruption.</span>
               </div>
+            </div>
+          )}
+
+          {/* Outgrown-plan nudge — only for a genuine upgrade direction (see
+              showUpgradeNudge above); a shrunk-org downgrade is never pushed. */}
+          {showUpgradeNudge && (
+            <div className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 flex items-center gap-3 flex-wrap">
+              <TrendingUp className="h-5 w-5 text-primary shrink-0" />
+              <div className="text-sm flex-1 min-w-[200px]">
+                <span className="font-medium text-primary">
+                  {plan === "trial"
+                    ? `${PLAN_LABELS[recommended]} fits your ${headcount} ${headcount === 1 ? "employee" : "employees"} best.`
+                    : `You've outgrown the ${PLAN_LABELS[plan]} plan.`}
+                </span>{" "}
+                <span className="text-muted-foreground">
+                  {plan === "trial"
+                    ? `${fmtKes(recommendedMonthly)}/month once your trial ends.`
+                    : `${PLAN_LABELS[recommended]} (${fmtKes(recommendedMonthly)}/month) covers your ${headcount} employees without per-seat overage.`}
+                </span>
+              </div>
+              <Button
+                size="sm"
+                className="shrink-0"
+                onClick={() => { setPlanDialogPreselect(recommended); setPlanDialogOpen(true); }}
+              >
+                Upgrade to {PLAN_LABELS[recommended]}
+              </Button>
             </div>
           )}
 
@@ -527,13 +601,21 @@ export function AdminBilling() {
       <PayNowDialog
         open={payDialogOpen}
         onOpenChange={setPayDialogOpen}
-        defaultAmountCents={perInvoice}
+        defaultAmountCents={payAmountOverrideCents ?? perInvoice}
       />
       <ChangePlanDialog
         open={planDialogOpen}
-        onOpenChange={setPlanDialogOpen}
+        onOpenChange={(v) => { setPlanDialogOpen(v); if (!v) setPlanDialogPreselect(undefined); }}
         currentPlan={plan}
         headcount={headcount}
+        initialSelected={planDialogPreselect}
+        onConfirmed={(newMonthlyCharge) => {
+          // Chain straight into payment — a customer who followed the
+          // "encourage payment" CTA through a plan pick shouldn't have to
+          // find and click Pay Now themselves as a separate step.
+          setPayAmountOverrideCents(newMonthlyCharge);
+          setPayDialogOpen(true);
+        }}
       />
     </div>
   );
