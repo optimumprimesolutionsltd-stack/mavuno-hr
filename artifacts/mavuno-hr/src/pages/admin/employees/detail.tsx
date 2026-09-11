@@ -163,6 +163,18 @@ export function EmployeeDetail() {
               </Button>
             </>
           )}
+          {isTerminated && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="font-mono gap-1.5"
+              onClick={() => setTerminateOpen(true)}
+              title="Correct the termination date or reason on file"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              CORRECT TERMINATION
+            </Button>
+          )}
         </div>
       </div>
 
@@ -564,7 +576,10 @@ export function EmployeeDetail() {
         basic={employee.basicSalary}
         open={terminateOpen}
         onOpenChange={setTerminateOpen}
-        onSuccess={() => setLocation("/admin/employees")}
+        onSuccess={isTerminated ? undefined : () => setLocation("/admin/employees")}
+        isCorrection={isTerminated}
+        initialTerminationDate={(employee as any).terminationDate}
+        initialTerminationReason={(employee as any).terminationReason}
       />
 
       {/* Portal Access Result Dialog */}

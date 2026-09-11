@@ -337,9 +337,8 @@ router.post("/:id/terminate", requireAuth("employee:write"), async (req, res, ne
     const [existing] = await db.select().from(employees)
       .where(and(eq(employees.id, id), eq(employees.orgId, p.orgId)));
     if (!existing) { res.status(404).json({ error: "Employee not found" }); return; }
-    if (existing.status === "terminated") {
-      res.status(409).json({ error: "Employee is already terminated" }); return;
-    }
+
+    const wasAlreadyTerminated = existing.status === "terminated";
 
     const parsed = terminateSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -353,12 +352,21 @@ router.post("/:id/terminate", requireAuth("employee:write"), async (req, res, ne
       .where(and(eq(employees.id, id), eq(employees.orgId, p.orgId)))
       .returning();
 
+    // A repeat call on an already-terminated employee corrects the termination
+    // date/reason (e.g. the exact date wasn't known at the time) rather than
+    // re-terminating — keep that distinct in the audit trail.
     await db.transaction(async (tx) => {
       await writeAudit(tx as any, {
-        orgId: p.orgId, action: "EMPLOYEE_TERMINATED", entity: "employees", entityId: id,
+        orgId: p.orgId,
+        action: wasAlreadyTerminated ? "EMPLOYEE_TERMINATION_UPDATED" : "EMPLOYEE_TERMINATED",
+        entity: "employees", entityId: id,
         actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
-        before: { status: existing.status },
-        after: { status: "terminated", terminationDate, terminationReason },
+        before: {
+          status: existing.status,
+          terminationDate: (existing as any).terminationDate ?? null,
+          terminationReason: (existing as any).terminationReason ?? null,
+        },
+        after: { status: "terminated", terminationDate, terminationReason: terminationReason ?? null },
       });
     });
 
