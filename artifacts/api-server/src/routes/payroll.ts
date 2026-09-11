@@ -6,6 +6,7 @@ import { payrollRuns, payslips, employees, loans, payoutBatches, statutoryFiling
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { calculateRun, recalculateRun, applyLoanRepayments, finalizeRunInTx } from "../lib/payroll-run.js";
+import { importHistoricalRuns, HISTORICAL_IMPORT_COLUMNS, HISTORICAL_IMPORT_MAX_ROWS } from "../lib/payroll-historical-import.js";
 import { runAutoOnPay, generatePayoutBatch, emailRunPayslips } from "../lib/payroll-dispatch.js";
 import { computePayslip } from "../lib/payroll.js";
 import { resolveConfig } from "../lib/statutory-resolve.js";
@@ -146,6 +147,48 @@ router.post("/", requireAuth("payroll:calculate"), async (req, res, next) => {
     });
 
     res.status(201).json({ ...result, durationMs: Date.now() - started });
+  } catch (err) { next(err); }
+});
+
+// ── Historical (migration) CSV bulk import — large migrations only ─────────
+// docs/design/payroll-onboarding-and-approval.md §3.7 (Phase 5). Payslip rows
+// are trusted verbatim from the CSV (no recompute), one historical run per
+// distinct period, run marked "paid" immediately — nothing here is filed,
+// paid out, or emailed.
+router.get("/historical/import/template", requireAuth("payroll:calculate"), (req, res) => {
+  const example = {
+    period: "2026-01", empNo: "EMP0001", daysPayable: "22",
+    basic: "50000", allowances: "10000", nonCashBenefit: "0", gross: "60000",
+    nssfEmployee: "2160", shif: "1500", housingLevyEmployee: "900", pensionEmployee: "0",
+    taxableIncome: "55440", payeBeforeRelief: "9994", personalRelief: "2400", insuranceRelief: "0",
+    paye: "7594", helb: "0", sacco: "0", otherDeductions: "0", netPay: "48846",
+  };
+  const csv = [
+    HISTORICAL_IMPORT_COLUMNS.join(","),
+    HISTORICAL_IMPORT_COLUMNS.map((c) => (example as Record<string, string>)[c]).join(","),
+  ].join("\n");
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", 'attachment; filename="mavuno_historical_payroll_import_template.csv"');
+  res.send(csv);
+});
+
+router.post("/historical/import", requireAuth("payroll:calculate"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const body = req.body as { rows?: unknown[]; dryRun?: boolean };
+    if (!Array.isArray(body.rows) || body.rows.length === 0) {
+      res.status(422).json({ error: "rows must be a non-empty array" }); return;
+    }
+    if (body.rows.length > HISTORICAL_IMPORT_MAX_ROWS) {
+      res.status(422).json({ error: `Maximum ${HISTORICAL_IMPORT_MAX_ROWS} rows per import` }); return;
+    }
+    const dryRun = body.dryRun === true;
+
+    const result = await db.transaction(async (tx) =>
+      importHistoricalRuns(tx as any, p, body.rows!, { dryRun }, getIp(req))
+    );
+
+    res.status(dryRun ? 200 : 201).json(result);
   } catch (err) { next(err); }
 });
 
