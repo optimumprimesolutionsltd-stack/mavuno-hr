@@ -225,7 +225,17 @@ export function PayeCalculator() {
                 </h3>
                 <Row label="Gross pay" value={money(r.gross)} />
                 <Row label="NSSF employer" value={`+ ${money(r.nssfEmployer)}`} />
-                <Row label="Housing Levy employer" value={`+ ${money(r.housingLevyEmployer)}`} />
+                {/* NOT just the Housing Levy: computePayslip sums the employer
+                    side of EVERY levy in the statutory pack into this one field,
+                    which today means the Housing Levy plus NITA's flat charge
+                    per employee. Labelling it "Housing Levy" would be off by the
+                    NITA amount, and being off is the one thing this page cannot
+                    afford. */}
+                <Row
+                  label="Employer levies"
+                  value={`+ ${money(r.housingLevyEmployer)}`}
+                  hint="Housing Levy and NITA"
+                />
                 <Row label="Total cost" value={money(r.employerCost)} strong />
               </div>
             </div>
