@@ -1,8 +1,10 @@
 # Design: super-admin org lifecycle — access window, provisioning, SLA credits
 
-Status: **draft / for review**
+Status: **shipped — Phases 1–5 all built** (see each phase's "Shipped" note
+below for what deviated from the original spec and why; §9 Open Questions
+tracks the deliberate decisions left for the business to make)
 Author: engineering
-Last updated: 2026-09-10
+Last updated: 2026-09-11
 
 ---
 
@@ -344,6 +346,38 @@ A super-admin **"Apply outage credit"** tool:
 - optionally also bump `access_until` by the outage duration (access make-good).
 - one audit event per org + one summary event.
 
+### Shipped (Phase 5) ✅
+
+`POST /api/super/outage-credits` — built as specified, with one schema-forced
+adaptation to "one audit event per org + one summary event": `audit_logs.org_id`
+is `NOT NULL` and the log is a per-org hash chain (`UNIQUE(org_id, seq)`), so
+there is no row that can span multiple orgs to hold a cross-org summary.
+Instead every per-org row (`action: SUPER_OUTAGE_CREDIT_RUN`, one per
+credited org — not a second `BILLING_CREDIT_ISSUED` row, to avoid writing two
+audit rows per org for one event) shares a `runId` in its `detail`/`after`,
+so the whole batch is findable by filtering the audit log for that id. The
+API response (which the super console renders immediately as a result
+screen — org name → credit amount, or "skipped — \<reason\>") is the
+practical summary.
+
+`minutes_in_month` is computed from the actual calendar month the outage
+`startAt` falls in (`daysInMonth × 24 × 60`), not hardcoded to 43200 — the
+worked example below happens to land in a 30-day month so the numbers match
+either way, but a February outage wouldn't have.
+
+Scope: `all_active_paid` considers every `status: 'active'` org and silently
+skips (not errors) any whose `effectiveMonthlyCents` computes to 0 (free/trial
+orgs, mostly) — "paid" is derived from the rate card at the time of the run,
+not a stored flag. `selected` takes an explicit `orgIds` list. `bumpAccessUntil`
+extends from the later of "now" or the org's current `access_until`, same
+rule `extendAccessUntil()` uses in Phase 1, so an outage during an
+already-future-dated access window adds on top of it rather than overwriting it.
+
+UI: "Apply outage credit" button on the super console's Billing page
+(`src/pages/super/billing.tsx`, next to "Record payment") opens a dialog for
+the window/multiplier/scope/reason/access-bump, then shows the same
+org → credit (or skip-reason) breakdown as the API response.
+
 ---
 
 ## 5. Worked example — "company paid, Mavuno had downtime"
@@ -398,7 +432,7 @@ users            no change  (unique index already (org_id, email))
 | **2** ✅ | `POST /api/super/orgs` + invite email + "New organisation" modal in the super console | provisioning for customers who can't self-serve |
 | **3** ✅ | `billing_credits` table + issue / list / void endpoints + `GET /api/billing/my` credit display | recorded, customer-visible credits |
 | **4** ✅ | advisory `netExpected` at payment-verify + auto-mark `applied` | credits actually reduce what's collected |
-| **5** | "Apply outage credit" bulk tool | one-click SLA make-good across the customer base |
+| **5** ✅ | "Apply outage credit" bulk tool | one-click SLA make-good across the customer base |
 
 Phase 1 is the prerequisite for the downtime scenario to mean anything;
 Phases 3–5 make it fair and auditable.

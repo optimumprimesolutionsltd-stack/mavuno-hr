@@ -14,10 +14,12 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import {
   CreditCard, Loader2, CheckCircle2, Clock, Plus, Send, RefreshCw,
-  TrendingUp, AlertCircle, Search,
+  TrendingUp, AlertCircle, Search, Zap,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -190,6 +192,183 @@ function AddPaymentDialog({ open, onClose, orgs }: {
   );
 }
 
+// ── Apply Outage Credit Dialog ───────────────────────────────────────────
+// docs/design/super-admin-org-lifecycle.md §4 "Downtime → credits" (Phase 5).
+interface OutageResult {
+  runId: string; outageMinutes: number; minutesInMonth: number; multiplier: number; reason: string;
+  orgsConsidered: number; orgsCredited: number; totalCreditedCents: number;
+  results: { orgId: number; orgName: string; creditCents: number; skipped?: string }[];
+}
+
+function OutageCreditDialog({ open, onClose, orgs }: {
+  open: boolean; onClose: () => void; orgs: OrgOption[];
+}) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [startAt, setStartAt] = useState("");
+  const [endAt, setEndAt] = useState("");
+  const [multiplier, setMultiplier] = useState("1");
+  const [scope, setScope] = useState<"all_active_paid" | "selected">("all_active_paid");
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [reason, setReason] = useState("");
+  const [bumpAccessUntil, setBumpAccessUntil] = useState(false);
+  const [result, setResult] = useState<OutageResult | null>(null);
+
+  const reset = () => {
+    setStartAt(""); setEndAt(""); setMultiplier("1"); setScope("all_active_paid");
+    setSelectedIds(new Set()); setReason(""); setBumpAccessUntil(false); setResult(null);
+  };
+  const close = () => { onClose(); reset(); };
+
+  const mutation = useMutation({
+    mutationFn: () => customFetch<OutageResult>("/api/super/outage-credits", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        startAt: new Date(startAt).toISOString(),
+        endAt: new Date(endAt).toISOString(),
+        multiplier: parseFloat(multiplier) || 1,
+        scope,
+        ...(scope === "selected" ? { orgIds: [...selectedIds] } : {}),
+        ...(reason.trim() ? { reason: reason.trim() } : {}),
+        bumpAccessUntil,
+      }),
+    }),
+    onSuccess: (data) => {
+      setResult(data);
+      qc.invalidateQueries({ queryKey: ["super-billing"] });
+    },
+    onError: (e: any) =>
+      toast({ variant: "destructive", title: "Could not apply outage credit", description: e?.data?.error ?? e?.message }),
+  });
+
+  function handleApply() {
+    if (!startAt || !endAt) { toast({ variant: "destructive", title: "Start and end time are required" }); return; }
+    if (new Date(endAt) <= new Date(startAt)) { toast({ variant: "destructive", title: "End time must be after start time" }); return; }
+    if (scope === "selected" && selectedIds.size === 0) { toast({ variant: "destructive", title: "Choose at least one company" }); return; }
+    mutation.mutate();
+  }
+
+  function toggleOrg(id: number) {
+    setSelectedIds((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && close()}>
+      <DialogContent className="sm:max-w-lg border-border/50 bg-card/95 max-h-[90vh] overflow-y-auto">
+        {!result ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="font-mono flex items-center gap-2">
+                <Zap className="h-4 w-4 text-amber-400" /> APPLY OUTAGE CREDIT
+              </DialogTitle>
+              <DialogDescription>
+                Issues a pro-rated SLA credit to every affected org: credit = monthly charge × outage minutes ÷ minutes in month × multiplier.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-1">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="font-mono text-xs">OUTAGE START</Label>
+                  <Input type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="font-mono text-xs">OUTAGE END</Label>
+                  <Input type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="font-mono text-xs">MULTIPLIER (1× = pure pro-rata, &gt;1× = goodwill)</Label>
+                <Input type="number" min={0.1} step={0.5} value={multiplier} onChange={(e) => setMultiplier(e.target.value)} />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="font-mono text-xs">SCOPE</Label>
+                <Select value={scope} onValueChange={(v: any) => setScope(v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all_active_paid">All active orgs (zero-charge orgs are skipped automatically)</SelectItem>
+                    <SelectItem value="selected">Choose specific companies</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {scope === "selected" && (
+                <div className="rounded-lg border border-border/40 max-h-40 overflow-y-auto divide-y divide-border/30">
+                  {orgs.map((o) => (
+                    <label key={o.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-muted/10">
+                      <Checkbox checked={selectedIds.has(o.id)} onCheckedChange={() => toggleOrg(o.id)} />
+                      {o.name}
+                      <span className="text-xs text-muted-foreground font-mono capitalize ml-auto">{o.plan}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <Label className="font-mono text-xs">REASON (optional — auto-generated from the window if blank)</Label>
+                <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Service disruption 2026-09-10 08:00–11:30 EAT" rows={2} />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Checkbox checked={bumpAccessUntil} onCheckedChange={(v) => setBumpAccessUntil(!!v)} />
+                <Label className="text-xs font-mono cursor-pointer" onClick={() => setBumpAccessUntil((v) => !v)}>
+                  Also extend each org's access window by the outage duration
+                </Label>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={close}>Cancel</Button>
+              <Button className="font-mono" onClick={handleApply} disabled={mutation.isPending}>
+                {mutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Zap className="h-4 w-4 mr-2" />}
+                APPLY CREDIT
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle className="font-mono flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-emerald-500" /> OUTAGE CREDIT APPLIED
+              </DialogTitle>
+              <DialogDescription>
+                {result.outageMinutes} min outage × {result.multiplier}× — {result.orgsCredited} of {result.orgsConsidered} orgs credited, {fmtKes(result.totalCreditedCents)} total.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="rounded-lg border border-border/40 overflow-hidden">
+              <div className="divide-y divide-border/30 max-h-72 overflow-auto">
+                {result.results.map((r) => (
+                  <div key={r.orgId} className="px-3 py-2 flex justify-between items-center text-sm">
+                    <span>{r.orgName}</span>
+                    {r.creditCents > 0 ? (
+                      <span className="font-mono font-bold text-emerald-400">{fmtKes(r.creditCents)}</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground font-mono">skipped — {r.skipped}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={reset}>Run another</Button>
+              <Button className="font-mono" onClick={close}>Done</Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────
 export function SuperAdminBilling() {
   const { data: payments = [], isLoading } = useBilling();
@@ -197,6 +376,7 @@ export function SuperAdminBilling() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
+  const [outageOpen, setOutageOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [verifyingId, setVerifyingId] = useState<number | null>(null);
@@ -257,9 +437,14 @@ export function SuperAdminBilling() {
             <p className="text-muted-foreground text-sm">Record and verify company payments</p>
           </div>
         </div>
-        <Button className="font-mono gap-1.5" onClick={() => setAddOpen(true)}>
-          <Plus className="h-4 w-4" /> RECORD PAYMENT
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="font-mono gap-1.5" onClick={() => setOutageOpen(true)}>
+            <Zap className="h-4 w-4" /> APPLY OUTAGE CREDIT
+          </Button>
+          <Button className="font-mono gap-1.5" onClick={() => setAddOpen(true)}>
+            <Plus className="h-4 w-4" /> RECORD PAYMENT
+          </Button>
+        </div>
       </div>
 
       {/* Summary cards */}
@@ -400,6 +585,7 @@ export function SuperAdminBilling() {
       </div>
 
       {addOpen && <AddPaymentDialog open={addOpen} onClose={() => setAddOpen(false)} orgs={orgs} />}
+      {outageOpen && <OutageCreditDialog open={outageOpen} onClose={() => setOutageOpen(false)} orgs={orgs} />}
     </div>
   );
 }
