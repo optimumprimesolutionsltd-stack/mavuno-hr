@@ -30,6 +30,9 @@ interface PaymentRow {
     verifiedAt: string | null; receiptSentAt: string | null; createdAt: string;
   };
   orgName: string; orgPlan: string; verifierEmail: string | null;
+  // Advisory only (docs/design/super-admin-org-lifecycle.md §4) — present for
+  // pending payments only, null otherwise.
+  expected: { expectedCents: number; openCreditCents: number; netExpectedCents: number } | null;
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -325,7 +328,16 @@ export function SuperAdminBilling() {
                   <div className="text-xs text-muted-foreground font-mono capitalize">{r.orgPlan}</div>
                 </TableCell>
                 <TableCell className="text-sm">{r.payment.period}</TableCell>
-                <TableCell className="text-right font-mono font-bold text-sm">{fmtKes(r.payment.amount)}</TableCell>
+                <TableCell className="text-right">
+                  <div className="font-mono font-bold text-sm">{fmtKes(r.payment.amount)}</div>
+                  {r.expected && r.expected.openCreditCents > 0 && (
+                    <div className="text-[10px] text-muted-foreground font-mono leading-tight mt-0.5">
+                      expected {fmtKes(r.expected.expectedCents)}
+                      <br />− {fmtKes(r.expected.openCreditCents)} credit
+                      <br /><span className="text-emerald-400">= {fmtKes(r.expected.netExpectedCents)} net</span>
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell className="text-sm">{METHOD_LABELS[r.payment.method] ?? r.payment.method}</TableCell>
                 <TableCell className="font-mono text-xs text-muted-foreground">{r.payment.reference ?? "—"}</TableCell>
                 <TableCell>
