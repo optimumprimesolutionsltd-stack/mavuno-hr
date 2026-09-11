@@ -418,6 +418,25 @@ async function createBaseSchema(): Promise<void> {
     `CREATE UNIQUE INDEX IF NOT EXISTS billing_checkout_request_uq ON billing_payments(checkout_request_id)`,
     `CREATE UNIQUE INDEX IF NOT EXISTS billing_mpesa_receipt_uq ON billing_payments(mpesa_receipt_number)`,
 
+    `CREATE TABLE IF NOT EXISTS billing_credits (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      amount_cents BIGINT NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'KES',
+      kind TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      period TEXT,
+      status TEXT NOT NULL DEFAULT 'open',
+      applied_to_payment_id INTEGER REFERENCES billing_payments(id),
+      created_by_user_id INTEGER REFERENCES users(id),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      applied_at TIMESTAMP,
+      voided_at TIMESTAMP,
+      voided_by_user_id INTEGER REFERENCES users(id),
+      note TEXT
+    )`,
+    `CREATE INDEX IF NOT EXISTS billing_credits_org_status_idx ON billing_credits(org_id, status)`,
+
     `CREATE TABLE IF NOT EXISTS password_reset_tokens (
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -633,6 +652,31 @@ async function createBillingPaymentsTable(): Promise<void> {
   `);
 }
 
+async function createBillingCreditsTable(): Promise<void> {
+  // docs/design/super-admin-org-lifecycle.md §4 (Phase 3) — SLA / goodwill /
+  // refund / correction / promo credits, consumed at payment-verification time.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS billing_credits (
+      id              SERIAL PRIMARY KEY,
+      org_id          INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      amount_cents    BIGINT NOT NULL,
+      currency        TEXT NOT NULL DEFAULT 'KES',
+      kind            TEXT NOT NULL,
+      reason          TEXT NOT NULL,
+      period          TEXT,
+      status          TEXT NOT NULL DEFAULT 'open',
+      applied_to_payment_id INTEGER REFERENCES billing_payments(id),
+      created_by_user_id INTEGER REFERENCES users(id),
+      created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+      applied_at      TIMESTAMP,
+      voided_at       TIMESTAMP,
+      voided_by_user_id INTEGER REFERENCES users(id),
+      note            TEXT
+    );
+    CREATE INDEX IF NOT EXISTS billing_credits_org_status_idx ON billing_credits(org_id, status);
+  `);
+}
+
 async function createNotificationsTable(): Promise<void> {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS notifications (
@@ -765,6 +809,7 @@ export async function runStartupMigrations(): Promise<void> {
     ["addEmployeeSalaryBasis", addEmployeeSalaryBasis],
     ["addOrgRequiresPayrollApproval", addOrgRequiresPayrollApproval],
     ["addOrgAccessUntil", addOrgAccessUntil],
+    ["createBillingCreditsTable", createBillingCreditsTable],
   ];
 
   for (const [name, run] of steps) {

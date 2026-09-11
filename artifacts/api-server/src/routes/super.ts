@@ -3,7 +3,7 @@ import { z } from "zod";
 import crypto from "node:crypto";
 import { eq, ne, and, isNull, count, max, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { organizations, employees, payrollRuns, users, passwordResetTokens, statutoryConfigs } from "@workspace/db/schema";
+import { organizations, employees, payrollRuns, users, passwordResetTokens, statutoryConfigs, billingCredits } from "@workspace/db/schema";
 import { requireAuth, getIp, type AuthRequest } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
 import { writeAudit } from "../lib/audit.js";
@@ -445,6 +445,119 @@ router.post("/orgs/:id/activate", ...requireSuperAdmin(), async (req, res, next)
       .where(eq(organizations.id, id))
       .returning({ id: organizations.id, status: organizations.status });
     if (!updated) throw new HttpError(404, "Organization not found");
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Billing credits ───────────────────────────────────────────────────────
+// docs/design/super-admin-org-lifecycle.md §4 (Phase 3). "Applied" only
+// happens at payment-verification time (billing.ts, Phase 4) — these three
+// endpoints just issue, list, and void.
+const CREDIT_KINDS = ["sla", "goodwill", "refund", "correction", "promo"] as const;
+
+const issueCreditSchema = z.object({
+  amountCents: z.number().int().positive(),
+  kind: z.enum(CREDIT_KINDS),
+  reason: z.string().min(1).max(500),
+  period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "must be YYYY-MM").nullable().optional(),
+  note: z.string().max(1000).optional(),
+});
+
+// ── POST /api/super/orgs/:id/credits ──────────────────────────────────────
+router.post("/orgs/:id/credits", ...requireSuperAdmin(), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const orgId = parseInt(String(req.params.id));
+    if (isNaN(orgId)) throw new HttpError(400, "Invalid org id");
+
+    const parsed = issueCreditSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() });
+      return;
+    }
+    const d = parsed.data;
+
+    const [org] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.id, orgId));
+    if (!org) throw new HttpError(404, "Organization not found");
+
+    const [credit] = await db.transaction(async (tx) => {
+      const [row] = await tx.insert(billingCredits).values({
+        orgId,
+        amountCents: d.amountCents,
+        kind: d.kind,
+        reason: d.reason,
+        period: d.period ?? null,
+        note: d.note ?? null,
+        createdByUserId: p.userId,
+      }).returning();
+
+      await writeAudit(tx as any, {
+        orgId, action: "BILLING_CREDIT_ISSUED", entity: "billing_credits", entityId: row.id,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        detail: `${d.kind}: KES ${(d.amountCents / 100).toLocaleString("en-KE")} — ${d.reason}`,
+        after: { amountCents: d.amountCents, kind: d.kind, reason: d.reason, period: d.period ?? null },
+      });
+
+      return [row];
+    });
+
+    res.status(201).json(credit);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── GET /api/super/orgs/:id/credits ───────────────────────────────────────
+router.get("/orgs/:id/credits", ...requireSuperAdmin(), async (req, res, next) => {
+  try {
+    const orgId = parseInt(String(req.params.id));
+    if (isNaN(orgId)) throw new HttpError(400, "Invalid org id");
+
+    const rows = await db.select({ credit: billingCredits, createdBy: users.email })
+      .from(billingCredits)
+      .leftJoin(users, eq(billingCredits.createdByUserId, users.id))
+      .where(eq(billingCredits.orgId, orgId))
+      .orderBy(sql`${billingCredits.createdAt} DESC`);
+
+    const openBalanceCents = rows
+      .filter((r) => r.credit.status === "open")
+      .reduce((sum, r) => sum + r.credit.amountCents, 0);
+
+    res.json({ credits: rows.map((r) => ({ ...r.credit, createdByEmail: r.createdBy })), openBalanceCents });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── POST /api/super/credits/:id/void ──────────────────────────────────────
+router.post("/credits/:id/void", ...requireSuperAdmin(), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = parseInt(String(req.params.id));
+    if (isNaN(id)) throw new HttpError(400, "Invalid credit id");
+
+    const [credit] = await db.select().from(billingCredits).where(eq(billingCredits.id, id));
+    if (!credit) throw new HttpError(404, "Credit not found");
+    if (credit.status !== "open") throw new HttpError(409, `Only an open credit can be voided (this one is '${credit.status}')`);
+
+    const now = new Date();
+    const [updated] = await db.transaction(async (tx) => {
+      const [row] = await tx.update(billingCredits)
+        .set({ status: "void", voidedAt: now, voidedByUserId: p.userId })
+        .where(eq(billingCredits.id, id))
+        .returning();
+
+      await writeAudit(tx as any, {
+        orgId: credit.orgId, action: "BILLING_CREDIT_VOID", entity: "billing_credits", entityId: id,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        before: { status: "open" }, after: { status: "void" },
+      });
+
+      return [row];
+    });
+
     res.json(updated);
   } catch (err) {
     next(err);

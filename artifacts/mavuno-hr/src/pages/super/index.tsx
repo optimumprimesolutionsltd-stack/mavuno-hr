@@ -21,10 +21,11 @@ import {
   PLAN_RATES, PLAN_LABELS, PLAN_COLORS, BILLING_CYCLES,
   standardMonthlyCents,
 } from "@/lib/pricing";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Building2, Search, Loader2, ShieldCheck, Users, Wallet,
   Ban, CheckCircle2, Settings, TrendingUp, CreditCard, Info,
-  Plus, Copy, Check, Mail, AlertTriangle,
+  Plus, Copy, Check, Mail, AlertTriangle, Gift, XCircle,
 } from "lucide-react";
 
 // ── Plan configuration ──────────────────────────────────────────────────────
@@ -525,6 +526,180 @@ function EditOrgDialog({ org, open, onClose }: { org: OrgRow; open: boolean; onC
   );
 }
 
+// ── Credits Dialog ───────────────────────────────────────────────────────
+// docs/design/super-admin-org-lifecycle.md §4 (Phase 3) — issue / list / void.
+interface Credit {
+  id: number; orgId: number; amountCents: number; currency: string;
+  kind: string; reason: string; period: string | null; status: string;
+  createdAt: string; createdByEmail: string | null;
+  voidedAt: string | null; appliedAt: string | null;
+}
+const CREDIT_KINDS = ["sla", "goodwill", "refund", "correction", "promo"] as const;
+const CREDIT_KIND_LABELS: Record<string, string> = {
+  sla: "SLA / outage", goodwill: "Goodwill", refund: "Refund", correction: "Correction", promo: "Promo",
+};
+
+function useCredits(orgId: number, open: boolean) {
+  return useQuery<{ credits: Credit[]; openBalanceCents: number }>({
+    queryKey: ["super-org-credits", orgId],
+    queryFn: () => customFetch(`/api/super/orgs/${orgId}/credits`),
+    enabled: open,
+  });
+}
+
+function CreditsDialog({ org, open, onClose }: { org: OrgRow; open: boolean; onClose: () => void }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data, isLoading } = useCredits(org.id, open);
+
+  const [amountKes, setAmountKes] = useState("");
+  const [kind, setKind] = useState<string>("goodwill");
+  const [reason, setReason] = useState("");
+  const [period, setPeriod] = useState("");
+
+  const issueMutation = useMutation({
+    mutationFn: () => customFetch(`/api/super/orgs/${org.id}/credits`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amountCents: Math.round(parseFloat(amountKes || "0") * 100),
+        kind, reason: reason.trim(),
+        ...(period.trim() ? { period: period.trim() } : {}),
+      }),
+    }),
+    onSuccess: () => {
+      toast({ title: "Credit issued" });
+      setAmountKes(""); setReason(""); setPeriod(""); setKind("goodwill");
+      qc.invalidateQueries({ queryKey: ["super-org-credits", org.id] });
+    },
+    onError: (e: any) =>
+      toast({ variant: "destructive", title: "Could not issue credit", description: e?.data?.error ?? e?.message }),
+  });
+
+  const voidMutation = useMutation({
+    mutationFn: (creditId: number) => customFetch(`/api/super/credits/${creditId}/void`, { method: "POST" }),
+    onSuccess: () => {
+      toast({ title: "Credit voided" });
+      qc.invalidateQueries({ queryKey: ["super-org-credits", org.id] });
+    },
+    onError: (e: any) =>
+      toast({ variant: "destructive", title: "Could not void credit", description: e?.data?.error ?? e?.message }),
+  });
+
+  function handleIssue() {
+    const cents = Math.round(parseFloat(amountKes || "0") * 100);
+    if (!cents || cents <= 0) { toast({ variant: "destructive", title: "Enter a positive amount" }); return; }
+    if (!reason.trim()) { toast({ variant: "destructive", title: "Reason is required" }); return; }
+    if (period.trim() && !/^\d{4}-(0[1-9]|1[0-2])$/.test(period.trim())) {
+      toast({ variant: "destructive", title: "Period must be YYYY-MM" }); return;
+    }
+    issueMutation.mutate();
+  }
+
+  const credits = data?.credits ?? [];
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-lg border-border/50 bg-card/95 max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-mono">CREDITS — {org.name}</DialogTitle>
+          <DialogDescription>
+            Issued credits net off the org's next verified payment before its access window is extended.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {/* Open balance */}
+          <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 flex justify-between items-center">
+            <span className="text-xs font-mono text-muted-foreground">OPEN BALANCE</span>
+            <span className="font-mono font-bold text-emerald-400">{kes(data?.openBalanceCents ?? 0)}</span>
+          </div>
+
+          {/* Issue form */}
+          <div className="rounded-lg border border-border/40 p-3 space-y-3">
+            <p className="font-mono text-xs text-muted-foreground">ISSUE A CREDIT</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="font-mono text-xs">AMOUNT (KES)</Label>
+                <Input type="number" min={0} value={amountKes} onChange={(e) => setAmountKes(e.target.value)} placeholder="4500" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="font-mono text-xs">KIND</Label>
+                <Select value={kind} onValueChange={setKind}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CREDIT_KINDS.map((k) => <SelectItem key={k} value={k}>{CREDIT_KIND_LABELS[k]}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="font-mono text-xs">REASON</Label>
+              <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Service disruption 2026-09-10 08:00–11:30 EAT" rows={2} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="font-mono text-xs">PERIOD (optional, YYYY-MM)</Label>
+              <Input value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="blank = applies to any period" className="font-mono" />
+            </div>
+            <Button size="sm" className="font-mono w-full" onClick={handleIssue} disabled={issueMutation.isPending}>
+              {issueMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Gift className="h-4 w-4 mr-2" />}
+              ISSUE CREDIT
+            </Button>
+          </div>
+
+          {/* History */}
+          <div className="rounded-lg border border-border/40 overflow-hidden">
+            <div className="px-3 py-2 bg-muted/40 text-xs font-mono text-muted-foreground">HISTORY</div>
+            {isLoading ? (
+              <div className="py-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+            ) : credits.length === 0 ? (
+              <div className="py-6 text-center text-xs text-muted-foreground font-mono">NO CREDITS YET</div>
+            ) : (
+              <div className="divide-y divide-border/30 max-h-64 overflow-auto">
+                {credits.map((c) => (
+                  <div key={c.id} className="px-3 py-2.5 flex items-start justify-between gap-3 text-xs">
+                    <div className="space-y-0.5 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono font-bold">{kes(c.amountCents)}</span>
+                        <Badge variant="outline" className="text-[10px] font-mono py-0">{CREDIT_KIND_LABELS[c.kind] ?? c.kind}</Badge>
+                        <Badge
+                          variant={c.status === "open" ? "default" : c.status === "applied" ? "outline" : "destructive"}
+                          className="text-[10px] font-mono py-0"
+                        >
+                          {c.status.toUpperCase()}
+                        </Badge>
+                      </div>
+                      <p className="text-muted-foreground truncate">{c.reason}{c.period ? ` · ${c.period}` : ""}</p>
+                      <p className="text-[10px] text-muted-foreground/70 font-mono">
+                        {new Date(c.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
+                        {c.createdByEmail ? ` · ${c.createdByEmail}` : ""}
+                      </p>
+                    </div>
+                    {c.status === "open" && (
+                      <Button
+                        size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive shrink-0"
+                        title="Void"
+                        disabled={voidMutation.isPending}
+                        onClick={() => voidMutation.mutate(c.id)}
+                      >
+                        <XCircle className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button className="font-mono" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────
 export function SuperAdminCompanies() {
   const { data: orgs = [], isLoading } = useOrgs();
@@ -533,6 +708,7 @@ export function SuperAdminCompanies() {
   const [search, setSearch] = useState("");
   const [editOrg, setEditOrg] = useState<OrgRow | null>(null);
   const [newOrgOpen, setNewOrgOpen] = useState(false);
+  const [creditsOrg, setCreditsOrg] = useState<OrgRow | null>(null);
 
   const filtered = orgs.filter(
     (o) =>
@@ -795,6 +971,13 @@ export function SuperAdminCompanies() {
                       >
                         <Settings className="h-3.5 w-3.5" />
                       </Button>
+                      <Button
+                        size="sm" variant="ghost" className="h-7 w-7 p-0"
+                        title="Billing credits"
+                        onClick={() => setCreditsOrg(org)}
+                      >
+                        <Gift className="h-3.5 w-3.5" />
+                      </Button>
                       {org.status === "active" ? (
                         <Button
                           size="sm" variant="ghost"
@@ -827,6 +1010,9 @@ export function SuperAdminCompanies() {
 
       {editOrg && (
         <EditOrgDialog org={editOrg} open={!!editOrg} onClose={() => setEditOrg(null)} />
+      )}
+      {creditsOrg && (
+        <CreditsDialog org={creditsOrg} open={!!creditsOrg} onClose={() => setCreditsOrg(null)} />
       )}
       <NewOrgDialog open={newOrgOpen} onClose={() => setNewOrgOpen(false)} />
     </div>

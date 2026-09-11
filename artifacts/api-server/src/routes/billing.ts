@@ -3,7 +3,7 @@ import { z } from "zod";
 import { eq, and, desc, isNull, count } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
-  billingPayments, organizations, users, employees,
+  billingPayments, organizations, users, employees, billingCredits,
 } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
@@ -310,7 +310,14 @@ router.get("/my", requireAuth("org:admin"), async (req, res, next) => {
       .where(eq(billingPayments.orgId, p.orgId))
       .orderBy(desc(billingPayments.createdAt));
 
-    res.json({ org, payments });
+    // Open credits — docs/design/super-admin-org-lifecycle.md §4. Consumption
+    // (marking these "applied") happens at payment verification, below.
+    const openCredits = await db.select().from(billingCredits)
+      .where(and(eq(billingCredits.orgId, p.orgId), eq(billingCredits.status, "open")))
+      .orderBy(billingCredits.createdAt);
+    const openCreditCents = openCredits.reduce((s, c) => s + c.amountCents, 0);
+
+    res.json({ org, payments, credits: openCredits, openCreditCents });
   } catch (err) { next(err); }
 });
 
