@@ -117,6 +117,23 @@ export function cycleChargeCents(monthlyCents: number, cycle: string): number {
     : monthlyCents;
 }
 
+/**
+ * docs/design/super-admin-org-lifecycle.md §2 — a verified payment pushes
+ * organizations.access_until forward by one billing cycle. Extends from the
+ * later of "now" or the current access_until, so paying early never wastes
+ * days already owned; a lapsed org's new window starts from today instead of
+ * compounding off a stale past date.
+ */
+export function extendAccessUntil(current: Date | null, cycle: string): Date {
+  const base = current && current.getTime() > Date.now() ? new Date(current) : new Date();
+  if (isBillingCycle(cycle) && cycle === "annual") {
+    base.setFullYear(base.getFullYear() + 1);
+  } else {
+    base.setMonth(base.getMonth() + 1);
+  }
+  return base;
+}
+
 /** Cheapest paid plan that fits a headcount (ignores Trial). */
 export function recommendPlan(activeEmployees: number): PlanId {
   const seats = Math.max(0, Math.floor(activeEmployees || 0));

@@ -38,6 +38,11 @@ export const organizations = pgTable("organizations", {
   /* When a run is paid, also email each employee their payslip. */
   autoEmailPayslipsOnPay: boolean("auto_email_payslips_on_pay").notNull().default(false),
   trialEndsAt: timestamp("trial_ends_at"),
+  /* Hard access cut-off. NULL = unlimited (no expiry) — every org created
+     before this column existed stays unlimited until someone sets a date.
+     Enforced by requireActiveAccess() on the feature routers; getPrincipal()
+     does NOT gate on this, so a lapsed customer can still log in and pay. */
+  accessUntil: timestamp("access_until"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [uniqueIndex("orgs_slug_uq").on(t.slug)]);
 

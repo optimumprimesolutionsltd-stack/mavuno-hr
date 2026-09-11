@@ -48,6 +48,8 @@ interface OrgRow {
   currencyCode: string;
   billingRef: string;                 // account number the org quotes when paying
   trialEndsAt: string | null;
+  accessUntil: string | null;         // hard cut-off enforced by requireActiveAccess(); null = unlimited
+  accessState: "active" | "expiring_soon" | "expired" | "unlimited";
   createdAt: string;
   activeEmployees: number;
   payrollRuns: number;
@@ -76,6 +78,7 @@ function EditOrgDialog({ org, open, onClose }: { org: OrgRow; open: boolean; onC
     org.overrideCharge > 0 ? String(Math.round(org.overrideCharge / 100)) : "",
   );
   const [trialEndsAt, setTrialEndsAt] = useState(org.trialEndsAt ? org.trialEndsAt.slice(0, 10) : "");
+  const [accessUntil, setAccessUntil] = useState(org.accessUntil ? org.accessUntil.slice(0, 10) : "");
 
   const mutation = useMutation({
     mutationFn: (body: object) =>
@@ -103,7 +106,15 @@ function EditOrgDialog({ org, open, onClose }: { org: OrgRow; open: boolean; onC
     };
     if (trialEndsAt) body.trialEndsAt = new Date(trialEndsAt).toISOString();
     else body.trialEndsAt = null;
+    if (accessUntil) body.accessUntil = new Date(accessUntil).toISOString();
+    else body.accessUntil = null;
     mutation.mutate(body);
+  }
+
+  function addGraceDays(days: number) {
+    const base = accessUntil && new Date(accessUntil) > new Date() ? new Date(accessUntil) : new Date();
+    base.setDate(base.getDate() + days);
+    setAccessUntil(base.toISOString().slice(0, 10));
   }
 
   const rate = PLAN_RATES[plan as keyof typeof PLAN_RATES] ?? PLAN_RATES.trial;
@@ -240,6 +251,26 @@ function EditOrgDialog({ org, open, onClose }: { org: OrgRow; open: boolean; onC
               />
             </div>
           )}
+
+          {/* Access window — the enforced cut-off */}
+          <div className="space-y-1.5">
+            <Label className="font-mono text-xs">ACCESS UNTIL (blank = unlimited)</Label>
+            <div className="flex gap-2">
+              <Input
+                type="date"
+                value={accessUntil}
+                onChange={(e) => setAccessUntil(e.target.value)}
+                className="flex-1"
+              />
+              <Button type="button" variant="outline" size="sm" className="font-mono shrink-0" onClick={() => addGraceDays(7)}>
+                +7D GRACE
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Past this date, payroll/employees/leave/timesheets/loans lock (billing &amp; login stay open).
+              A verified payment pushes this forward automatically.
+            </p>
+          </div>
         </div>
 
         <DialogFooter>
@@ -373,7 +404,7 @@ export function SuperAdminCompanies() {
               <TableHead className="font-mono text-xs text-right">MONTHLY CHARGE</TableHead>
               <TableHead className="font-mono text-xs text-right">PAYROLL RUNS</TableHead>
               <TableHead className="font-mono text-xs">ADMIN</TableHead>
-              <TableHead className="font-mono text-xs">TRIAL ENDS</TableHead>
+              <TableHead className="font-mono text-xs">ACCESS</TableHead>
               <TableHead className="font-mono text-xs text-right">ACTIONS</TableHead>
             </TableRow>
           </TableHeader>
@@ -484,16 +515,26 @@ export function SuperAdminCompanies() {
                     )}
                   </TableCell>
 
-                  {/* Trial ends */}
+                  {/* Access window */}
                   <TableCell className="text-sm font-mono">
-                    {org.plan === "trial" && org.trialEndsAt ? (
-                      <span className={new Date(org.trialEndsAt) < new Date() ? "text-destructive" : "text-amber-400"}>
-                        {new Date(org.trialEndsAt).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
-                      </span>
-                    ) : org.plan === "trial" ? (
-                      <span className="text-amber-400/60 text-xs">No expiry set</span>
+                    {org.accessUntil ? (
+                      <>
+                        <span className={
+                          org.accessState === "expired" ? "text-destructive font-bold"
+                          : org.accessState === "expiring_soon" ? "text-amber-400"
+                          : ""
+                        }>
+                          {new Date(org.accessUntil).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                        {org.accessState === "expired" && (
+                          <div className="text-[10px] font-mono text-destructive">EXPIRED — LOCKED</div>
+                        )}
+                        {org.accessState === "expiring_soon" && (
+                          <div className="text-[10px] font-mono text-amber-400/80">EXPIRING SOON</div>
+                        )}
+                      </>
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground text-xs">Unlimited</span>
                     )}
                   </TableCell>
 

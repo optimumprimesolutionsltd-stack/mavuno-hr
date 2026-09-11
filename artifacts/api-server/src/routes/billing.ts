@@ -13,8 +13,9 @@ import {
   initiateStkPush, queryTransactionStatus, isAllowedCallbackIp, accountReferenceFor,
 } from "../lib/mpesa.js";
 import {
-  PLAN_RATES, standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents,
+  PLAN_RATES, standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents, extendAccessUntil,
 } from "../lib/pricing.js";
+import { accessStateOf } from "../lib/session.js";
 import { logger } from "../lib/logger.js";
 import type { Request, Response, NextFunction } from "express";
 
@@ -134,9 +135,11 @@ router.post("/:id/verify", ...requireSuperAdmin(), async (req, res, next) => {
     if (row.payment.status === "verified") throw new HttpError(409, "Payment already verified");
 
     const now = new Date();
+    const newAccessUntil = extendAccessUntil(row.org.accessUntil, row.org.billingCycle);
 
-    // Update status, and reactivate the org in the same transaction — a
-    // verified payment should never leave the org sitting suspended.
+    // Update status, reactivate the org, and push its access window forward —
+    // all in the same transaction. A verified payment should never leave the
+    // org sitting suspended or locked out.
     const [updated] = await db.transaction(async (tx) => {
       const [payment] = await tx.update(billingPayments)
         .set({
@@ -146,11 +149,18 @@ router.post("/:id/verify", ...requireSuperAdmin(), async (req, res, next) => {
         })
         .where(eq(billingPayments.id, id))
         .returning();
-      if (row.org.status !== "active") {
-        await tx.update(organizations)
-          .set({ status: "active" })
-          .where(eq(organizations.id, row.org.id));
-      }
+
+      const orgUpdates: Partial<typeof organizations.$inferInsert> = { accessUntil: newAccessUntil };
+      if (row.org.status !== "active") orgUpdates.status = "active";
+      await tx.update(organizations).set(orgUpdates).where(eq(organizations.id, row.org.id));
+
+      await writeAudit(tx as any, {
+        orgId: row.org.id, action: "ORG_ACCESS_UNTIL_SET", entity: "organizations", entityId: row.org.id,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        detail: `Extended by payment ${payment.receiptNo}`,
+        before: { accessUntil: row.org.accessUntil }, after: { accessUntil: newAccessUntil },
+      });
+
       return [payment];
     });
 
@@ -252,6 +262,7 @@ router.get("/my", requireAuth("org:admin"), async (req, res, next) => {
       seatLimit: organizations.seatLimit,
       overrideCharge: organizations.monthlyCharge,
       billingCycle: organizations.billingCycle,
+      accessUntil: organizations.accessUntil,
     }).from(organizations).where(eq(organizations.id, p.orgId)).limit(1);
 
     const [{ cnt: activeEmployees }] = await db
@@ -282,6 +293,8 @@ router.get("/my", requireAuth("org:admin"), async (req, res, next) => {
       overrideCharge: orgRow?.overrideCharge ?? 0,
       // Amount on each invoice — annual bills 10x the monthly.
       cycleCharge: cycleChargeCents(monthlyCharge, cycle),
+      accessUntil: orgRow?.accessUntil ?? null,
+      accessState: accessStateOf(orgRow?.accessUntil ?? null),
     };
 
     const payments = await db
@@ -491,6 +504,10 @@ router.post("/mpesa/callback", async (req, res) => {
       return;
     }
 
+    const [orgBefore] = await db.select({ accessUntil: organizations.accessUntil, billingCycle: organizations.billingCycle })
+      .from(organizations).where(eq(organizations.id, payment.orgId)).limit(1);
+    const newAccessUntil = extendAccessUntil(orgBefore?.accessUntil ?? null, orgBefore?.billingCycle ?? "monthly");
+
     const now = new Date();
     await db.transaction(async (tx) => {
       const receiptNo = `RCP-${now.getFullYear()}-${String(payment.id).padStart(5, "0")}`;
@@ -506,8 +523,15 @@ router.post("/mpesa/callback", async (req, res) => {
         .where(eq(billingPayments.id, payment.id));
 
       await tx.update(organizations)
-        .set({ status: "active" })
+        .set({ status: "active", accessUntil: newAccessUntil })
         .where(eq(organizations.id, payment.orgId));
+
+      await writeAudit(tx as any, {
+        orgId: payment.orgId, action: "ORG_ACCESS_UNTIL_SET", entity: "organizations", entityId: payment.orgId,
+        actorUserId: null, actorEmail: "mpesa@system", actorIp: getIp(req),
+        detail: `Extended by M-Pesa payment ${mpesaReceiptNumber}`,
+        before: { accessUntil: orgBefore?.accessUntil ?? null }, after: { accessUntil: newAccessUntil },
+      });
     });
 
     logger.info({ checkoutRequestId, mpesaReceiptNumber, orgId: payment.orgId }, "mpesa: payment verified, org activated");

@@ -214,6 +214,12 @@ router.post("/register", async (req, res, next) => {
 
     const passwordHash = await hashPassword(password);
 
+    // Registration is a 14-day trial: trialEndsAt is the informational label,
+    // accessUntil is the enforced cut-off (requireActiveAccess()) — both set
+    // to the same date. A verified payment or a super-admin action pushes
+    // accessUntil forward; trialEndsAt never changes after this.
+    const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
     // Create org + admin user atomically
     const { orgId, userId } = await db.transaction(async (tx) => {
       const [org] = await tx.insert(organizations).values({
@@ -227,6 +233,8 @@ router.post("/register", async (req, res, next) => {
         // Mavuno is this company's payroll system of record from signup. The
         // onboarding step can move it earlier if they migrated mid-year.
         payrollStartPeriod: new Date().toISOString().slice(0, 7),
+        trialEndsAt: trialEnd,
+        accessUntil: trialEnd,
         ...(kraPin ? { kraPin: kraPin.toUpperCase() } : {}),
       }).returning({ id: organizations.id });
 
