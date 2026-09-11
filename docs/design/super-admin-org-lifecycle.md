@@ -289,22 +289,48 @@ step, matching the dual pattern already used for `billing_payments`), the
 three super-admin endpoints, and `GET /api/billing/my` gaining `credits: []`
 + `openCreditCents`. The super console's org actions row gained a "Billing
 credits" (gift icon) button opening a dialog with the open balance, an issue
-form, and a void action per open credit — all three `BILLING_CREDIT_*` audit
-actions are written (`APPLIED` is defined and used nowhere yet — see below).
+form, and a void action per open credit. `BILLING_CREDIT_ISSUED` and
+`BILLING_CREDIT_VOID` are written here; `BILLING_CREDIT_APPLIED` is wired up
+in Phase 4, below.
 
-**Not shipped: consumption.** The "How a credit gets consumed" steps 1–4
-above — computing `netExpected` at payment-verification time, auto-marking
-credits `applied`, splitting a credit larger than the payment — are **all**
-still open, including the "advisory only" v1 the design suggested (step
-1–2: showing "expected KES X, credits KES Y, collect KES Z" to the
-super-admin during manual verification). Today `openCreditCents` is purely
-informational on both the super console and the customer billing page; nothing
-reads it during `POST /api/billing/:id/verify` or the M-Pesa callback, so a
-verified payment does **not** currently account for open credits before
-pushing `access_until` forward (Phase 1's `extendAccessUntil()` runs
-unconditionally). A super-admin issuing a credit today must still manually
-remember to collect less, or issue/verify a payment for the reduced amount
-by hand. This is Phase 4, not started.
+### Shipped (Phase 4) ✅ — consumption
+
+New `lib/billing-credits.ts`:
+
+- `computeExpectedForOrg(tx, orgId)` — steps 1–2, advisory only, writes
+  nothing. `expectedCents` = `cycleChargeCents(effectiveMonthlyCents(plan,
+  activeEmployees, override), billingCycle)`; `netExpectedCents` = expected
+  minus open credits (capped at expected, so credits can't go negative).
+  Surfaced on the super console's Billing page (`src/pages/super/billing.tsx`)
+  under the amount for any **pending** payment whose org has an open credit —
+  "expected KES X, − KES Y credit, = KES Z net" — computed once per distinct
+  org among the pending rows, not per row.
+- `consumeCreditsForPayment(tx, orgId, paymentId, paymentCents, actor)` —
+  steps 3–4, called from both `POST /api/billing/:id/verify` and the M-Pesa
+  callback, **after** the payment is already marked verified in the same
+  transaction. Consumes open credits oldest-first up to `paymentCents`. A
+  credit bigger than what's left to cover is **split into two rows**: the
+  schema has no "remaining balance" column, so the original row is shrunk to
+  the consumed amount and marked `applied`, and a fresh `open` row is
+  inserted for the remainder (noted in both rows' `BILLING_CREDIT_APPLIED`
+  audit entries, cross-referencing each other's id).
+
+**Deliberate scope decision, not in the design doc's literal text:**
+consumption is **opportunistic, never a gate**. `extendAccessUntil()` still
+runs unconditionally on every verified payment, exactly as Phase 1 built it
+— a payment smaller than `netExpectedCents` still extends access, it just
+doesn't happen to close as many (or any) open credits. The design's step 3
+("*when a payment ≥ netExpected is verified*...") reads as a conditional,
+which would mean a payment that falls short of `netExpected` should **not**
+push `access_until` forward at all. That's a materially bigger behavior
+change — turning "did a human verify this" into "does this dollar amount
+exactly clear a computed figure" as the thing that keeps a paying customer
+unlocked — with real failure modes (a bank transfer a few shillings short of
+a stale rate-card figure, an M-Pesa round-number payment against a plan that
+changed mid-cycle) that would lock out a customer who *did* pay. Shipping
+that gate needs its own explicit decision, not an implicit side effect of
+wiring up credit consumption. Flagged here as an open question rather than
+built.
 
 ### Downtime → credits (Feature C+, later)
 
@@ -371,7 +397,7 @@ users            no change  (unique index already (org_id, email))
 | **1** ✅ | `organizations.access_until` + `requireActiveAccess()` middleware + super `PATCH accessUntil` + `accessState` in `GET /orgs`. Registration sets it to now+14d. | trials that actually end; grace periods; a meaningful "let them keep using it" lever |
 | **2** ✅ | `POST /api/super/orgs` + invite email + "New organisation" modal in the super console | provisioning for customers who can't self-serve |
 | **3** ✅ | `billing_credits` table + issue / list / void endpoints + `GET /api/billing/my` credit display | recorded, customer-visible credits |
-| **4** | advisory `netExpected` at payment-verify + auto-mark `applied` | credits actually reduce what's collected |
+| **4** ✅ | advisory `netExpected` at payment-verify + auto-mark `applied` | credits actually reduce what's collected |
 | **5** | "Apply outage credit" bulk tool | one-click SLA make-good across the customer base |
 
 Phase 1 is the prerequisite for the downtime scenario to mean anything;
@@ -393,3 +419,13 @@ Phases 3–5 make it fair and auditable.
    (Leaning: second row — orgs are hard tenancy boundaries here.)
 4. Do we need per-plan default `seatLimit` / trial length in `lib/pricing.ts`,
    or keep the hardcoded 25 / 14 days?
+5. (Added when Phase 4 shipped.) Should a verified payment below
+   `netExpectedCents` be blocked from extending `access_until` — i.e. should
+   §4 step 3's "when a payment ≥ netExpected is verified" be a hard gate, not
+   just the trigger for opportunistic credit consumption? Shipped as
+   **not** a gate (see §4's "Shipped (Phase 4)" note) because the failure
+   mode — a legitimately-paying customer locked out over a rounding/timing
+   mismatch against a computed figure — seemed worse than the alternative
+   (a payment that doesn't fully close its available credits just leaves
+   them open for next time, which is already correct behavior). Revisit if
+   the business wants stricter enforcement.

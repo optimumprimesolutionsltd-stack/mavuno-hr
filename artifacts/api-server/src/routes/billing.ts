@@ -16,6 +16,7 @@ import {
   PLAN_RATES, standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents, extendAccessUntil,
 } from "../lib/pricing.js";
 import { accessStateOf } from "../lib/session.js";
+import { computeExpectedForOrg, consumeCreditsForPayment } from "../lib/billing-credits.js";
 import { logger } from "../lib/logger.js";
 import type { Request, Response, NextFunction } from "express";
 
@@ -72,7 +73,15 @@ router.get("/", ...requireSuperAdmin(), async (_req, res, next) => {
       ))
       .orderBy(desc(billingPayments.createdAt));
 
-    res.json(rows);
+    // Advisory only (design §4 steps 1-2) — "expected KES X, credits KES Y,
+    // collect KES Z" for whichever orgs have an unverified payment pending.
+    // Computed once per distinct org, not per row.
+    const pendingOrgIds = [...new Set(rows.filter((r) => r.payment.status === "pending").map((r) => r.payment.orgId))];
+    const expectedByOrg = new Map(await Promise.all(
+      pendingOrgIds.map(async (orgId) => [orgId, await computeExpectedForOrg(db as any, orgId)] as const),
+    ));
+
+    res.json(rows.map((r) => ({ ...r, expected: expectedByOrg.get(r.payment.orgId) ?? null })));
   } catch (err) { next(err); }
 });
 
@@ -159,6 +168,13 @@ router.post("/:id/verify", ...requireSuperAdmin(), async (req, res, next) => {
         actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
         detail: `Extended by payment ${payment.receiptNo}`,
         before: { accessUntil: row.org.accessUntil }, after: { accessUntil: newAccessUntil },
+      });
+
+      // Opportunistic credit consumption (§4 steps 3-4) — never gates the
+      // extension above; it only records which open credits this payment
+      // happened to cover.
+      await consumeCreditsForPayment(tx, row.org.id, id, payment.amount, {
+        userId: p.userId, email: p.email, ip: getIp(req),
       });
 
       return [payment];
@@ -538,6 +554,12 @@ router.post("/mpesa/callback", async (req, res) => {
         actorUserId: null, actorEmail: "mpesa@system", actorIp: getIp(req),
         detail: `Extended by M-Pesa payment ${mpesaReceiptNumber}`,
         before: { accessUntil: orgBefore?.accessUntil ?? null }, after: { accessUntil: newAccessUntil },
+      });
+
+      // Opportunistic credit consumption (§4 steps 3-4) — never gates the
+      // extension above.
+      await consumeCreditsForPayment(tx, payment.orgId, payment.id, amountPaid || payment.amount, {
+        userId: null, email: "mpesa@system", ip: getIp(req),
       });
     });
 
