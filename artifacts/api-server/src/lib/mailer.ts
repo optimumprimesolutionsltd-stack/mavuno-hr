@@ -199,6 +199,72 @@ export async function sendPasswordResetEmail(
   logger.info({ to }, "mailer: password reset email sent via Resend");
 }
 
+// ── Super-admin org invite ──────────────────────────────────────────────────────
+// docs/design/super-admin-org-lifecycle.md §3 — Mavuno provisions the org, the
+// invited admin sets their own password via the same token flow as a password
+// reset (the token is just a 7-day one instead of 1 hour).
+
+export async function sendOrgInviteEmail(
+  to: string,
+  name: string,
+  orgName: string,
+  setupUrl: string,
+): Promise<void> {
+  if (!resend) {
+    throw new Error("RESEND_NOT_CONFIGURED");
+  }
+  const { error } = await resend.emails.send({
+    from: RESEND_FROM(),
+    to,
+    subject: `Set up your Mavuno HR account for ${orgName}`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0a0a0a;font-family:'Courier New',monospace;color:#e5e5e5">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0">
+    <tr><td align="center">
+      <table width="520" cellpadding="0" cellspacing="0"
+             style="background:#141414;border:1px solid #262626;border-radius:8px;overflow:hidden">
+        <tr><td style="background:#0a0a0a;padding:28px 36px;border-bottom:1px solid #262626">
+          <span style="font-size:22px;font-weight:bold;letter-spacing:2px;color:#e5e5e5">
+            MAVUNO<span style="color:#22c55e">.HR</span>
+          </span>
+        </td></tr>
+        <tr><td style="padding:36px">
+          <p style="margin:0 0 16px;font-size:14px;color:#a3a3a3;text-transform:uppercase;letter-spacing:1px">YOUR ACCOUNT IS READY</p>
+          <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#e5e5e5">
+            Hi ${name},<br><br>
+            Mavuno HR has set up <strong style="color:#22c55e">${orgName}</strong> for you.
+            Click below to choose a password and sign in.
+          </p>
+          <table cellpadding="0" cellspacing="0" style="margin:0 0 28px">
+            <tr><td style="background:#22c55e;border-radius:6px">
+              <a href="${setupUrl}"
+                 style="display:inline-block;padding:14px 32px;color:#0a0a0a;font-weight:bold;font-size:13px;letter-spacing:1px;text-decoration:none;font-family:'Courier New',monospace">
+                SET UP YOUR ACCOUNT
+              </a>
+            </td></tr>
+          </table>
+          <p style="margin:0 0 8px;font-size:13px;color:#737373">
+            This link expires in <strong style="color:#e5e5e5">7 days</strong>.
+          </p>
+          <p style="margin:0;font-size:12px;color:#525252;word-break:break-all">Or copy this URL: ${setupUrl}</p>
+        </td></tr>
+        <tr><td style="padding:20px 36px;border-top:1px solid #262626">
+          <p style="margin:0;font-size:11px;color:#525252">Mavuno HR — Kenya Payroll &amp; HR Platform</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+    text: `Hi ${name},\n\nMavuno HR has set up ${orgName} for you. Set your password: ${setupUrl}\n\nThis link expires in 7 days.\n\n— Mavuno HR`,
+  });
+  if (error) { const e = new Error(error.message ?? "Resend error"); e.name = error.name ?? "ResendError"; throw e; }
+  logger.info({ to, orgName }, "mailer: org invite email sent via Resend");
+}
+
 // ── Payslip email ─────────────────────────────────────────────────────────────
 
 export async function sendPayslipEmail(opts: {

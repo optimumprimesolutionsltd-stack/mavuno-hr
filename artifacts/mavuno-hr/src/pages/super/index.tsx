@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -15,6 +15,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import {
   PLAN_RATES, PLAN_LABELS, PLAN_COLORS, BILLING_CYCLES,
@@ -23,6 +24,7 @@ import {
 import {
   Building2, Search, Loader2, ShieldCheck, Users, Wallet,
   Ban, CheckCircle2, Settings, TrendingUp, CreditCard, Info,
+  Plus, Copy, Check, Mail, AlertTriangle,
 } from "lucide-react";
 
 // ── Plan configuration ──────────────────────────────────────────────────────
@@ -63,6 +65,244 @@ function useOrgs() {
     queryFn: () => customFetch("/api/super/orgs"),
     staleTime: 30_000,
   });
+}
+
+// ── New Organisation Dialog ─────────────────────────────────────────────────
+// docs/design/super-admin-org-lifecycle.md §3 (Phase 2) — provisioning for a
+// customer who can't self-register.
+interface ProvisionResult {
+  org: { id: number; name: string; slug: string; plan: string };
+  admin: { id: number; email: string };
+  inviteEmailed: boolean;
+  inviteUrl: string;
+  warnings: string[];
+}
+
+const NEW_ORG_DEFAULTS = {
+  name: "", slug: "", countryCode: "KE", currencyCode: "KES", kraPin: "",
+  plan: "trial" as string, seatLimit: "", billingCycle: "monthly" as string,
+  overrideKes: "", accessUntil: "",
+  adminName: "", adminEmail: "", sendInvite: true,
+};
+
+function NewOrgDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [form, setForm] = useState(NEW_ORG_DEFAULTS);
+  const [result, setResult] = useState<ProvisionResult | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const set = <K extends keyof typeof NEW_ORG_DEFAULTS>(k: K) => (v: (typeof NEW_ORG_DEFAULTS)[K]) =>
+    setForm((f) => ({ ...f, [k]: v }));
+
+  const reset = () => { setForm(NEW_ORG_DEFAULTS); setResult(null); setCopied(false); };
+  const close = () => { onClose(); reset(); };
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      const body: any = {
+        name: form.name,
+        countryCode: form.countryCode || "KE",
+        currencyCode: form.currencyCode || "KES",
+        plan: form.plan,
+        billingCycle: form.billingCycle,
+        admin: { email: form.adminEmail, name: form.adminName, sendInvite: form.sendInvite },
+      };
+      if (form.slug.trim()) body.slug = form.slug.trim();
+      if (form.kraPin.trim()) body.kraPin = form.kraPin.trim();
+      if (form.seatLimit.trim()) body.seatLimit = parseInt(form.seatLimit, 10);
+      if (form.overrideKes.trim()) body.monthlyChargeOverrideCents = Math.round(parseFloat(form.overrideKes) * 100);
+      if (form.accessUntil) body.accessUntil = new Date(form.accessUntil).toISOString();
+      return customFetch<ProvisionResult>("/api/super/orgs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    },
+    onSuccess: (data) => {
+      setResult(data);
+      qc.invalidateQueries({ queryKey: ["super-orgs"] });
+    },
+    onError: (e: any) =>
+      toast({ variant: "destructive", title: "Could not create organisation", description: e?.data?.error ?? e?.message }),
+  });
+
+  function handleCreate() {
+    if (!form.name.trim()) { toast({ variant: "destructive", title: "Company name is required" }); return; }
+    if (!form.adminName.trim() || !form.adminEmail.trim()) {
+      toast({ variant: "destructive", title: "Admin name and email are required" }); return;
+    }
+    mutation.mutate();
+  }
+
+  function copyInvite() {
+    if (!result) return;
+    navigator.clipboard.writeText(result.inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && close()}>
+      <DialogContent className="sm:max-w-lg border-border/50 bg-card/95 max-h-[90vh] overflow-y-auto">
+        {!result ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="font-mono">NEW ORGANISATION</DialogTitle>
+              <DialogDescription>Provision an org for a customer who can't self-register.</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label className="font-mono text-xs">COMPANY NAME *</Label>
+                <Input value={form.name} onChange={(e) => set("name")(e.target.value)} placeholder="Ujenzi Distributors Ltd" />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="font-mono text-xs">SLUG (blank = auto from name)</Label>
+                <Input value={form.slug} onChange={(e) => set("slug")(e.target.value.toLowerCase())} placeholder="ujenzi-distributors-ltd" className="font-mono" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="font-mono text-xs">COUNTRY</Label>
+                  <Input value={form.countryCode} onChange={(e) => set("countryCode")(e.target.value.toUpperCase())} maxLength={2} className="font-mono uppercase" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="font-mono text-xs">CURRENCY</Label>
+                  <Input value={form.currencyCode} onChange={(e) => set("currencyCode")(e.target.value.toUpperCase())} maxLength={4} className="font-mono uppercase" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="font-mono text-xs">KRA PIN (optional)</Label>
+                <Input value={form.kraPin} onChange={(e) => set("kraPin")(e.target.value.toUpperCase())} placeholder="P051234567X" className="font-mono" />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="font-mono text-xs">PLAN</Label>
+                <Select value={form.plan} onValueChange={set("plan")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(PLAN_RATES).map(([v, r]) => (
+                      <SelectItem key={v} value={v}>
+                        <span className="font-mono">{r.label}</span>
+                        <span className="ml-2 text-muted-foreground text-xs">— {r.bestFor}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="font-mono text-xs">SEAT LIMIT (blank = plan default)</Label>
+                  <Input type="number" min={1} value={form.seatLimit} onChange={(e) => set("seatLimit")(e.target.value)} placeholder={String(PLAN_RATES[form.plan as keyof typeof PLAN_RATES]?.softCapSeats ?? "unlimited")} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="font-mono text-xs">BILLING CYCLE</Label>
+                  <Select value={form.billingCycle} onValueChange={set("billingCycle")}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {BILLING_CYCLES.map((c) => <SelectItem key={c} value={c}><span className="font-mono capitalize">{c}</span></SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="font-mono text-xs">NEGOTIATED OVERRIDE — KES/MONTH (blank = rate card)</Label>
+                <Input type="number" min={0} step={500} value={form.overrideKes} onChange={(e) => set("overrideKes")(e.target.value)} placeholder="0" />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="font-mono text-xs">ACCESS UNTIL (blank = 14-day trial from today)</Label>
+                <Input type="date" value={form.accessUntil} onChange={(e) => set("accessUntil")(e.target.value)} />
+              </div>
+
+              <div className="border-t border-border/30 pt-4 space-y-4">
+                <p className="font-mono text-xs text-muted-foreground">ADMIN USER</p>
+                <div className="space-y-1.5">
+                  <Label className="font-mono text-xs">NAME *</Label>
+                  <Input value={form.adminName} onChange={(e) => set("adminName")(e.target.value)} placeholder="Jane Mwangi" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="font-mono text-xs">EMAIL *</Label>
+                  <Input type="email" value={form.adminEmail} onChange={(e) => set("adminEmail")(e.target.value)} placeholder="hr@ujenzi.co.ke" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="sendInvite" checked={form.sendInvite} onCheckedChange={(v) => set("sendInvite")(!!v)} />
+                  <Label htmlFor="sendInvite" className="text-xs font-mono cursor-pointer">
+                    Email a "set up your account" link now
+                  </Label>
+                </div>
+                {!form.sendInvite && (
+                  <p className="text-xs text-muted-foreground">
+                    A one-time setup link will be shown after creation for you to pass on yourself.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={close}>Cancel</Button>
+              <Button className="font-mono" onClick={handleCreate} disabled={mutation.isPending}>
+                {mutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                CREATE ORGANISATION
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle className="font-mono flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                {result.org.name.toUpperCase()} CREATED
+              </DialogTitle>
+              <DialogDescription>slug: {result.org.slug} · admin: {result.admin.email}</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 py-2">
+              {result.warnings.length > 0 && (
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 space-y-1">
+                  {result.warnings.map((w, i) => (
+                    <div key={i} className="flex items-start gap-2 text-xs text-amber-400">
+                      <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      <span>{w}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="rounded-md border border-border/40 bg-muted/20 px-3 py-2 flex items-center gap-2 text-xs">
+                {result.inviteEmailed ? (
+                  <><Mail className="h-3.5 w-3.5 text-emerald-500 shrink-0" /><span className="text-emerald-400">Invite emailed to {result.admin.email}</span></>
+                ) : (
+                  <><Info className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-muted-foreground">No email sent — share the link below</span></>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="font-mono text-xs">SET-UP LINK (also works as a fallback if the email failed)</Label>
+                <div className="flex gap-2">
+                  <Input readOnly value={result.inviteUrl} className="font-mono text-xs" />
+                  <Button type="button" variant="outline" size="sm" onClick={copyInvite} className="shrink-0">
+                    {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Expires in 7 days.</p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={reset}>Create another</Button>
+              <Button className="font-mono" onClick={close}>Done</Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 // ── Edit Dialog ──────────────────────────────────────────────────────────
@@ -292,6 +532,7 @@ export function SuperAdminCompanies() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [editOrg, setEditOrg] = useState<OrgRow | null>(null);
+  const [newOrgOpen, setNewOrgOpen] = useState(false);
 
   const filtered = orgs.filter(
     (o) =>
@@ -322,14 +563,20 @@ export function SuperAdminCompanies() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
-          <ShieldCheck className="h-5 w-5 text-primary" />
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight font-mono">COMPANIES</h1>
+            <p className="text-muted-foreground text-sm">All organisations on Mavuno HR</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight font-mono">COMPANIES</h1>
-          <p className="text-muted-foreground text-sm">All organisations on Mavuno HR</p>
-        </div>
+        <Button className="font-mono" onClick={() => setNewOrgOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          NEW ORGANISATION
+        </Button>
       </div>
 
       {/* Summary cards */}
@@ -581,6 +828,7 @@ export function SuperAdminCompanies() {
       {editOrg && (
         <EditOrgDialog org={editOrg} open={!!editOrg} onClose={() => setEditOrg(null)} />
       )}
+      <NewOrgDialog open={newOrgOpen} onClose={() => setNewOrgOpen(false)} />
     </div>
   );
 }
