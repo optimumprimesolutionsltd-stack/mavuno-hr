@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Every URL the marketing site actually serves. Today that is the single
+  landing page: the nav is all in-page anchors (#features, #compliance, #tally,
+  #pricing), and anchors are not separate URLs. When those sections become real
+  routes, add them here as well.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://mavunohr.co.ke/</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

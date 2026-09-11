@@ -2,16 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mavuno HR</title>
     <meta name="description" content="Mavuno HR — payroll, people management and statutory compliance for Kenyan businesses." />
-    <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="Mavuno HR" />
-    <meta property="og:description" content="Payroll, people management and statutory compliance for Kenyan businesses." />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Mavuno HR" />
-    <meta name="twitter:description" content="Payroll, people management and statutory compliance for Kenyan businesses." />
+    <!-- The admin + employee portal is behind authentication, so there is
+         nothing here for a search engine to index. The api-server also sends
+         an X-Robots-Tag: noindex header for every /app response, which covers
+         the asset and JSON responses this tag cannot reach. Public marketing
+         copy and social cards live on the marketing site at "/". -->
+    <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#049756" />
