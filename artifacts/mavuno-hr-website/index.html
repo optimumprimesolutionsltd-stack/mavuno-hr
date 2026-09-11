@@ -49,6 +49,13 @@
     />
     <meta name="twitter:image" content="https://mavunohr.co.ke/og-image.png" />
 
+    <!-- Order matters. Browsers that understand SVG take it and stop; the rest
+         fall back to the .ico. /favicon.ico also has to exist as a bare path
+         regardless of what is declared here, because that is where Google's
+         favicon fetcher and a lot of older clients look first — and since the
+         api-server now returns a real 404 for unknown paths, a missing one is
+         a visible 404 rather than the HTML it used to quietly serve. -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#049756" />
