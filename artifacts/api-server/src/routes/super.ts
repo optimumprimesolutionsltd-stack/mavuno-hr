@@ -1,21 +1,36 @@
 import { Router } from "express";
 import { z } from "zod";
 import crypto from "node:crypto";
-import { eq, ne, count, max, sql } from "drizzle-orm";
+import { eq, ne, and, isNull, count, max, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { organizations, employees, payrollRuns, users } from "@workspace/db/schema";
+import { organizations, employees, payrollRuns, users, passwordResetTokens, statutoryConfigs } from "@workspace/db/schema";
 import { requireAuth, getIp, type AuthRequest } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
 import { writeAudit } from "../lib/audit.js";
 import {
-  PLAN_IDS, BILLING_CYCLES,
+  PLAN_IDS, BILLING_CYCLES, PLAN_RATES,
   standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents,
 } from "../lib/pricing.js";
 import { accountReferenceFor, parseAccountReference } from "../lib/mpesa.js";
 import { accessStateOf } from "../lib/session.js";
+import { hashPassword, generateTempPassword } from "../lib/password.js";
+import { sendOrgInviteEmail } from "../lib/mailer.js";
 import type { Request, Response, NextFunction } from "express";
 
 const router = Router();
+
+// Matches auth.ts's own APP_BASE_PATH constant — kept local rather than
+// shared, consistent with this file's existing small duplication of
+// requireSuperAdmin()-style helpers instead of a cross-route import.
+const APP_BASE_PATH = (process.env.APP_BASE_PATH ?? "/app").replace(/\/+$/, "");
+
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+}
 
 // ── Super-admin gate ──────────────────────────────────────────────────────────
 function getSuperAdminEmails(): string[] {
@@ -146,6 +161,158 @@ router.get("/orgs", requireSuperAdminOrSyncKey(), async (_req, res, next) => {
         };
       })
     );
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── POST /api/super/orgs — provision an org the customer can't self-serve ───
+// docs/design/super-admin-org-lifecycle.md §3 (Phase 2).
+const provisionOrgSchema = z.object({
+  name: z.string().min(2).max(120),
+  slug: z.string().min(2).max(64).regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers, and hyphens only").optional(),
+  countryCode: z.string().length(2).default("KE"),
+  currencyCode: z.string().min(3).max(4).default("KES"),
+  kraPin: z.string().max(20).optional(),
+  plan: z.enum(PLAN_IDS).default("trial"),
+  seatLimit: z.number().int().min(1).max(10_000_000).optional(),
+  billingCycle: z.enum(BILLING_CYCLES).default("monthly"),
+  monthlyChargeOverrideCents: z.number().int().min(0).optional(),
+  accessUntil: z.string().datetime().optional(),
+  admin: z.object({
+    email: z.string().email().max(255),
+    name: z.string().min(2).max(120),
+    sendInvite: z.boolean().default(true),
+  }),
+});
+
+router.post("/orgs", ...requireSuperAdmin(), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const parsed = provisionOrgSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() });
+      return;
+    }
+    const d = parsed.data;
+    const countryCode = d.countryCode.toUpperCase();
+    const currencyCode = d.currencyCode.toUpperCase();
+
+    // Slug: explicit > derived from name. On collision, 409 unless ?autoSlug=true
+    // (then try name-2, name-3, ... until one is free).
+    const autoSlug = req.query.autoSlug === "true";
+    const base = d.slug ?? slugify(d.name);
+    if (!base) throw new HttpError(422, "Could not derive a URL slug from the name — provide one explicitly");
+
+    let slug = base;
+    let suffix = 1;
+    for (;;) {
+      const [existing] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.slug, slug));
+      if (!existing) break;
+      if (!autoSlug) throw new HttpError(409, `Slug "${slug}" is already taken`, "SLUG_TAKEN");
+      suffix += 1;
+      slug = `${base}-${suffix}`;
+    }
+
+    const rate = PLAN_RATES[d.plan];
+    const seatLimit = d.seatLimit ?? rate.softCapSeats ?? 1_000_000;
+    const accessUntil = d.accessUntil ? new Date(d.accessUntil) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+    const warnings: string[] = [];
+
+    const [cfgExists] = await db.select({ id: statutoryConfigs.id }).from(statutoryConfigs)
+      .where(and(eq(statutoryConfigs.countryCode, countryCode), isNull(statutoryConfigs.orgId)))
+      .limit(1);
+    if (!cfgExists) {
+      warnings.push(`No statutory configuration is on file for ${countryCode} — payroll will 422 until one is loaded.`);
+    }
+
+    const adminEmail = d.admin.email.toLowerCase();
+    const [adminElsewhere] = await db.select({ id: users.id }).from(users).where(eq(users.email, adminEmail)).limit(1);
+    if (adminElsewhere) {
+      warnings.push(`${adminEmail} already has a Mavuno HR account in another organisation — this creates a separate account for this org (orgs are a hard tenancy boundary here).`);
+    }
+
+    // Unusable until the invite is redeemed — nobody knows this string.
+    const placeholderHash = await hashPassword(generateTempPassword());
+
+    const { orgId, adminUserId } = await db.transaction(async (tx) => {
+      const [org] = await tx.insert(organizations).values({
+        name: d.name,
+        slug,
+        countryCode,
+        currencyCode,
+        ...(d.kraPin ? { kraPin: d.kraPin.toUpperCase() } : {}),
+        plan: d.plan,
+        seatLimit,
+        billingCycle: d.billingCycle,
+        monthlyCharge: d.monthlyChargeOverrideCents ?? 0,
+        status: "active",
+        payrollStartPeriod: new Date().toISOString().slice(0, 7),
+        trialEndsAt: d.plan === "trial" ? accessUntil : null,
+        accessUntil,
+      }).returning();
+
+      const [admin] = await tx.insert(users).values({
+        orgId: org.id,
+        email: adminEmail,
+        name: d.admin.name,
+        role: "admin",
+        passwordHash: placeholderHash,
+        mustChangePassword: true,
+        failedLoginCount: 0,
+      }).returning({ id: users.id });
+
+      await writeAudit(tx as any, {
+        orgId: org.id, action: "SUPER_ORG_CREATED", entity: "organizations", entityId: org.id,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        after: { name: d.name, slug, plan: d.plan, countryCode, adminEmail },
+      });
+      await writeAudit(tx as any, {
+        orgId: org.id, action: "SUPER_ORG_ADMIN_INVITED", entity: "users", entityId: admin.id,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        after: { email: adminEmail },
+      });
+
+      return { orgId: org.id, adminUserId: admin.id };
+    });
+
+    // Set-password token — same table/flow as forgot-password, a longer TTL
+    // (7 days, first-time setup) instead of the 1-hour reset window.
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    await db.insert(passwordResetTokens).values({
+      userId: adminUserId,
+      token: rawToken,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
+    const origin = req.headers.origin ?? `${req.protocol}://${req.headers.host}`;
+    const inviteUrl = `${origin}${APP_BASE_PATH}/admin/reset-password?token=${rawToken}`;
+
+    let inviteEmailed = false;
+    if (d.admin.sendInvite) {
+      try {
+        await sendOrgInviteEmail(adminEmail, d.admin.name, d.name, inviteUrl);
+        inviteEmailed = true;
+      } catch (err) {
+        warnings.push("Invite email failed to send — share the invite link below manually.");
+      }
+    }
+
+    const [orgRow] = await db.select().from(organizations).where(eq(organizations.id, orgId));
+
+    res.status(201).json({
+      org: {
+        ...orgRow,
+        billingRef: accountReferenceFor(orgId),
+        accessState: accessStateOf(orgRow.accessUntil),
+      },
+      admin: { id: adminUserId, email: adminEmail },
+      inviteEmailed,
+      // Always returned — lets the super-admin re-share the link even when
+      // sendInvite was true but delivery failed.
+      inviteUrl,
+      warnings,
+    });
   } catch (err) {
     next(err);
   }

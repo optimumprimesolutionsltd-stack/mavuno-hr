@@ -191,6 +191,34 @@ behavior compromise.
 `src/pages/super/index.tsx` gains a **"New organisation"** button → a modal with
 the fields above. On success, show the invite link (copyable) or "invite sent".
 
+### Shipped (Phase 2) ✅
+
+Built as specified, with one deliberate deviation from the response shape:
+**`inviteUrl` is always returned**, not only when `sendInvite: false`. When
+`sendInvite: true` and the email fails to send (still a possible outcome —
+`sendOrgInviteEmail` failures are caught and turned into a `warnings[]` entry
+rather than failing the whole request, since the org and admin user are
+already committed by that point), the super-admin would otherwise have no
+way to get the customer their set-up link at all. `inviteEmailed: boolean`
+still tells the UI which case it is.
+
+`seatLimit` default is `PLAN_RATES[plan].softCapSeats ?? 1_000_000` — the
+point at which `recommendPlan()` would point to the next plan up (matches
+the "unlimited seats" convention already used elsewhere for `softCapSeats:
+null` plans). The admin's initial `passwordHash` is `hashPassword(
+generateTempPassword())` (existing `lib/password.ts` helper) — a random
+string nobody is told, reusing the same "impossible to log in with until the
+token is redeemed" trick rather than inventing a new one.
+
+The set-password token reuses `password_reset_tokens` unmodified (no `kind`
+column needed — `POST /api/auth/reset-password` sets the password, clears
+`mustChangePassword`, and revokes sessions identically whether the token
+started life as a forgot-password or a first-time invite). TTL is 7 days
+vs. the 1-hour forgot-password window.
+
+Slug collision: `409 SLUG_TAKEN` by default; `?autoSlug=true` retries
+`{base}-2`, `{base}-3`, ... until one is free, per §3.
+
 ---
 
 ## 4. Feature C — SLA credits & billing adjustments
@@ -316,7 +344,7 @@ users            no change  (unique index already (org_id, email))
 | Phase | Scope | Unblocks |
 |---|---|---|
 | **1** ✅ | `organizations.access_until` + `requireActiveAccess()` middleware + super `PATCH accessUntil` + `accessState` in `GET /orgs`. Registration sets it to now+14d. | trials that actually end; grace periods; a meaningful "let them keep using it" lever |
-| **2** | `POST /api/super/orgs` + invite email + "New organisation" modal in the super console | provisioning for customers who can't self-serve |
+| **2** ✅ | `POST /api/super/orgs` + invite email + "New organisation" modal in the super console | provisioning for customers who can't self-serve |
 | **3** | `billing_credits` table + issue / list / void endpoints + `GET /api/billing/my` credit display | recorded, customer-visible credits |
 | **4** | advisory `netExpected` at payment-verify + auto-mark `applied` | credits actually reduce what's collected |
 | **5** | "Apply outage credit" bulk tool | one-click SLA make-good across the customer base |
