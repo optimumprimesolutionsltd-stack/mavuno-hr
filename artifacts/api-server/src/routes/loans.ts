@@ -22,6 +22,11 @@ const loanSchema = z.object({
   months: z.number().int().min(1).max(60),
   interestRateBps: z.number().int().min(0).max(10_000).default(0),
   startDate: isoDate,
+  // Migration only: loan was already partially repaid on the prior system.
+  // `amount` stays the original principal; `openingBalance` becomes the
+  // current outstanding balance. `startDate` doubles as the disbursement
+  // date — it already accepts any past date.
+  openingBalance: moneyString.optional(),
 });
 
 // HR creates a loan request on behalf of any employee
@@ -115,17 +120,24 @@ router.post("/", requireAuth("loan:review"), async (req, res, next) => {
     const { months, interestRateBps: bps, startDate } = parsed.data;
     const installment = calcInstallment(principal, bps, months);
 
+    const isMigrated = parsed.data.openingBalance !== undefined;
+    const balance = isMigrated ? toCents(parsed.data.openingBalance!) : principal;
+    if (balance > principal) {
+      res.status(422).json({ error: "openingBalance cannot exceed the original loan amount" });
+      return;
+    }
+
     const [loan] = await db.insert(loans).values({
       orgId: p.orgId, employeeId: parsed.data.employeeId, type: parsed.data.type,
-      principal, balance: principal, monthlyInstallment: installment,
+      principal, balance, monthlyInstallment: installment,
       interestRateBps: bps, status: "active", startDate,
     }).returning();
 
     await db.transaction(async (tx) => {
       await writeAudit(tx as any, {
-        orgId: p.orgId, action: "LOAN_ISSUED", entity: "loans", entityId: loan.id,
+        orgId: p.orgId, action: isMigrated ? "LOAN_MIGRATED" : "LOAN_ISSUED", entity: "loans", entityId: loan.id,
         actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
-        after: { employeeId: loan.employeeId, amount: principal, months },
+        after: { employeeId: loan.employeeId, amount: principal, balance, months },
       });
     });
 
