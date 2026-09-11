@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import logoSvg from "@assets/branding/mavuno-hr-wordmark.svg";
 
 export function Footer() {
@@ -23,10 +24,9 @@ export function Footer() {
           <div>
             <h4 className="font-semibold text-secondary mb-4">Product</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><a href="#features" className="hover:text-primary transition-colors">Features</a></li>
-              <li><a href="#compliance" className="hover:text-primary transition-colors">Compliance</a></li>
-              <li><a href="#tally" className="hover:text-primary transition-colors">Tally Integration</a></li>
-              <li><a href="#pricing" className="hover:text-primary transition-colors">Pricing</a></li>
+              <li><Link href="/features" className="hover:text-primary transition-colors">Features</Link></li>
+              <li><Link href="/compliance" className="hover:text-primary transition-colors">Compliance</Link></li>
+              <li><Link href="/pricing" className="hover:text-primary transition-colors">Pricing</Link></li>
             </ul>
           </div>
 

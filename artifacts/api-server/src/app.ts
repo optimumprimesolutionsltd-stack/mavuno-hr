@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express, { type Express } from "express";
@@ -82,15 +83,58 @@ app.use(
   },
 );
 
-// The marketing site is the opposite case: one real route ("/") plus its static
-// files, because the nav is all in-page anchors. So a request for anything else
-// is genuinely a miss, and 200-ing the homepage for it would hand crawlers an
-// unbounded space of soft 404s off a domain that has one page to rank. Send the
-// same document either way — the SPA renders its 404 screen — but tell the
-// truth in the status line.
-app.use(express.static(siteDist, { index: false }), (req, res) => {
+// The marketing site is prerendered: the build writes one real HTML document
+// per route ("/" -> index.html, "/features" -> features/index.html, ...), each
+// with its own <title>, canonical and JSON-LD baked in. Discover them from the
+// build output rather than hardcoding a list here — the routes are declared
+// once, in the website's src/site-routes.ts, and duplicating them in the server
+// is how the two drift apart.
+function prerenderedRoutes(dir: string): Set<string> {
+  const routes = new Set<string>(["/"]);
+  try {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory() && fs.existsSync(path.join(dir, entry.name, "index.html"))) {
+        routes.add(`/${entry.name}`);
+      }
+    }
+  } catch {
+    // No dist yet (API-only run) — tolerated, same as the mounts above.
+  }
+  return routes;
+}
+
+const siteRoutes = prerenderedRoutes(siteDist);
+logger.info({ routes: [...siteRoutes] }, "marketing routes served");
+
+// Anything not in that set genuinely does not exist, and 200-ing the homepage
+// for it would hand crawlers an unbounded space of soft 404s. Serve the 404
+// document so a mistyped URL still renders the branded page, but say 404.
+// redirect:false is load-bearing, not tidiness. Each route is a DIRECTORY here
+// ("features/index.html"), and express.static's default is to answer a
+// directory request without a trailing slash with a 301 that adds one. That
+// redirect would fire before the handler below ever runs, and the handler
+// redirects the trailing-slash form back — an infinite loop on every sub-page.
+app.use(express.static(siteDist, { index: false, redirect: false }), (req, res) => {
   // This mount has no path prefix, so nothing is stripped from req.path.
-  res.status(req.path === "/" ? 200 : 404).sendFile(path.join(siteDist, "index.html"));
+  const canonical =
+    req.path.length > 1 && req.path.endsWith("/") ? req.path.slice(0, -1) : req.path;
+
+  if (!siteRoutes.has(canonical)) {
+    res.status(404).sendFile(path.join(siteDist, "index.html"));
+    return;
+  }
+
+  // One URL per page: "/features/" redirects to "/features" rather than serving
+  // the same document at a second address and splitting its signals.
+  if (canonical !== req.path) {
+    res.redirect(301, canonical);
+    return;
+  }
+
+  // Only paths this process itself enumerated reach sendFile, so req.path
+  // cannot be used to escape siteDist.
+  const file = canonical === "/" ? "index.html" : path.join(canonical.slice(1), "index.html");
+  res.sendFile(path.join(siteDist, file));
 });
 
 export default app;

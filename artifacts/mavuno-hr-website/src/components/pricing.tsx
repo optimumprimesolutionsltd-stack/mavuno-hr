@@ -8,7 +8,7 @@ const INCLUDED = [
   "Employee self-service portal",
   "Leave, loans & timesheets",
   "Bank & M-Pesa payment files",
-  "Audit trail & Tally sync",
+  "Audit trail & data export",
 ];
 
 type Tier = {

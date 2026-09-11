@@ -18,6 +18,13 @@ relative to its own bundle, so it works regardless of the process CWD.
 
 **Build command**
 
+> The website's `build` is now three stages: the client bundle, an SSR bundle,
+> then `prerender.mjs`, which writes one real HTML document per route in
+> `src/site-routes.ts` and regenerates `sitemap.xml`. Adding a page means adding
+> it to that manifest — the sitemap and the server's route list both derive from
+> it. Nothing extra to run here; the existing command covers it.
+
+
 ```sh
 pnpm install --frozen-lockfile
 BASE_PATH=/     pnpm --filter @workspace/mavuno-hr-website build
