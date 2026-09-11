@@ -23,6 +23,7 @@ import {
   CreditCard,
   Bell,
   BellRing,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -221,6 +222,65 @@ function NotificationBell() {
   );
 }
 
+function daysLeft(accessUntil: string): number {
+  return Math.max(0, Math.ceil((new Date(accessUntil).getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
+}
+
+// Shown once access is within EXPIRING_SOON_DAYS (server-defined) of running
+// out, or already has — otherwise a lapsed org just hits silently broken
+// pages with no signpost to Billing. Dismissible only in the "expiring
+// soon" case, and only for the current day + expiry value, so it reappears
+// tomorrow (or immediately if accessUntil changes, e.g. after payment).
+function AccessBanner() {
+  const { accessState, accessUntil, isAdmin } = useAuth();
+  const [location] = useLocation();
+  const [dismissed, setDismissed] = useState(false);
+
+  const dismissKey = accessUntil ? `mavuno_access_banner_dismissed:${accessUntil.slice(0, 10)}` : null;
+  useEffect(() => {
+    if (dismissKey) setDismissed(sessionStorage.getItem(dismissKey) === "1");
+  }, [dismissKey]);
+
+  if (!isAdmin) return null;
+  if (accessState !== "expiring_soon" && accessState !== "expired") return null;
+  if (accessState === "expiring_soon" && dismissed) return null;
+  if (location.startsWith("/admin/billing")) return null; // billing page has its own, fuller messaging
+
+  const expired = accessState === "expired";
+  const left = accessUntil ? daysLeft(accessUntil) : null;
+
+  return (
+    <div
+      className={`flex items-center gap-3 px-4 sm:px-6 lg:px-8 py-2.5 text-sm border-b ${
+        expired
+          ? "bg-destructive/10 border-destructive/30 text-destructive"
+          : "bg-amber-500/10 border-amber-500/30 text-amber-500"
+      }`}
+    >
+      <AlertTriangle className="h-4 w-4 shrink-0" />
+      <span className="flex-1">
+        {expired
+          ? "Your organisation's access has expired. Some features are locked until you renew."
+          : left === 0
+            ? "Your trial ends today."
+            : `Your trial ends in ${left} day${left === 1 ? "" : "s"}.`}
+      </span>
+      <Link href="/admin/billing" className="font-medium underline underline-offset-2 shrink-0">
+        {expired ? "Renew now" : "View plans"}
+      </Link>
+      {!expired && dismissKey && (
+        <button
+          onClick={() => { sessionStorage.setItem(dismissKey, "1"); setDismissed(true); }}
+          className="shrink-0 opacity-70 hover:opacity-100"
+          aria-label="Dismiss"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function AdminGuard({ children }: { children: ReactNode }) {
   const { isLoading, isAuthenticated, isAdmin } = useAuth();
   const [, setLocation] = useLocation();
@@ -376,7 +436,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* ── Main content ── */}
       <main className="lg:ml-64 flex flex-col bg-background min-h-screen">
-        <div className="flex-1 p-4 sm:p-6 lg:p-8 pt-[4.5rem] lg:pt-8 overflow-y-auto">
+        <div className="pt-14 lg:pt-0">
+          <AccessBanner />
+        </div>
+        <div className="flex-1 p-4 sm:p-6 lg:p-8 pt-4 lg:pt-8 overflow-y-auto">
           {children}
         </div>
       </main>

@@ -5,7 +5,7 @@ import crypto from "crypto";
 import { db } from "@workspace/db";
 import { users, organizations, passwordResetTokens } from "@workspace/db/schema";
 import { verifyPassword, hashPassword, validatePasswordStrength, generateTempPassword } from "../lib/password.js";
-import { createSession, destroySession, revokeAllUserSessions } from "../lib/session.js";
+import { createSession, destroySession, revokeAllUserSessions, accessStateOf } from "../lib/session.js";
 import { requireAuth, getIp, type AuthRequest } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { HttpError } from "../lib/http-error.js";
@@ -518,6 +518,10 @@ router.get("/me", requireAuth(), (req, res) => {
     employeeId: p.employeeId, mustChangePassword: p.mustChangePassword,
     orgSlug: p.orgSlug, countryCode: p.countryCode, currencyCode: p.currencyCode,
     isSuperAdmin: getSuperAdminEmails().includes(p.email.toLowerCase()),
+    // Lets the app shell show a trial/access countdown without a separate
+    // billing fetch. NULL = unlimited access, not enforced.
+    accessUntil: p.accessUntil ? p.accessUntil.toISOString() : null,
+    accessState: accessStateOf(p.accessUntil),
   });
 });
 
