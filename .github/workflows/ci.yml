@@ -82,3 +82,6 @@ jobs:
         run: pnpm --filter @workspace/mavuno-hr build
         env:
           BASE_PATH: /app/
+
+      - name: Build the api-server
+        run: pnpm --filter @workspace/api-server build
