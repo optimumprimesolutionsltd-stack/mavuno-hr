@@ -4,10 +4,17 @@ packages:
   - lib/integrations/*
   - scripts
 
+# Written by `pnpm approve-builds`, which leaves the prompt text as the value
+# until someone answers it. These three were never answered, so pnpm 11 treats
+# every one of them as an undecided install script and refuses to install at
+# all (ERR_PNPM_IGNORED_BUILDS). The values below record what production has
+# been doing all along, so nothing about the built output changes: esbuild
+# needs its install script to place the platform binary, and the other two only
+# print funding notices.
 allowBuilds:
-  '@clerk/shared': set this to true or false
-  core-js: set this to true or false
-  esbuild: set this to true or false
+  '@clerk/shared': false
+  core-js: false
+  esbuild: true
 
 autoInstallPeers: false
 
