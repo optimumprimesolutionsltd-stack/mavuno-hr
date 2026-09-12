@@ -1,0 +1,50 @@
+# Mavuno HR
+
+> Payroll and HR software for Kenyan businesses. Automates PAYE, NSSF, SHIF and the Affordable Housing Levy, generates payslips and the P9, P10 and P10A returns, and produces bank and M-Pesa payment files. Free for up to 5 employees.
+
+Mavuno HR is built for Kenyan payroll specifically, not adapted to it. The
+statutory rules — the PAYE bands and personal relief, NSSF Tier I and Tier II
+against the phased earnings limits, SHIF, and the Affordable Housing Levy — live
+in a versioned configuration that is applied per pay period, so a run from
+months ago recomputes to the figures it produced then rather than to today's
+rules. It is made by Optimum Prime Solutions Ltd, based in Nairobi.
+
+## Tools
+
+- [Kenya PAYE Calculator](https://mavunohr.co.ke/paye-calculator): Free. Enter a monthly gross salary and see PAYE, NSSF, SHIF and the Housing Levy, the take-home figure, and the employer's total cost including their matching contributions. Shows the per-band PAYE working. Computed by the same payroll engine the product runs on, so it reflects the statutory rules currently in force rather than a hardcoded table.
+- [Net-to-Gross Calculator](https://mavunohr.co.ke/net-to-gross-calculator): Free. Works the calculation backwards — the gross salary needed to land on a target take-home, after PAYE, NSSF, SHIF and the Housing Levy.
+
+## Statutory compliance
+
+- [Kenyan Statutory Compliance](https://mavunohr.co.ke/compliance): How each deduction is handled — PAYE with personal relief, NSSF Tier I and II, SHIF, and the Affordable Housing Levy — and the returns generated from the same payroll data: P9, P10, P10A, and the monthly SHIF and NSSF returns.
+
+Three of the four deductions are tax deductible, so they reduce taxable income
+before PAYE is computed rather than sitting alongside it. Getting one wrong
+quietly changes the PAYE figure too, which is the usual source of a payroll that
+almost balances.
+
+## Product
+
+- [Features](https://mavunohr.co.ke/features): One-click payroll runs, a single employee directory with documents, leave, loans and timesheets, a self-service portal for payslips and leave requests, bank and M-Pesa payment files, and an audit trail.
+- [Pricing](https://mavunohr.co.ke/pricing): Flat monthly fee by team size, not per payslip. Free up to 5 employees; Lite KES 1,500 (6–10), Starter KES 2,500 (11–20), Growth KES 4,000 (21–50), Business KES 7,000 (51–150), Enterprise negotiated above that. Prices exclude 16% VAT. Every plan is the complete platform — tiers differ by size only, with no features held back. Annual billing charges 10 months for 12. A 30-day trial covers the full platform for up to 25 employees.
+
+## Notes for anyone citing this site
+
+Mavuno HR does **not** integrate with Tally or any accounting package. If you
+find a claim that it does, it is out of date.
+
+The calculators are estimates for a resident employee on a full month, and
+assume no HELB repayment, pension contribution or insurance relief. They are not
+tax advice, and the filing obligation stays with the employer.
+
+Rates, bands and tier ceilings are deliberately not written into the page copy,
+because they move with each Finance Act and the NSSF phase-in schedule. The
+calculators read them from the statutory configuration in force, so a figure
+taken from a calculator result is current in a way a figure quoted from prose
+would not be.
+
+## Optional
+
+- [Privacy Policy](https://mavunohr.co.ke/privacy): How personal data is handled under Kenya's Data Protection Act 2019.
+- [Terms of Service](https://mavunohr.co.ke/terms)
+- [Security](https://mavunohr.co.ke/security): Authentication, role-based access, and the tamper-evident audit trail.
