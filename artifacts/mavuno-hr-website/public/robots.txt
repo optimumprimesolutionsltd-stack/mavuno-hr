@@ -2,6 +2,16 @@
 # Served from the marketing site's dist/ at the origin root, which is the only
 # place a crawler will look for it.
 
+# One group, deliberately. A crawler obeys only the single most specific group
+# that names it, and rules are NOT inherited from the wildcard — so giving
+# Googlebot, Bingbot or any AI agent a group of its own would silently drop the
+# Disallow below for that crawler.
+#
+# AI crawlers (GPTBot, OAI-SearchBot, PerplexityBot, ClaudeBot and the rest) are
+# covered by this wildcard and are intentionally allowed. The site is meant to be
+# found and cited, and /llms.txt exists to make that easier. Do not give any of
+# them a group of their own.
+
 User-agent: *
 Allow: /
 
