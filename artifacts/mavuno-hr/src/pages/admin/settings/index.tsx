@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { DangerZone } from "./danger-zone";
+import { DangerZone, ExportData } from "./danger-zone";
 import {
   Building2, Save, Loader2, ShieldCheck, Settings2, RefreshCw, CheckCircle2, History,
 } from "lucide-react";
@@ -453,7 +453,9 @@ export function AdminSettings() {
         </CardContent>
       </Card>
 
-      <DangerZone orgName={data?.org?.name ?? orgName} />
+      <ExportData />
+
+        <DangerZone orgName={data?.org?.name ?? orgName} />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Download } from "lucide-react";
 
 /**
  * Scheduling and cancelling deletion of the whole organisation.
@@ -27,6 +27,89 @@ interface DeletionStatus {
 
 function daysUntil(iso: string): number {
   return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000));
+}
+
+/**
+ * Downloads everything the organisation holds as a ZIP of CSVs.
+ *
+ * Sits next to deletion because that is when it matters — the privacy page
+ * tells people to export before they delete — but styled as an ordinary action,
+ * because taking a copy of your own data is not dangerous and should not be
+ * dressed up as though it were.
+ *
+ * Fetched rather than linked: the API takes a bearer token, which an <a href>
+ * cannot carry. Same approach the bulk payslip PDF download uses.
+ */
+export function ExportData() {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+
+  async function download() {
+    setBusy(true);
+    try {
+      const token = sessionStorage.getItem("mavuno_session_token");
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch("/api/settings/export", { headers });
+      if (!res.ok) throw new Error("The export could not be generated.");
+
+      // Honour the filename the server chose — it carries the company slug and
+      // the date, which is what makes a downloads folder full of these usable.
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const named = /filename="([^"]+)"/.exec(disposition)?.[1];
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = named ?? "mavuno-hr-export.zip";
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({ title: "Export downloaded", description: "Keep it somewhere safe and durable." });
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Export failed",
+        description: err?.message ?? "Something went wrong generating the export.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="border-border/50 shadow-sm bg-card/30">
+      <CardHeader className="pb-4">
+        <CardTitle className="font-mono flex items-center gap-2 text-base">
+          <Download className="h-4 w-4" />
+          EXPORT YOUR DATA
+        </CardTitle>
+        <CardDescription>
+          Everything this organisation holds, as a ZIP of spreadsheets.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Employees, payroll runs, payslips, filings, leave, loans, billing and
+          the audit trail — one CSV each, openable in Excel, with a README
+          explaining what is in them. Login credentials are deliberately left
+          out.
+        </p>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Worth doing before you delete the account, and worth doing once a year
+          regardless: you remain the employer, and the KRA can ask you to produce
+          P9s and returns for past years.
+        </p>
+        <Button variant="outline" onClick={download} disabled={busy}>
+          {busy ? "Preparing…" : "Download everything"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
 }
 
 export function DangerZone({ orgName }: { orgName: string }) {
