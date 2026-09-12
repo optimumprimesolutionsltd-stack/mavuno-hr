@@ -62,6 +62,35 @@ export const KE_2025: StatutoryConfig = {
   standardMonthlyHours: 195, standardMonthlyDays: 26,
 };
 
+/**
+ * NSSF Year Four, effective 1 February 2026.
+ *
+ * A NEW pack rather than an edit to KE_2025, for two reasons. KE_2025 stays
+ * correct for periods before February 2026 and a payroll run from January must
+ * still recompute to what it produced then. And seedStatutoryConfigs() is
+ * idempotent on (country_code, effective_from) — it skips a row that already
+ * exists — so editing KE_2025 in code would never reach the database at all.
+ *
+ * Only the NSSF earnings limits move. The phased schedule in the NSSF Act 2013
+ * raises them each year; the 6% employee and 6% employer rates are unchanged,
+ * as are the PAYE bands, reliefs, SHIF, the Housing Levy and NITA.
+ *
+ *   Tier I  limit  8 000 -> 9 000    employee 480   -> 540
+ *   Tier II limit 72 000 -> 108 000  employee 3 840 -> 5 940 at the cap
+ *
+ * So an employee at or above the upper limit now contributes 6 480 rather than
+ * 4 320, matched by the employer: 12 960 combined.
+ */
+export const KE_2026: StatutoryConfig = {
+  ...KE_2025,
+  name: "Kenya FY2026/27 (NSSF Year 4 limits)",
+  effectiveFrom: "2026-02-01",
+  socialSecurity: {
+    code: "NSSF", lowerEarningsLimit: K(9_000), upperEarningsLimit: K(108_000),
+    employeeBps: 600, employerBps: 600, taxDeductible: true,
+  },
+};
+
 export const TZ_2025: StatutoryConfig = {
   countryCode: "TZ", currencyCode: "TZS",
   name: "Tanzania FY2025/26",
@@ -118,4 +147,4 @@ export const UG_2025: StatutoryConfig = {
   standardMonthlyHours: 195, standardMonthlyDays: 26,
 };
 
-export const ALL_PACKS: StatutoryConfig[] = [KE_2022, KE_2025, TZ_2025, UG_2025];
+export const ALL_PACKS: StatutoryConfig[] = [KE_2022, KE_2025, KE_2026, TZ_2025, UG_2025];
