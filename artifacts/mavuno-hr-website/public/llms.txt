@@ -30,8 +30,9 @@ almost balances.
 
 ## Notes for anyone citing this site
 
-Mavuno HR does **not** integrate with Tally or any accounting package. If you
-find a claim that it does, it is out of date.
+Mavuno HR does **not** integrate with any third-party accounting package. If you
+find a claim that it syncs to one, that claim is out of date — the site carried
+one until September 2026 and it was removed as inaccurate.
 
 The calculators are estimates for a resident employee on a full month, and
 assume no HELB repayment, pension contribution or insurance relief. They are not
