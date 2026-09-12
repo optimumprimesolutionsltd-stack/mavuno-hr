@@ -104,6 +104,33 @@ export const SITE_ROUTES: SiteRoute[] = [
     ],
   },
   {
+    path: "/privacy",
+    title: "Privacy Policy | Mavuno HR",
+    description:
+      "How Mavuno HR handles personal data under Kenya's Data Protection Act 2019: what is collected, who processes it, how long it is kept and how to exercise your rights.",
+    social: "How Mavuno HR handles personal data under Kenya's Data Protection Act 2019.",
+    priority: "0.3",
+    breadcrumb: "Privacy Policy",
+  },
+  {
+    path: "/terms",
+    title: "Terms of Service | Mavuno HR",
+    description:
+      "The terms you agree to when using Mavuno HR: the service provided, billing, acceptable use, the limits of what payroll software can be responsible for, and governing law.",
+    social: "The terms you agree to when using Mavuno HR.",
+    priority: "0.3",
+    breadcrumb: "Terms of Service",
+  },
+  {
+    path: "/security",
+    title: "Security | Mavuno HR",
+    description:
+      "How Mavuno HR protects payroll data: authentication, role-based access, a tamper-evident audit trail, encryption in transit, and an honest account of what is not yet in place.",
+    social: "How Mavuno HR protects payroll data — and what is not yet in place.",
+    priority: "0.4",
+    breadcrumb: "Security",
+  },
+  {
     path: "/pricing",
     title: "Pricing — Kenyan Payroll Software from KES 0 | Mavuno HR",
     description:

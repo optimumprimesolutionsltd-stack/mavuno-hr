@@ -7,6 +7,9 @@ import FeaturesPage from '@/pages/features';
 import CompliancePage from '@/pages/compliance';
 import PricingPage from '@/pages/pricing';
 import PayeCalculatorPage from '@/pages/paye-calculator';
+import PrivacyPage from '@/pages/privacy';
+import TermsPage from '@/pages/terms';
+import SecurityPage from '@/pages/security';
 import { SITE_ROUTES } from '@/site-routes';
 
 const queryClient = new QueryClient();
@@ -21,6 +24,9 @@ const PAGES: Record<string, ComponentType> = {
   '/features': FeaturesPage,
   '/compliance': CompliancePage,
   '/paye-calculator': PayeCalculatorPage,
+  '/privacy': PrivacyPage,
+  '/terms': TermsPage,
+  '/security': SecurityPage,
   '/pricing': PricingPage,
 };
 
