@@ -77,10 +77,24 @@ export function Pricing() {
           up — no bill jump the day you hire. Enterprise pricing is per active employee, negotiated.
         </p>
 
-        <div className="mt-8 flex justify-center">
+        {/* These used to point at "#demo", which scrolled to a form that opened
+            the visitor's mail client — so the buttons saying "start" asked people
+            to compose an email instead, and on a phone with no mail app set up they
+            did nothing at all. /app/register has worked the whole time; nothing
+            linked to it.
+        
+            ?next=billing lands on billing rather than the dashboard, for buyers who
+            do not want to be parked in a trial first. */}
+        <div className="mt-8 flex flex-col items-center gap-3">
           <Button asChild size="lg">
-            <a href="#demo">Start free trial</a>
+            <a href="/app/register">Start free trial</a>
           </Button>
+          <a
+            href="/app/register?next=billing"
+            className="text-sm text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+          >
+            Or skip the trial and pay now
+          </a>
         </div>
 
         {/* Free trial + includes */}
