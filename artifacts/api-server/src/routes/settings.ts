@@ -9,6 +9,7 @@ import { resolveConfig } from "../lib/statutory-resolve.js";
 import { accountReferenceFor } from "../lib/mpesa.js";
 import { HttpError } from "../lib/http-error.js";
 import { DELETION_GRACE_DAYS, deletionDateFrom } from "../lib/org-purge.js";
+import { buildOrgExport } from "../lib/org-export.js";
 
 const router = Router();
 
@@ -419,6 +420,48 @@ router.delete("/deletion", requireAuth("org:admin"), async (req, res, next) => {
     });
 
     res.json({ scheduled: false });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+// GET /api/settings/export — everything this organisation holds, as a ZIP of CSVs.
+// The counterpart to deletion: the privacy page tells people to export before
+// they delete, so this has to exist for that advice to be honest.
+router.get("/export", requireAuth("org:admin"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const [org] = await db
+      .select({ name: organizations.name })
+      .from(organizations)
+      .where(eq(organizations.id, p.orgId))
+      .limit(1);
+    if (!org) throw new HttpError(404, "Organization not found");
+
+    const out = await buildOrgExport(p.orgId, org.name);
+
+    // Audited: an export is every salary and national ID the company holds
+    // leaving the system in one file. Who took one, and when, is worth knowing.
+    await db.transaction(async (tx) => {
+      await writeAudit(tx as any, {
+        orgId: p.orgId,
+        action: "ORG_DATA_EXPORTED",
+        entity: "organization",
+        entityId: String(p.orgId),
+        detail: `Exported ${Object.values(out.rowCounts).reduce((a: number, b: number) => a + b, 0)} rows across ${Object.keys(out.rowCounts).length} files`,
+        actorUserId: p.userId,
+        actorEmail: p.email,
+        actorIp: getIp(req),
+        before: null,
+        after: { rowCounts: out.rowCounts },
+      });
+    });
+
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="${out.filename}"`);
+    res.setHeader("Content-Length", String(out.buffer.length));
+    res.end(out.buffer);
   } catch (err) {
     next(err);
   }
