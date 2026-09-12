@@ -1,0 +1,95 @@
+name: CI
+
+# Until now the Render deploy was the first thing that ever ran a build of this
+# repo, and nothing checked a branch before it merged. That is uncomfortable for
+# any change, and unworkable for the marketing site specifically: pnpm-workspace
+# .yaml excludes every rollup/esbuild/tailwind-oxide platform binary except
+# linux-x64-gnu, so `vite build` cannot run on a Windows or macOS machine at all.
+# Linux CI is the only place the build is reproducible outside production.
+#
+# Deliberately does NOT run `typecheck` on api-server: it reports 217
+# pre-existing errors, all TS6305 from lib/db having no built dist. Adding it
+# here would make CI red on arrival and train everyone to ignore it. Worth
+# fixing separately, then adding.
+
+on:
+  pull_request:
+  push:
+    branches: [mavuno-hr]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck the marketing site
+        run: pnpm --filter @workspace/mavuno-hr-website typecheck
+
+      - name: Build the marketing site (client, SSR bundle, prerender)
+        run: pnpm --filter @workspace/mavuno-hr-website build
+        env:
+          BASE_PATH: /
+
+      - name: Every advertised route must be a real, distinct document
+        run: |
+          cd artifacts/mavuno-hr-website/dist/public
+          test -s sitemap.xml
+
+          # Derive the page list from the sitemap the build just generated,
+          # rather than hardcoding it. A hardcoded list silently stops covering
+          # new pages: when /privacy, /terms and /security were added this step
+          # stayed green while checking none of them.
+          urls=$(grep -oP '(?<=<loc>)[^<]+' sitemap.xml)
+          count=$(echo "$urls" | wc -l)
+          test "$count" -ge 5 || { echo "sitemap has only $count urls"; exit 1; }
+
+          files=""
+          for u in $urls; do
+            p=${u#https://mavunohr.co.ke/}
+            if [ -z "$p" ]; then f="index.html"; else f="${p%/}/index.html"; fi
+            test -s "$f" || { echo "missing $f, advertised as $u"; exit 1; }
+            files="$files $f"
+          done
+
+          # Each page ships its own content, not a shared empty shell.
+          # Written as `if grep`, NOT `! grep`: under set -e bash ignores any
+          # command whose status is inverted with `!`, so the negated form is a
+          # no-op that can never fail the job.
+          if grep -q 'app-html' index.html; then echo "prerender did not run: app-html slot survived"; exit 1; fi
+          if grep -q '<div id="root"></div>' index.html; then echo "prerender produced an empty root div"; exit 1; fi
+
+          # ...and its own canonical. Pages sharing one canonical is worse than
+          # no canonical at all, and it is an easy regression to miss.
+          canonicals=$(grep -ho 'rel="canonical" href="[^"]*"' $files | sort -u | wc -l)
+          test "$canonicals" -eq "$count" || { echo "expected $count distinct canonicals, got $canonicals"; exit 1; }
+
+          # FAQ markup is only legitimate where the questions are on the page.
+          faq=$(grep -l FAQPage $files | wc -l)
+          test "$faq" -eq 1 || { echo "FAQPage appears on $faq pages, expected exactly 1"; exit 1; }
+          grep -q FAQPage paye-calculator/index.html || { echo "FAQPage is on the wrong page"; exit 1; }
+
+          # The product has no Tally integration. Nothing on the site may say
+          # otherwise, including the JSON-LD featureList.
+          if grep -rilI tally .; then echo "Tally claim reintroduced"; exit 1; fi
+
+          echo "marketing site OK ($count pages checked)"
+
+      - name: Build the portal
+        run: pnpm --filter @workspace/mavuno-hr build
+        env:
+          BASE_PATH: /app/
+
+      - name: Build the api-server
+        run: pnpm --filter @workspace/api-server build
