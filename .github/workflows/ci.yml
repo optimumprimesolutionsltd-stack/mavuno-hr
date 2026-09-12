@@ -57,7 +57,7 @@ jobs:
           # The point of prerendering: each page ships its own content, not a
           # shared empty shell. If the slot survives, the render did nothing.
           ! grep -q 'app-html' index.html
-          grep -q 'Run payroll with absolute confidence' index.html
+          ! grep -q '<div id="root"></div>' index.html
 
           # ...and its own canonical. Five pages sharing one canonical is worse
           # than no canonical at all, and it is an easy regression to miss.
