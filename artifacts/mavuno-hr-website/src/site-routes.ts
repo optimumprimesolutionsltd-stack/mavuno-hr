@@ -28,6 +28,13 @@ export interface SiteRoute {
   /** Whether the SoftwareApplication offer graph belongs on this page. */
   offers?: boolean;
   /**
+   * Set on guides. Emits BlogPosting structured data so search engines treat
+   * the page as a dated article by a named publisher rather than another
+   * marketing page. `published` is the date the piece went up; bump `updated`
+   * when the substance changes, not the wording.
+   */
+  article?: { published: string; updated?: string };
+  /**
    * Questions rendered on the page AND emitted as FAQPage structured data.
    * Deliberately one array rather than two: schema that describes something the
    * visitor cannot see is a guidelines violation, so the only safe way to ship
@@ -112,6 +119,26 @@ export const SITE_ROUTES: SiteRoute[] = [
       "Enter a take-home figure and get the gross to put on the contract, plus what it costs the employer.",
     priority: "0.9",
     breadcrumb: "Net to Gross Calculator",
+  },
+  {
+    path: "/guides",
+    title: "Guides — Kenyan Payroll & HR | Mavuno HR",
+    description:
+      "Practical guides to running payroll in Kenya: what statutory deductions actually cost, how gross and net relate, and what the KRA expects from an employer.",
+    social: "Practical guides to running payroll in Kenya.",
+    priority: "0.6",
+    breadcrumb: "Guides",
+  },
+  {
+    path: "/guides/cost-of-hiring-in-kenya",
+    title: "What a Hire Actually Costs in Kenya | Mavuno HR",
+    description:
+      "The salary you agree is not what you pay or what they receive. Real figures showing the gap between employer cost, gross and take-home — and why it widens as salaries rise.",
+    social:
+      "The salary you agree is neither what you pay nor what they receive. Real figures on the gap, and why it widens.",
+    priority: "0.8",
+    breadcrumb: "What a hire actually costs",
+    article: { published: "2026-09-13" },
   },
   {
     path: "/privacy",

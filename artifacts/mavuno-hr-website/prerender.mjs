@@ -131,6 +131,25 @@ function jsonLd(route) {
     });
   }
 
+  // A guide is a dated article by a named publisher, not another marketing
+  // page, and saying so is the difference between being treated as a source and
+  // being treated as a brochure.
+  if (route.article) {
+    graph.push({
+      "@type": "BlogPosting",
+      "@id": `${SITE_ORIGIN}${route.path}#article`,
+      headline: route.title.split("|")[0].trim(),
+      description: route.description,
+      datePublished: route.article.published,
+      dateModified: route.article.updated ?? route.article.published,
+      inLanguage: "en-KE",
+      image: OG_IMAGE,
+      mainEntityOfPage: { "@type": "WebPage", "@id": `${SITE_ORIGIN}${route.path}` },
+      author: { "@id": `${SITE_ORIGIN}/#organization` },
+      publisher: { "@id": `${SITE_ORIGIN}/#organization` },
+    });
+  }
+
   if (route.breadcrumb) {
     graph.push({
       "@type": "BreadcrumbList",
