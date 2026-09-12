@@ -11,7 +11,7 @@ export default function TermsPage() {
   return (
     <LegalPage
       title="Terms of Service"
-      updated="12 September 2026"
+      updated="13 September 2026"
       intro="These terms apply when you use Mavuno HR. They are written to be read rather than skimmed, and the section on statutory accuracy is the one worth reading twice."
     >
       <Section heading="Who you are contracting with">
@@ -128,8 +128,10 @@ export default function TermsPage() {
         </p>
         <p>
           After closure we retain payroll records unless you ask us to delete them.
-          That request is currently handled manually — email us and we will action
-          it.
+          You can also delete the account yourself from Settings. That is
+          scheduled rather than immediate: nothing is removed for 30 days and you
+          can cancel within that window. Export anything you are required to
+          retain before the date arrives — as the employer, that duty is yours.
         </p>
       </Section>
 

@@ -11,7 +11,7 @@ export default function SecurityPage() {
   return (
     <LegalPage
       title="Security"
-      updated="12 September 2026"
+      updated="13 September 2026"
       intro="Payroll is the most sensitive system most companies run — every salary, every bank account, in one place. This page describes what protects it, and is equally clear about what we have not built yet."
     >
       <Section heading="Access">
@@ -82,7 +82,7 @@ export default function SecurityPage() {
             "No third-party penetration test or independent security audit has been carried out.",
             "We hold no SOC 2, ISO 27001 or equivalent certification.",
             "Two-factor authentication is not yet available on accounts.",
-            "Automated data deletion and a fixed retention schedule do not exist — erasure is handled manually on request.",
+            "No fixed retention schedule: nothing is deleted on a timer while an account is open. Account deletion itself is self-serve, with a 30-day grace period.",
             "We do not currently publish a formal uptime SLA or status page.",
           ]}
         />

@@ -12,7 +12,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title="Privacy Policy"
-      updated="12 September 2026"
+      updated="13 September 2026"
       intro="Mavuno HR is payroll software, so almost everything in it is personal data about someone. This page sets out exactly what we hold, who it is shared with, and what you can ask us to do about it."
     >
       <Section heading="Who is responsible for your data">
@@ -120,13 +120,26 @@ export default function PrivacyPage() {
           statutory returns must be reproducible years after the fact and Kenyan
           tax law requires employers to retain records.
         </p>
+        <p>
+          You can delete the account yourself, from Settings. Deletion is
+          scheduled rather than immediate: nothing is removed for{" "}
+          <strong>30 days</strong>, you can cancel at any point in that window,
+          and when the date arrives the organisation and everything in it goes —
+          employees, payroll runs, payslips, filings, loans, leave, users and the
+          audit trail.
+        </p>
         <Callout>
-          <strong>Being straight with you:</strong> we have not yet built
-          automated deletion or a fixed retention schedule. Today, erasure is done
-          manually when you ask us. If you close your account and want your data
-          removed, email us and we will action it — it will not happen
-          automatically. We are working on making this self-service.
+          <strong>Export before you do it.</strong> Payroll records cannot be
+          recreated, and the obligation to keep them is yours rather than ours:
+          you are the employer, and the KRA can still ask you to produce P9s and
+          returns for past years after the account is gone. The 30 days exist so
+          you can take copies of anything you are required to retain.
         </Callout>
+        <p>
+          What we still do not have is a fixed retention schedule — we do not
+          delete anything on a timer while an account is open. Deletion happens
+          because you ask for it.
+        </p>
       </Section>
 
       <Section heading="Your rights under the Data Protection Act 2019">
