@@ -34,19 +34,18 @@ export function Footer() {
           <div>
             <h4 className="font-semibold text-secondary mb-4">Resources</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-primary transition-colors">Help Center</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">API Documentation</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">KRA Tax Guide</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Blog</a></li>
+              <li><Link href="/paye-calculator" className="hover:text-primary transition-colors">PAYE Calculator</Link></li>
+              <li><Link href="/compliance" className="hover:text-primary transition-colors">Statutory Compliance</Link></li>
+              <li><a href="mailto:info@mavunohr.co.ke" className="hover:text-primary transition-colors">Contact Support</a></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-semibold text-secondary mb-4">Legal</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-primary transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Terms of Service</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Security</a></li>
+              <li><Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link></li>
+              <li><Link href="/security" className="hover:text-primary transition-colors">Security</Link></li>
             </ul>
           </div>
 
