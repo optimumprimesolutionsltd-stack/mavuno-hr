@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
 import crypto from "node:crypto";
-import { eq, ne, and, isNull, inArray, count, max, sql } from "drizzle-orm";
+import { eq, ne, and, isNull, inArray, count, max, sql, gte } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { organizations, employees, payrollRuns, users, passwordResetTokens, statutoryConfigs, billingCredits } from "@workspace/db/schema";
+import { organizations, employees, payrollRuns, users, passwordResetTokens, statutoryConfigs, billingCredits, demoRequests, newsletterSubscribers } from "@workspace/db/schema";
 import { requireAuth, getIp, type AuthRequest } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
 import { writeAudit } from "../lib/audit.js";
@@ -87,6 +87,40 @@ function requireSuperAdminOrSyncKey() {
     });
   };
 }
+
+// ── GET /api/super/marketing-capture ─────────────────────────────────────────
+// Demo requests and newsletter signups, for the CRM to mirror. Same guard as
+// /orgs: a super admin session, or the read-only CRM_SYNC_KEY.
+//
+// Returns everything within the window rather than tracking what has already
+// been sent. The CRM keys each record deterministically (mavuno_demo_<id>,
+// mavuno_sub_<id>) so a repeated pull is an upsert, which means neither side
+// has to hold sync state and a missed run repairs itself on the next one.
+router.get("/marketing-capture", requireSuperAdminOrSyncKey(), async (req, res, next) => {
+  try {
+    // Default to 30 days. Long enough that a CRM outage over a long weekend
+    // loses nothing, short enough that the payload stays small forever.
+    const days = Math.min(365, Math.max(1, Number(req.query.days ?? 30) || 30));
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const [demos, subs] = await Promise.all([
+      db
+        .select()
+        .from(demoRequests)
+        .where(gte(demoRequests.createdAt, since))
+        .orderBy(demoRequests.createdAt),
+      db
+        .select()
+        .from(newsletterSubscribers)
+        .where(gte(newsletterSubscribers.createdAt, since))
+        .orderBy(newsletterSubscribers.createdAt),
+    ]);
+
+    res.json({ product: "mavuno", since: since.toISOString(), demoRequests: demos, newsletterSubscribers: subs });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // ── GET /api/super/orgs ───────────────────────────────────────────────────────
 router.get("/orgs", requireSuperAdminOrSyncKey(), async (_req, res, next) => {

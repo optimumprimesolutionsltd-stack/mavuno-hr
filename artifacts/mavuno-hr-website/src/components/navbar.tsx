@@ -15,11 +15,19 @@ export function Navbar() {
           <Link href="/compliance" className="hover:text-primary transition-colors">Compliance</Link>
           <Link href="/paye-calculator" className="hover:text-primary transition-colors">PAYE Calculator</Link>
           <Link href="/pricing" className="hover:text-primary transition-colors">Pricing</Link>
+          <Link href="/demo" className="hover:text-primary transition-colors">Book a Demo</Link>
         </div>
 
-        <div className="flex items-center gap-4">
-          <Button asChild>
+        {/* "Book a demo" is the primary action for someone who has not signed
+            up; "Log in" is only useful to someone who already has. Ordering
+            them the other way round, as this did, put the button that helps
+            the fewest visitors in the loudest position. */}
+        <div className="flex items-center gap-3">
+          <Button asChild variant="ghost" className="hidden sm:inline-flex">
             <a href="/app/">Log In</a>
+          </Button>
+          <Button asChild>
+            <Link href="/demo">Book a Demo</Link>
           </Button>
         </div>
       </div>

@@ -11,6 +11,7 @@ import NetToGrossCalculatorPage from '@/pages/net-to-gross-calculator';
 import PrivacyPage from '@/pages/privacy';
 import TermsPage from '@/pages/terms';
 import SecurityPage from '@/pages/security';
+import DemoPage from '@/pages/demo';
 import { SITE_ROUTES } from '@/site-routes';
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const PAGES: Record<string, ComponentType> = {
   '/privacy': PrivacyPage,
   '/terms': TermsPage,
   '/security': SecurityPage,
+  '/demo': DemoPage,
   '/pricing': PricingPage,
 };
 

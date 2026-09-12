@@ -12,9 +12,11 @@ import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
+import { demoRequests, newsletterSubscribers } from "@workspace/db/schema";
 import { computePayslip, emptyPayInput, solveGrossForNet } from "../lib/payroll.js";
 import { resolveCountryConfig } from "../lib/statutory-resolve.js";
 import { toCents } from "../lib/money.js";
+import { logger } from "../lib/logger.js";
 
 const router = Router();
 
@@ -212,6 +214,88 @@ router.post("/calculator/net-to-gross", rateLimit, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+
+// --- Marketing capture -----------------------------------------------------
+// Both endpoints answer 200 to anything that parses. A visitor filling in a
+// form has no stake in our storage layer, and a failure here must never look
+// like a reason to give up on the product — so the row is best-effort and the
+// reply is reassuring either way. Failures are logged, not surfaced.
+
+const email = z.string().email().max(254);
+
+/** POST /api/public/demo-request */
+router.post("/demo-request", rateLimit, async (req, res) => {
+  const parsed = z
+    .object({
+      name: z.string().min(1).max(120),
+      email,
+      company: z.string().max(160).optional(),
+      phone: z.string().max(40).optional(),
+      employeeCount: z.string().max(40).optional(),
+      message: z.string().max(2000).optional(),
+      pagePath: z.string().max(200).optional(),
+    })
+    .safeParse(req.body);
+
+  if (!parsed.success) {
+    res.status(422).json({ error: "Please check the name and email address." });
+    return;
+  }
+
+  try {
+    await db.insert(demoRequests).values({
+      name: parsed.data.name.trim(),
+      email: parsed.data.email.trim().toLowerCase(),
+      company: parsed.data.company?.trim() || null,
+      phone: parsed.data.phone?.trim() || null,
+      employeeCount: parsed.data.employeeCount?.trim() || null,
+      message: parsed.data.message?.trim() || null,
+      pagePath: parsed.data.pagePath?.trim() || null,
+    });
+  } catch (err) {
+    logger.error({ err }, "demo-request: could not store");
+  }
+
+  res.json({ received: true });
+});
+
+/** POST /api/public/newsletter */
+router.post("/newsletter", rateLimit, async (req, res) => {
+  const parsed = z
+    .object({
+      email,
+      name: z.string().max(120).optional(),
+      pagePath: z.string().max(200).optional(),
+    })
+    .safeParse(req.body);
+
+  if (!parsed.success) {
+    res.status(422).json({ error: "That does not look like an email address." });
+    return;
+  }
+
+  try {
+    // Re-subscribing is not an error and must not 500 on the unique index. It
+    // also un-unsubscribes: someone typing their address into the box again is
+    // asking to receive the thing.
+    await db
+      .insert(newsletterSubscribers)
+      .values({
+        email: parsed.data.email.trim().toLowerCase(),
+        name: parsed.data.name?.trim() || null,
+        pagePath: parsed.data.pagePath?.trim() || null,
+      })
+      .onConflictDoUpdate({
+        target: newsletterSubscribers.email,
+        set: { status: "active", name: parsed.data.name?.trim() || null },
+      });
+  } catch (err) {
+    logger.error({ err }, "newsletter: could not store");
+  }
+
+  res.json({ received: true });
 });
 
 export default router;
