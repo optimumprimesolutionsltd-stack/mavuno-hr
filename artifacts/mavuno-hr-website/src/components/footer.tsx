@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import logoSvg from "@assets/branding/mavuno-hr-wordmark.svg";
+import { NewsletterSignup } from "./newsletter-signup";
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -7,6 +8,10 @@ export function Footer() {
   return (
     <footer className="bg-white border-t border-border pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-6">
+        <div className="mb-16">
+          <NewsletterSignup />
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-5 gap-12 mb-16">
           <div className="md:col-span-1">
             <img src={logoSvg} alt="Mavuno HR" className="h-8 w-auto mb-3" />
@@ -27,6 +32,7 @@ export function Footer() {
               <li><Link href="/features" className="hover:text-primary transition-colors">Features</Link></li>
               <li><Link href="/compliance" className="hover:text-primary transition-colors">Compliance</Link></li>
               <li><Link href="/pricing" className="hover:text-primary transition-colors">Pricing</Link></li>
+              <li><Link href="/demo" className="hover:text-primary transition-colors">Book a Demo</Link></li>
             </ul>
           </div>
 
