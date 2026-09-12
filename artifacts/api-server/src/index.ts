@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { runStartupMigrations } from "./lib/startup-migrations.js";
 import { scheduleFilingReminders } from "./lib/filing-reminders.js";
 import { scheduleMpesaPaymentPoller } from "./lib/mpesa-payment-poller.js";
+import { scheduleOrgPurge } from "./lib/org-purge.js";
 
 const rawPort = process.env["PORT"];
 
@@ -28,4 +29,5 @@ app.listen(port, async (err) => {
   await runStartupMigrations();
   scheduleFilingReminders();
   scheduleMpesaPaymentPoller();
+    scheduleOrgPurge();
 });

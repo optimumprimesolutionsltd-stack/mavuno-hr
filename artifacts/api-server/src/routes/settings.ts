@@ -8,6 +8,7 @@ import { writeAudit } from "../lib/audit.js";
 import { resolveConfig } from "../lib/statutory-resolve.js";
 import { accountReferenceFor } from "../lib/mpesa.js";
 import { HttpError } from "../lib/http-error.js";
+import { DELETION_GRACE_DAYS, deletionDateFrom } from "../lib/org-purge.js";
 
 const router = Router();
 
@@ -274,6 +275,153 @@ router.post("/statutory-override", requireAuth("org:admin"), async (req, res, ne
 
     res.json({ ok: true, tier2Provider: body.tier2Provider, tier2ProviderName: body.tier2ProviderName });
   } catch (err) { next(err); }
+});
+
+
+// ── Account deletion ──────────────────────────────────────────────────────────
+// The Data Protection Act gives a right to erasure and the privacy policy
+// promises it. Before this, honouring a request meant someone running SQL by
+// hand, so the policy had to admit deletion was manual. This makes it the
+// customer's to schedule and theirs to reverse.
+//
+// Scheduled rather than immediate, for a reason specific to payroll: the data
+// is not recreatable. An employer who deletes and then needs a P9 for a former
+// employee has no second copy, and Kenyan tax law still expects them to produce
+// records for years afterwards. The grace period is the window to change their
+// mind or get an export out.
+
+// GET /api/settings/deletion — is one scheduled?
+router.get("/deletion", requireAuth("org:admin"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const [org] = await db
+      .select({
+        requestedAt: organizations.deletionRequestedAt,
+        scheduledFor: organizations.deletionScheduledFor,
+        requestedBy: organizations.deletionRequestedBy,
+      })
+      .from(organizations)
+      .where(eq(organizations.id, p.orgId))
+      .limit(1);
+
+    if (!org) throw new HttpError(404, "Organization not found");
+
+    res.json({
+      scheduled: org.scheduledFor !== null,
+      requestedAt: org.requestedAt,
+      scheduledFor: org.scheduledFor,
+      requestedByUserId: org.requestedBy,
+      graceDays: DELETION_GRACE_DAYS,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/settings/deletion — schedule it.
+router.post("/deletion", requireAuth("org:admin"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const parsed = z.object({ confirmName: z.string().min(1) }).safeParse(req.body);
+    if (!parsed.success) {
+      throw new HttpError(422, "Type the company name to confirm");
+    }
+
+    const [org] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, p.orgId))
+      .limit(1);
+    if (!org) throw new HttpError(404, "Organization not found");
+
+    // Typing the name is the whole safeguard. It is not security — an admin is
+    // already authenticated — it is friction, so that deleting every payroll
+    // record the company has cannot happen on a misclick.
+    if (parsed.data.confirmName.trim().toLowerCase() !== org.name.trim().toLowerCase()) {
+      throw new HttpError(422, "The name entered does not match this company's name");
+    }
+
+    if (org.deletionScheduledFor) {
+      throw new HttpError(409, "Deletion is already scheduled for this organisation");
+    }
+
+    const requestedAt = new Date();
+    const scheduledFor = deletionDateFrom(requestedAt);
+
+    // One transaction: a scheduled deletion with no audit entry, or an entry
+    // with nothing scheduled, would both be worse than failing outright.
+    await db.transaction(async (tx) => {
+      await tx
+        .update(organizations)
+        .set({
+          deletionRequestedAt: requestedAt,
+          deletionScheduledFor: scheduledFor,
+          deletionRequestedBy: p.userId,
+        })
+        .where(eq(organizations.id, p.orgId));
+
+      // The audit log is itself inside the cascade and will not survive the
+      // purge. Until then it is the record of who asked and when.
+      await writeAudit(tx as any, {
+        orgId: p.orgId,
+        action: "ORG_DELETION_REQUESTED",
+        entity: "organization",
+        entityId: String(p.orgId),
+        detail: `Deletion scheduled for ${scheduledFor.toISOString()}`,
+        actorUserId: p.userId,
+        actorEmail: p.email,
+        actorIp: getIp(req),
+        before: null,
+        after: { deletionScheduledFor: scheduledFor },
+      });
+    });
+
+    res.json({ scheduled: true, requestedAt, scheduledFor, graceDays: DELETION_GRACE_DAYS });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/settings/deletion — call it off.
+router.delete("/deletion", requireAuth("org:admin"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const [org] = await db
+      .select({ scheduledFor: organizations.deletionScheduledFor })
+      .from(organizations)
+      .where(eq(organizations.id, p.orgId))
+      .limit(1);
+    if (!org) throw new HttpError(404, "Organization not found");
+    if (!org.scheduledFor) throw new HttpError(409, "No deletion is scheduled");
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(organizations)
+        .set({
+          deletionRequestedAt: null,
+          deletionScheduledFor: null,
+          deletionRequestedBy: null,
+        })
+        .where(eq(organizations.id, p.orgId));
+
+      await writeAudit(tx as any, {
+        orgId: p.orgId,
+        action: "ORG_DELETION_CANCELLED",
+        entity: "organization",
+        entityId: String(p.orgId),
+        detail: "Scheduled deletion cancelled",
+        actorUserId: p.userId,
+        actorEmail: p.email,
+        actorIp: getIp(req),
+        before: { deletionScheduledFor: org.scheduledFor },
+        after: null,
+      });
+    });
+
+    res.json({ scheduled: false });
+  } catch (err) {
+    next(err);
+  }
 });
 
 export default router;
