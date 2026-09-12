@@ -465,6 +465,39 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   index("prt_user_idx").on(t.userId),
 ]);
 
+/**
+ * Prospects, not tenants — so deliberately NOT scoped by orgId. These are
+ * people who have asked about Mavuno HR before they have an organisation, and
+ * attaching them to one would be a lie about what the row means.
+ *
+ * The CRM pulls these on a schedule and mirrors them into its own `leads` and
+ * `newsletter_subscribers` nodes, keyed deterministically so a repeated pull is
+ * an upsert rather than a duplicate. Nothing here is deleted after syncing; the
+ * CRM is a mirror, not the owner.
+ */
+export const demoRequests = pgTable("demo_requests", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  company: text("company"),
+  phone: text("phone"),
+  employeeCount: text("employee_count"),
+  message: text("message"),
+  // Which page the form was submitted from — the guide, pricing, the
+  // calculator. Worth knowing which page actually converts.
+  pagePath: text("page_path"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const newsletterSubscribers = pgTable("newsletter_subscribers", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull(),
+  name: text("name"),
+  pagePath: text("page_path"),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
   orgId: integer("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),

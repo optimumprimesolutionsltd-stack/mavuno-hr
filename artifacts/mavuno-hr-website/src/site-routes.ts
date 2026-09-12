@@ -114,6 +114,16 @@ export const SITE_ROUTES: SiteRoute[] = [
     breadcrumb: "Net to Gross Calculator",
   },
   {
+    path: "/demo",
+    title: "Book a Demo — Kenyan Payroll & HR Software | Mavuno HR",
+    description:
+      "Book a free 30-minute Mavuno HR demo. We run a payroll end to end on your own numbers and answer the awkward questions about PAYE, NSSF, SHIF and the Housing Levy.",
+    social:
+      "Half an hour, your numbers, no obligation. We run a payroll end to end and answer the hard questions.",
+    priority: "0.8",
+    breadcrumb: "Book a Demo",
+  },
+  {
     path: "/privacy",
     title: "Privacy Policy | Mavuno HR",
     description:

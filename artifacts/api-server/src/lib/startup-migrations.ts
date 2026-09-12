@@ -776,6 +776,45 @@ async function addOrgAccessUntil(): Promise<void> {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS organizations_deletion_due_idx ON organizations(deletion_scheduled_for)`);
 }
 
+async function createMarketingCaptureTables(): Promise<void> {
+  // Marketing capture. Standalone tables with no foreign keys: these rows are
+  // prospects, and a prospect has no organisation yet by definition.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS demo_requests (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      company TEXT,
+      phone TEXT,
+      employee_count TEXT,
+      message TEXT,
+      page_path TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+      id SERIAL PRIMARY KEY,
+      email TEXT NOT NULL,
+      name TEXT,
+      page_path TEXT,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS demo_requests_created_idx ON demo_requests(created_at)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS newsletter_created_idx ON newsletter_subscribers(created_at)`);
+  // One row per address. A second signup updates the existing row rather than
+  // stacking duplicates the CRM would then have to de-duplicate.
+  //
+  // A plain column index, not LOWER(email), even though addresses are
+  // case-insensitive in practice. ON CONFLICT can only target an index Postgres
+  // can match by name or expression, and Drizzle's onConflictDoUpdate takes
+  // columns rather than expressions — so a functional index here would compile
+  // and then fail at runtime with "no unique or exclusion constraint matching".
+  // The normalisation happens at the write instead: every insert lowercases the
+  // address first, which makes the column index exactly as effective.
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS newsletter_email_key ON newsletter_subscribers(email)`);
+}
+
 async function addOrgRequiresPayrollApproval(): Promise<void> {
   // Mavuno's production DB is a fresh launch with no legacy orgs, so every org
   // — existing and future — gets the streamlined single-actor default. The
@@ -817,6 +856,7 @@ export async function runStartupMigrations(): Promise<void> {
     ["addOrgRequiresPayrollApproval", addOrgRequiresPayrollApproval],
     ["addOrgAccessUntil", addOrgAccessUntil],
     ["createBillingCreditsTable", createBillingCreditsTable],
+    ["createMarketingCaptureTables", createMarketingCaptureTables],
   ];
 
   for (const [name, run] of steps) {
