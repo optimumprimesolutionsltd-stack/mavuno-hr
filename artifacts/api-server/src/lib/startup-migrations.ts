@@ -767,6 +767,13 @@ async function addOrgAccessUntil(): Promise<void> {
   // Nullable, no backfill: null means unlimited access — existing orgs are
   // unaffected until a super-admin (or a future payment) sets a date.
   await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS access_until TIMESTAMP`);
+
+  // Scheduled account deletion. Nullable and additive: an organisation that has
+  // never asked to be deleted reads as NULL on all three.
+  await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS deletion_requested_at TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS deletion_scheduled_for TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS deletion_requested_by INTEGER`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS organizations_deletion_due_idx ON organizations(deletion_scheduled_for)`);
 }
 
 async function addOrgRequiresPayrollApproval(): Promise<void> {

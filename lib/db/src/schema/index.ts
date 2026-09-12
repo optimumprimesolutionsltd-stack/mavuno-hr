@@ -43,6 +43,14 @@ export const organizations = pgTable("organizations", {
      Enforced by requireActiveAccess() on the feature routers; getPrincipal()
      does NOT gate on this, so a lapsed customer can still log in and pay. */
   accessUntil: timestamp("access_until"),
+  // Scheduled deletion. Null on a live organisation; a request sets all three
+  // and cancelling clears all three. The purge worker acts on
+  // deletionScheduledFor and never recomputes it from deletionRequestedAt, so
+  // changing the grace period later cannot bring forward a deletion whose date
+  // someone has already been told.
+  deletionRequestedAt: timestamp("deletion_requested_at"),
+  deletionScheduledFor: timestamp("deletion_scheduled_for"),
+  deletionRequestedBy: integer("deletion_requested_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [uniqueIndex("orgs_slug_uq").on(t.slug)]);
 
