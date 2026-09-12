@@ -81,7 +81,12 @@ export default function PayeCalculatorPage() {
             this page on purpose — they move with each Finance Act and the NSSF
             phase-in schedule. The calculator reads them from the same statutory
             configuration Mavuno HR runs payroll on, so it updates when that
-            does. More on how the deductions and returns fit together on the{" "}
+            does. Going the other way — from a take-home figure to the gross it
+            needs — is the{" "}
+            <Link href="/net-to-gross-calculator" className="text-primary font-medium hover:underline">
+              net to gross calculator
+            </Link>
+            . More on how the deductions and returns fit together on the{" "}
             <Link href="/compliance" className="text-primary font-medium hover:underline">
               compliance page
             </Link>

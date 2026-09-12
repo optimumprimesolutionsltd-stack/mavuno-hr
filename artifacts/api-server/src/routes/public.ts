@@ -12,7 +12,7 @@ import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { computePayslip, emptyPayInput } from "../lib/payroll.js";
+import { computePayslip, emptyPayInput, solveGrossForNet } from "../lib/payroll.js";
 import { resolveCountryConfig } from "../lib/statutory-resolve.js";
 import { toCents } from "../lib/money.js";
 
@@ -129,6 +129,84 @@ router.post("/calculator", rateLimit, async (req, res, next) => {
         housingLevyEmployer: result.housingLevyEmployer,
         bands: result.bands,
         warnings: result.warnings,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/public/calculator/net-to-gross
+ *
+ * The inverse of the above: "what do I have to put on the contract so this
+ * person takes home 80,000?" There is no closed form for it — PAYE is
+ * progressive and NSSF, SHIF and the Housing Levy all reduce taxable income —
+ * so solveGrossForNet binary-searches the gross that produces the target net.
+ *
+ * Same statutory pack and the same rate limit as the gross-to-net route. The
+ * search is bounded (60 iterations, doubling to bracket) and runs on cached
+ * config, so it is not meaningfully more expensive than a single payslip.
+ */
+router.post("/calculator/net-to-gross", rateLimit, async (req, res, next) => {
+  try {
+    const parsed = z.object({ targetNet: moneyString }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() });
+      return;
+    }
+
+    const targetNet = toCents(parsed.data.targetNet);
+    if (targetNet <= 0) {
+      res.status(422).json({ error: "Enter a take-home amount greater than zero" });
+      return;
+    }
+
+    const period = new Date().toISOString().slice(0, 7);
+    const { config } = await resolveCountryConfig(db as never, "KE", period);
+
+    const template = emptyPayInput() as Omit<ReturnType<typeof emptyPayInput>, "basicSalary"> & {
+      basicSalary?: number;
+    };
+    delete template.basicSalary;
+
+    let solved;
+    try {
+      solved = solveGrossForNet(targetNet, template, config);
+    } catch {
+      // solveGrossForNet throws when it cannot bracket the target, which in
+      // practice means an amount far outside any real salary. A 422 says "that
+      // input is not workable" rather than surfacing a 500 for bad input.
+      res.status(422).json({ error: "That take-home figure is outside the range this can solve" });
+      return;
+    }
+
+    const r = solved.result;
+    res.json({
+      period,
+      config: config.name,
+      currency: config.currencyCode,
+      targetNet,
+      // The solver lands on the smallest gross whose net is >= the target, so
+      // the achieved net can be a cent or two over. Return it rather than
+      // echoing the request, so the page can show what will actually be paid.
+      achievedNet: r.netPay,
+      result: {
+        gross: r.gross,
+        taxableIncome: r.taxableIncome,
+        payeBeforeRelief: r.payeBeforeRelief,
+        personalRelief: r.personalRelief,
+        paye: r.paye,
+        nssfEmployee: r.nssfEmployee,
+        shif: r.shif,
+        housingLevyEmployee: r.housingLevyEmployee,
+        totalDeductions: r.totalDeductions,
+        netPay: r.netPay,
+        employerCost: r.employerCost,
+        nssfEmployer: r.nssfEmployer,
+        housingLevyEmployer: r.housingLevyEmployer,
+        bands: r.bands,
+        warnings: r.warnings,
       },
     });
   } catch (err) {
