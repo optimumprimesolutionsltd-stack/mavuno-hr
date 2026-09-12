@@ -45,7 +45,10 @@ router.use("/users", usersRouter);
 router.use("/super", superRouter);
 router.use("/settings", settingsRouter);
 router.use("/billing", billingRouter);
-router.use("/filings", filingsRouter);
+// Reads payrollRuns and confirms/submits statutory filings derived from
+// them — the same kind of core, paid-for compliance work as /payroll
+// itself, which is gated. This one was simply missing from the list.
+router.use("/filings", requireActiveAccess(), filingsRouter);
 router.use("/notifications", notificationsRouter);
 router.use("/departments", requireActiveAccess(), departmentsRouter);
 
