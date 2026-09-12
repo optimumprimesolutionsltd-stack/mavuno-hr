@@ -104,6 +104,16 @@ export const SITE_ROUTES: SiteRoute[] = [
     ],
   },
   {
+    path: "/net-to-gross-calculator",
+    title: "Net to Gross Salary Calculator Kenya | Mavuno HR",
+    description:
+      "Work out the gross salary needed for a target take-home in Kenya, after PAYE, NSSF, SHIF and the Housing Levy — plus the employer's total cost. Free, no sign-up.",
+    social:
+      "Enter a take-home figure and get the gross to put on the contract, plus what it costs the employer.",
+    priority: "0.9",
+    breadcrumb: "Net to Gross Calculator",
+  },
+  {
     path: "/privacy",
     title: "Privacy Policy | Mavuno HR",
     description:
