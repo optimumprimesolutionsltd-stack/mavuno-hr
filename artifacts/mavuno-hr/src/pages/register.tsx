@@ -63,6 +63,21 @@ const COUNTRIES = [
 // ── Component ───────────────────────────────────────────────────
 export function Register() {
   const [, setLocation] = useLocation();
+
+  /**
+   * `?next=billing` sends the new account to the billing page instead of the
+   * dashboard, so someone who has already decided to buy can pay immediately
+   * rather than being parked in a trial they did not ask for. The marketing
+   * site's "skip the trial and pay now" link sets it.
+   *
+   * The organisation is still created on the trial plan either way: billing is
+   * where a plan is chosen and paid for, so arriving there with an active trial
+   * is the normal state rather than a special case. Nothing is lost by paying
+   * on day one instead of day thirty.
+   */
+  const payDirect =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("next") === "billing";
   const { toast } = useToast();
   const [step, setStep] = useState<1 | 2>(1);
   const [step1Data, setStep1Data] = useState<Step1 | null>(null);
@@ -124,8 +139,13 @@ export function Register() {
         return;
       }
       storeToken(data.sessionToken);
-      toast({ title: "Welcome to Mavuno HR!", description: `${step1Data.companyName} is ready to go.` });
-      setLocation("/admin");
+      toast({
+        title: "Welcome to Mavuno HR!",
+        description: payDirect
+          ? `${step1Data.companyName} is ready. Pick a plan below to pay now.`
+          : `${step1Data.companyName} is ready to go.`,
+      });
+      setLocation(payDirect ? "/admin/billing" : "/admin");
     } catch {
       toast({ variant: "destructive", title: "Network error", description: "Could not connect to the server." });
     } finally {

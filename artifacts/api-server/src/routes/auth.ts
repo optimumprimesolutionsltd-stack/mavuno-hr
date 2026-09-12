@@ -14,6 +14,18 @@ import { getAuth, clerkClient } from "@clerk/express";
 
 const router = Router();
 
+/**
+ * How long a new organisation gets before access lapses.
+ *
+ * This is advertised on the pricing page and in PLAN_RATES.trial. It was 14
+ * days here while both of those said 30, so every self-service signup lost
+ * access a fortnight before they had been told they would. Kept as one
+ * constant precisely because two routes create trials and the two literals had
+ * already drifted from the copy.
+ */
+const TRIAL_DAYS = 30;
+const trialWindowEnd = () => new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+
 const loginSchema = z.object({
   email: z.string().email().max(255),
   password: z.string().min(1).max(200),
@@ -280,8 +292,8 @@ router.post("/clerk/register", async (req, res, next) => {
     // Google, same trick used for a super-admin-provisioned invite.
     const passwordHash = await hashPassword(generateTempPassword());
 
-    // Same 14-day trial as POST /register.
-    const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    // Same trial window as POST /register.
+    const trialEnd = trialWindowEnd();
 
     const { orgId, userId } = await db.transaction(async (tx) => {
       const [org] = await tx.insert(organizations).values({
@@ -364,11 +376,11 @@ router.post("/register", async (req, res, next) => {
 
     const passwordHash = await hashPassword(password);
 
-    // Registration is a 14-day trial: trialEndsAt is the informational label,
+    // Registration starts a trial: trialEndsAt is the informational label,
     // accessUntil is the enforced cut-off (requireActiveAccess()) — both set
     // to the same date. A verified payment or a super-admin action pushes
     // accessUntil forward; trialEndsAt never changes after this.
-    const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    const trialEnd = trialWindowEnd();
 
     // Create org + admin user atomically
     const { orgId, userId } = await db.transaction(async (tx) => {

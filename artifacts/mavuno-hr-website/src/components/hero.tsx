@@ -21,8 +21,8 @@ export function Hero() {
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <Button size="lg" className="w-full sm:w-auto group" asChild>
-              <a href="#demo">
-                Request Early Access
+              <a href="/app/register">
+                Start free trial
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </a>
             </Button>
