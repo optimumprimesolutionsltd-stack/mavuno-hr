@@ -15,6 +15,8 @@ interface DemoRequest {
   email: string;
   company: string | null;
   message: string | null;
+  demoDate: string | null;
+  demoTime: string | null;
   sourcePath: string | null;
   status: "new" | "contacted";
   createdAt: string;
@@ -29,6 +31,24 @@ function useDemoRequests() {
 
 function fmtDate(d: string): string {
   return new Date(d).toLocaleString("en-KE", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+/**
+ * The slot the visitor asked for — "Mon 15 Sep, 2:00 PM" — or a dash when
+ * they left it blank, which the form allows. Stored as plain YYYY-MM-DD and
+ * 24-hour HH:MM text, so there is no timezone to get wrong here.
+ */
+function fmtSlot(date: string | null, time: string | null): string {
+  if (!date) return "—";
+  const d = new Date(`${date}T12:00:00`);
+  const day = Number.isNaN(d.getTime())
+    ? date
+    : d.toLocaleDateString("en-KE", { weekday: "short", day: "numeric", month: "short" });
+  if (!time) return `${day}, any time`;
+  const [h, m] = time.split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return `${day}, ${time}`;
+  const ampm = h < 12 ? "AM" : "PM";
+  return `${day}, ${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${ampm}`;
 }
 
 export function SuperAdminDemoRequests() {
@@ -79,6 +99,7 @@ export function SuperAdminDemoRequests() {
               <TableHead className="font-mono text-xs">PHONE</TableHead>
               <TableHead className="font-mono text-xs">EMAIL</TableHead>
               <TableHead className="font-mono text-xs">COMPANY</TableHead>
+              <TableHead className="font-mono text-xs">WANTS</TableHead>
               <TableHead className="font-mono text-xs">PAGE</TableHead>
               <TableHead className="font-mono text-xs">RECEIVED</TableHead>
               <TableHead className="font-mono text-xs text-right">STATUS</TableHead>
@@ -88,13 +109,13 @@ export function SuperAdminDemoRequests() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground font-mono">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground font-mono">
                   LOADING…
                 </TableCell>
               </TableRow>
             ) : requests.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground font-mono">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground font-mono">
                   NO DEMO REQUESTS YET
                 </TableCell>
               </TableRow>
@@ -111,6 +132,9 @@ export function SuperAdminDemoRequests() {
                     <a href={`mailto:${r.email}`} className="hover:text-primary transition-colors font-medium">{r.email}</a>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{r.company ?? "—"}</TableCell>
+                  <TableCell className={`text-xs font-mono ${r.demoDate ? "text-foreground" : "text-muted-foreground"}`}>
+                    {fmtSlot(r.demoDate, r.demoTime)}
+                  </TableCell>
                   <TableCell className="text-xs font-mono text-muted-foreground">{r.sourcePath ?? "—"}</TableCell>
                   <TableCell className="text-xs text-muted-foreground font-mono">{fmtDate(r.createdAt)}</TableCell>
                   <TableCell className="text-right">

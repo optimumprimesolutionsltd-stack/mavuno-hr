@@ -1,4 +1,5 @@
 import { logger } from "./logger.js";
+import { describeSlot } from "./demo-slot.js";
 
 /**
  * Push a marketing-site demo request into the Optimum Prime CRM (the
@@ -48,6 +49,9 @@ export interface DemoLeadForCrm {
   phone: string;
   company: string | null;
   message: string | null;
+  /** Preferred slot, YYYY-MM-DD and 24-hour HH:MM, or null when not given. */
+  demoDate?: string | null;
+  demoTime?: string | null;
 }
 
 /** Writes to the CRM's leads/ node. Throws on failure — the caller decides whether to swallow it. */
@@ -64,8 +68,12 @@ export async function pushLeadToOptimumCrm(lead: DemoLeadForCrm): Promise<void> 
     // scanning the Tally pipeline can immediately tell this lead apart.
     businessType: "Mavuno HR (SaaS) — not a Tally lead",
     currentSoftware: "",
-    demoDate: "",
-    demoTime: "",
+    // The slot the visitor asked for, in the shapes the CRM's own booking
+    // flow reads: it schedules against these and sends the customer back a
+    // confirmation carrying the date and time. Empty strings, not omitted,
+    // because that is what every other writer into this node sends.
+    demoDate: lead.demoDate || "",
+    demoTime: lead.demoTime || "",
     message: lead.message ? `[Mavuno HR demo request] ${lead.message}` : "[Mavuno HR demo request]",
     createdAt: new Date().toISOString(),
     status: "New",
@@ -78,7 +86,8 @@ export async function pushLeadToOptimumCrm(lead: DemoLeadForCrm): Promise<void> 
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`CRM lead write failed: ${res.status} ${await res.text().catch(() => "")}`);
-  logger.info({ leadId, email: lead.email }, "optimum-crm: demo request written to leads/");
+  logger.info({ leadId, email: lead.email, slot: describeSlot(lead.demoDate, lead.demoTime) || "none given" },
+    "optimum-crm: demo request written to leads/");
 }
 
 /** Triggers the WhatsApp team alert + lead confirmation. Throws on failure. */
@@ -93,6 +102,11 @@ export async function notifyOptimumCrmOfDemoLead(lead: DemoLeadForCrm): Promise<
       email: lead.email,
       interest: "Mavuno HR Demo",
       source: "Mavuno HR — Website",
+      // Sent as well as written into the lead: the notifier puts these
+      // straight into the WhatsApp alert the team reads, so whoever picks it
+      // up already knows when the visitor wants to be seen.
+      demoDate: lead.demoDate || "",
+      demoTime: lead.demoTime || "",
       message: lead.message || "",
     }),
   });

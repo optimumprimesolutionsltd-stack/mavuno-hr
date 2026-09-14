@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { logger } from "./logger.js";
+import { describeSlot } from "./demo-slot.js";
 
 // Every outbound message goes through Resend, sent from the verified
 // mavunohr.co.ke domain. Receipts, payslips, password resets and statutory
@@ -549,28 +550,43 @@ export async function sendStatutoryRemittanceEmail(opts: {
 
 export async function sendDemoRequestNotification(opts: {
   to: string;
+  name?: string;
+  phone?: string;
   email: string;
   company: string | null;
   message: string | null;
+  demoDate?: string | null;
+  demoTime?: string | null;
   sourcePath: string | null;
 }): Promise<void> {
-  const { to, email, company, message, sourcePath } = opts;
+  const { to, name, phone, email, company, message, demoDate, demoTime, sourcePath } = opts;
+  // Who they are and when they want to be seen. The row has carried a name and
+  // phone since the form started pushing into the Optimum CRM, and a preferred
+  // slot since it started asking for one — this email said none of it, so
+  // whoever read it still had to open the panel to find out who to ring.
+  const slot = describeSlot(demoDate, demoTime);
   if (!resend) {
     throw new Error("RESEND_NOT_CONFIGURED");
   }
   const html = `
 <p>New demo request from the marketing site.</p>
 <table>
+  ${name ? `<tr><td><strong>Name</strong></td><td>${name}</td></tr>` : ""}
+  ${phone ? `<tr><td><strong>Phone</strong></td><td>${phone}</td></tr>` : ""}
   <tr><td><strong>Email</strong></td><td>${email}</td></tr>
   ${company ? `<tr><td><strong>Company</strong></td><td>${company}</td></tr>` : ""}
+  ${slot ? `<tr><td><strong>Wants</strong></td><td>${slot}</td></tr>` : ""}
   ${sourcePath ? `<tr><td><strong>Page</strong></td><td>${sourcePath}</td></tr>` : ""}
   ${message ? `<tr><td><strong>Message</strong></td><td>${message}</td></tr>` : ""}
 </table>`;
   const text = [
     `New demo request from the marketing site.`,
     ``,
+    name ? `Name:    ${name}` : null,
+    phone ? `Phone:   ${phone}` : null,
     `Email:   ${email}`,
     company ? `Company: ${company}` : null,
+    slot ? `Wants:   ${slot}` : null,
     sourcePath ? `Page:    ${sourcePath}` : null,
     message ? `Message: ${message}` : null,
   ].filter((line): line is string => line !== null).join("\n");

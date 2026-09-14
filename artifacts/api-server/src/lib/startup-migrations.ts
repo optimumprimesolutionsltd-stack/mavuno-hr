@@ -475,6 +475,10 @@ async function createBaseSchema(): Promise<void> {
     // be worth anything -- table already existed in production by then.
     `ALTER TABLE demo_requests ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE demo_requests ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT ''`,
+    // The slot the visitor asked for. Nullable: the form leaves it optional,
+    // and every request taken before this existed has no answer to give.
+    `ALTER TABLE demo_requests ADD COLUMN IF NOT EXISTS demo_date TEXT`,
+    `ALTER TABLE demo_requests ADD COLUMN IF NOT EXISTS demo_time TEXT`,
   ];
 
   for (const stmt of statements) {
