@@ -226,13 +226,16 @@ function daysLeft(accessUntil: string): number {
   return Math.max(0, Math.ceil((new Date(accessUntil).getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
 }
 
-// Shown once access is within EXPIRING_SOON_DAYS (server-defined) of running
-// out, or already has — otherwise a lapsed org just hits silently broken
-// pages with no signpost to Billing. Dismissible only in the "expiring
-// soon" case, and only for the current day + expiry value, so it reappears
-// tomorrow (or immediately if accessUntil changes, e.g. after payment).
+// Three states worth telling an admin about:
+//  - "expiring_soon" / "expired": urgent, server-defined window — otherwise
+//    a lapsed org just hits silently broken pages with no signpost to
+//    Billing. Dismissible only in the "expiring soon" case.
+//  - plan === "trial" but not yet expiring: informational, not a warning —
+//    a brand-new signup should be told they're on a trial from their very
+//    first login, not just once it's about to run out. Dismissible daily,
+//    same as "expiring soon", so it doesn't nag every page load.
 function AccessBanner() {
-  const { accessState, accessUntil, isAdmin } = useAuth();
+  const { accessState, accessUntil, plan, isAdmin } = useAuth();
   const [location] = useLocation();
   const [dismissed, setDismissed] = useState(false);
 
@@ -241,37 +244,56 @@ function AccessBanner() {
     if (dismissKey) setDismissed(sessionStorage.getItem(dismissKey) === "1");
   }, [dismissKey]);
 
+  const urgent = accessState === "expiring_soon" || accessState === "expired";
+  const onTrial = plan === "trial" && accessState === "active";
+  // Dismissible in the "expiring soon" and informational-trial cases, but
+  // never once actually expired — that one should keep coming back until
+  // it's resolved, not just be closed away for the day.
+  const dismissible = accessState === "expiring_soon" || onTrial;
   if (!isAdmin) return null;
-  if (accessState !== "expiring_soon" && accessState !== "expired") return null;
-  if (accessState === "expiring_soon" && dismissed) return null;
+  if (!urgent && !onTrial) return null;
+  if (dismissible && dismissed) return null;
   if (location.startsWith("/admin/billing")) return null; // billing page has its own, fuller messaging
 
   const expired = accessState === "expired";
   const left = accessUntil ? daysLeft(accessUntil) : null;
+  // Only the trial plan is ever described as a "trial" — a paid org nearing
+  // a billing-cycle boundary is "access", not a trial that's running out.
+  const noun = plan === "trial" ? "trial" : "access";
+
+  let message: string;
+  if (expired) {
+    message = "Your organisation's access has expired. Some features are locked until you renew.";
+  } else if (urgent) {
+    message = left === 0 ? `Your ${noun} ends today.` : `Your ${noun} ends in ${left} day${left === 1 ? "" : "s"}.`;
+  } else {
+    // onTrial, not yet urgent — informational, not a warning.
+    message = left === null
+      ? "You're on a free trial."
+      : `You're on a free trial — ${left} day${left === 1 ? "" : "s"} left.`;
+  }
 
   return (
     <div
       className={`flex items-center gap-3 px-4 sm:px-6 lg:px-8 py-2.5 text-sm border-b ${
         expired
           ? "bg-destructive/10 border-destructive/30 text-destructive"
-          : "bg-amber-500/10 border-amber-500/30 text-amber-500"
+          : urgent
+            ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+            : "bg-primary/10 border-primary/30 text-primary"
       }`}
     >
-      <AlertTriangle className="h-4 w-4 shrink-0" />
-      <span className="flex-1">
-        {expired
-          ? "Your organisation's access has expired. Some features are locked until you renew."
-          : left === 0
-            ? "Your trial ends today."
-            : `Your trial ends in ${left} day${left === 1 ? "" : "s"}.`}
-      </span>
+      {urgent
+        ? <AlertTriangle className="h-4 w-4 shrink-0" />
+        : <Clock className="h-4 w-4 shrink-0" />}
+      <span className="flex-1">{message}</span>
       {/* ?pay=1 tells the Billing page to jump straight to the payment/plan
           dialog on load, instead of landing the customer on a page where
           a still-on-trial org has no visible "Pay Now" button at all. */}
       <Link href="/admin/billing?pay=1" className="font-medium underline underline-offset-2 shrink-0">
         {expired ? "Renew now" : "View plans"}
       </Link>
-      {!expired && dismissKey && (
+      {dismissible && dismissKey && (
         <button
           onClick={() => { sessionStorage.setItem(dismissKey, "1"); setDismissed(true); }}
           className="shrink-0 opacity-70 hover:opacity-100"

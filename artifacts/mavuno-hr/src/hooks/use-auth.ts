@@ -17,6 +17,7 @@ export function useAuth() {
   const accessUntil: string | null = (user as any)?.accessUntil ?? null;
   const accessState: "active" | "expiring_soon" | "expired" | "unlimited" =
     (user as any)?.accessState ?? "unlimited";
+  const plan: string | null = (user as any)?.plan ?? null;
 
   return {
     user,
@@ -34,5 +35,6 @@ export function useAuth() {
     isSuperAdmin,
     accessUntil,
     accessState,
+    plan,
   };
 }

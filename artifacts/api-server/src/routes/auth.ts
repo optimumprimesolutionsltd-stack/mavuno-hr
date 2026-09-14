@@ -534,6 +534,7 @@ router.get("/me", requireAuth(), (req, res) => {
     // billing fetch. NULL = unlimited access, not enforced.
     accessUntil: p.accessUntil ? p.accessUntil.toISOString() : null,
     accessState: accessStateOf(p.accessUntil),
+    plan: p.plan,
   });
 });
 
