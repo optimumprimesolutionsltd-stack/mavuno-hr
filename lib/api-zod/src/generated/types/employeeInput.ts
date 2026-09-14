@@ -5,6 +5,7 @@
  * Mavuno HR & Payroll API
  * OpenAPI spec version: 0.1.0
  */
+import type { EmployeeInputEducationLevel } from './employeeInputEducationLevel';
 import type { EmployeeInputSalaryBasis } from './employeeInputSalaryBasis';
 
 export interface EmployeeInput {
@@ -41,5 +42,14 @@ export interface EmployeeInput {
   mortgageInterest?: number;
   helbMonthly?: number;
   saccoMonthly?: number;
+  workDaysPerWeek?: number;
+  worksOnHolidays?: boolean;
+  dateOfBirth?: string;
+  region?: string;
+  educationLevel?: EmployeeInputEducationLevel;
+  nokName?: string;
+  nokRelationship?: string;
+  nokPhone?: string;
+  nokEmail?: string;
   hireDate: string;
 }

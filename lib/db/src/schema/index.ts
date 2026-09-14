@@ -159,6 +159,12 @@ export const employees = pgTable("employees", {
   nokEmail: text("nok_email"),
   hireDate: date("hire_date").notNull(),
   terminationDate: date("termination_date"),
+  // Added by startup-migrations.ts's idempotent ALTER TABLE, not declared
+  // here -- the column has existed in production since the app's original
+  // launch, which is why routes/employees.ts and the frontend needed
+  // `as any` casts to read/write it. Declaring it here properly types both
+  // ends without changing any runtime behavior.
+  terminationReason: text("termination_reason"),
   status: text("status").notNull().default("active"),
   leaveBalance: integer("leave_balance").notNull().default(210),
   createdAt: timestamp("created_at").notNull().defaultNow(),

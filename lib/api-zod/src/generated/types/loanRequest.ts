@@ -13,6 +13,8 @@ export interface LoanRequest {
   type: string;
   amount: number;
   months: number;
+  /** Basis points (100 = 1%). Only meaningful for sacco loans; 0 otherwise. */
+  interestRateBps?: number;
   /** @nullable */
   reason?: string | null;
   status: string;
