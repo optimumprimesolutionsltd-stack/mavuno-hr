@@ -5,6 +5,7 @@
  * Mavuno HR & Payroll API
  * OpenAPI spec version: 0.1.0
  */
+import type { EmployeeUpdateEducationLevel } from './employeeUpdateEducationLevel';
 
 export interface EmployeeUpdate {
   firstName?: string;
@@ -31,7 +32,22 @@ export interface EmployeeUpdate {
   nssfNo?: string;
   shifNo?: string;
   bankName?: string;
+  bankCode?: string;
+  bankBranchCode?: string;
+  bankBranchName?: string;
   bankAccount?: string;
+  mpesaPhone?: string;
   payMethod?: string;
+  hireDate?: string;
+  workDaysPerWeek?: number;
+  worksOnHolidays?: boolean;
+  leaveBalance?: number;
+  dateOfBirth?: string;
+  region?: string;
+  educationLevel?: EmployeeUpdateEducationLevel;
+  nokName?: string;
+  nokRelationship?: string;
+  nokPhone?: string;
+  nokEmail?: string;
   status?: string;
 }

@@ -5,6 +5,7 @@
  * Mavuno HR & Payroll API
  * OpenAPI spec version: 0.1.0
  */
+import type { EmployeeEducationLevel } from './employeeEducationLevel';
 import type { EmployeeSalaryBasis } from './employeeSalaryBasis';
 
 export interface Employee {
@@ -31,11 +32,15 @@ export interface Employee {
   /** @nullable */
   bankName?: string | null;
   /** @nullable */
+  bankCode?: string | null;
+  /** @nullable */
   bankBranchCode?: string | null;
   /** @nullable */
   bankBranchName?: string | null;
   /** @nullable */
   bankAccount?: string | null;
+  /** @nullable */
+  mpesaPhone?: string | null;
   /** @nullable */
   departmentId?: number | null;
   position: string;
@@ -54,9 +59,27 @@ export interface Employee {
   mortgageInterest?: number;
   helbMonthly?: number;
   saccoMonthly?: number;
+  workDaysPerWeek?: number;
+  worksOnHolidays?: boolean;
+  /** @nullable */
+  dateOfBirth?: string | null;
+  /** @nullable */
+  region?: string | null;
+  /** @nullable */
+  educationLevel?: EmployeeEducationLevel;
+  /** @nullable */
+  nokName?: string | null;
+  /** @nullable */
+  nokRelationship?: string | null;
+  /** @nullable */
+  nokPhone?: string | null;
+  /** @nullable */
+  nokEmail?: string | null;
   hireDate: string;
   /** @nullable */
   terminationDate?: string | null;
+  /** @nullable */
+  terminationReason?: string | null;
   status: string;
   leaveBalance?: number;
   createdAt?: string;

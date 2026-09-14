@@ -184,14 +184,14 @@ export function EmployeeDetail() {
           <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
           <div className="text-sm">
             <span className="font-medium text-destructive">Employee terminated</span>
-            {(employee as any).terminationDate && (
+            {employee.terminationDate && (
               <span className="text-muted-foreground ml-2">
-                effective {formatDate((employee as any).terminationDate)}
+                effective {formatDate(employee.terminationDate)}
               </span>
             )}
-            {(employee as any).terminationReason && (
+            {employee.terminationReason && (
               <span className="text-muted-foreground ml-2">
-                — {(employee as any).terminationReason}
+                — {employee.terminationReason}
               </span>
             )}
           </div>
@@ -578,8 +578,8 @@ export function EmployeeDetail() {
         onOpenChange={setTerminateOpen}
         onSuccess={isTerminated ? undefined : () => setLocation("/admin/employees")}
         isCorrection={isTerminated}
-        initialTerminationDate={(employee as any).terminationDate}
-        initialTerminationReason={(employee as any).terminationReason}
+        initialTerminationDate={employee.terminationDate}
+        initialTerminationReason={employee.terminationReason}
       />
 
       {/* Portal Access Result Dialog */}

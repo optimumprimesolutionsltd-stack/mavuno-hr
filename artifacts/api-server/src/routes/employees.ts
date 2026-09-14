@@ -348,7 +348,7 @@ router.post("/:id/terminate", requireAuth("employee:write"), async (req, res, ne
     const { terminationDate, terminationReason } = parsed.data;
 
     const [updated] = await db.update(employees)
-      .set({ status: "terminated", terminationDate, terminationReason: terminationReason ?? null } as any)
+      .set({ status: "terminated", terminationDate, terminationReason: terminationReason ?? null })
       .where(and(eq(employees.id, id), eq(employees.orgId, p.orgId)))
       .returning();
 
@@ -363,8 +363,8 @@ router.post("/:id/terminate", requireAuth("employee:write"), async (req, res, ne
         actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
         before: {
           status: existing.status,
-          terminationDate: (existing as any).terminationDate ?? null,
-          terminationReason: (existing as any).terminationReason ?? null,
+          terminationDate: existing.terminationDate ?? null,
+          terminationReason: existing.terminationReason ?? null,
         },
         after: { status: "terminated", terminationDate, terminationReason: terminationReason ?? null },
       });

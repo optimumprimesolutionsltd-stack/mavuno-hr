@@ -895,35 +895,34 @@ components:
           type: string
 
     LoginResult:
+      description: >
+        Flat, not nested -- matches the actual POST /login (and
+        /clerk/session) response shape in routes/auth.ts. employeeId is null
+        for an admin/HR account with no linked employee record.
       type: object
-      required: [user, org]
+      required: [id, email, name, role, mustChangePassword, orgSlug, countryCode, currencyCode, sessionToken]
       properties:
-        user:
-          type: object
-          required: [id, name, email, role, mustChangePassword]
-          properties:
-            id:
-              type: integer
-            name:
-              type: string
-            email:
-              type: string
-            role:
-              type: string
-            mustChangePassword:
-              type: boolean
-        org:
-          type: object
-          required: [slug, name, countryCode, currencyCode]
-          properties:
-            slug:
-              type: string
-            name:
-              type: string
-            countryCode:
-              type: string
-            currencyCode:
-              type: string
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        employeeId:
+          type: integer
+          nullable: true
+        mustChangePassword:
+          type: boolean
+        orgSlug:
+          type: string
+        countryCode:
+          type: string
+        currencyCode:
+          type: string
+        sessionToken:
+          type: string
 
     ChangePasswordInput:
       type: object
@@ -1087,11 +1086,15 @@ components:
           type: string
         bankName:
           type: ["string", "null"]
+        bankCode:
+          type: ["string", "null"]
         bankBranchCode:
           type: ["string", "null"]
         bankBranchName:
           type: ["string", "null"]
         bankAccount:
+          type: ["string", "null"]
+        mpesaPhone:
           type: ["string", "null"]
         departmentId:
           type: ["integer", "null"]
@@ -1128,9 +1131,30 @@ components:
           type: integer
         saccoMonthly:
           type: integer
+        workDaysPerWeek:
+          type: integer
+        worksOnHolidays:
+          type: boolean
+        dateOfBirth:
+          type: ["string", "null"]
+        region:
+          type: ["string", "null"]
+        educationLevel:
+          type: ["string", "null"]
+          enum: [none, primary, secondary, certificate, diploma, bachelor, master, phd, other, null]
+        nokName:
+          type: ["string", "null"]
+        nokRelationship:
+          type: ["string", "null"]
+        nokPhone:
+          type: ["string", "null"]
+        nokEmail:
+          type: ["string", "null"]
         hireDate:
           type: string
         terminationDate:
+          type: ["string", "null"]
+        terminationReason:
           type: ["string", "null"]
         status:
           type: string
@@ -1250,6 +1274,25 @@ components:
           type: number
         saccoMonthly:
           type: number
+        workDaysPerWeek:
+          type: integer
+        worksOnHolidays:
+          type: boolean
+        dateOfBirth:
+          type: string
+        region:
+          type: string
+        educationLevel:
+          type: string
+          enum: [none, primary, secondary, certificate, diploma, bachelor, master, phd, other]
+        nokName:
+          type: string
+        nokRelationship:
+          type: string
+        nokPhone:
+          type: string
+        nokEmail:
+          type: string
         hireDate:
           type: string
 
@@ -1304,9 +1347,40 @@ components:
           type: string
         bankName:
           type: string
+        bankCode:
+          type: string
+        bankBranchCode:
+          type: string
+        bankBranchName:
+          type: string
         bankAccount:
           type: string
+        mpesaPhone:
+          type: string
         payMethod:
+          type: string
+        hireDate:
+          type: string
+        workDaysPerWeek:
+          type: integer
+        worksOnHolidays:
+          type: boolean
+        leaveBalance:
+          type: integer
+        dateOfBirth:
+          type: string
+        region:
+          type: string
+        educationLevel:
+          type: string
+          enum: [none, primary, secondary, certificate, diploma, bachelor, master, phd, other]
+        nokName:
+          type: string
+        nokRelationship:
+          type: string
+        nokPhone:
+          type: string
+        nokEmail:
           type: string
         status:
           type: string
@@ -1730,6 +1804,9 @@ components:
           type: integer
         months:
           type: integer
+        interestRateBps:
+          type: integer
+          description: Basis points (100 = 1%). Only meaningful for sacco loans; 0 otherwise.
         reason:
           type: ["string", "null"]
         status:

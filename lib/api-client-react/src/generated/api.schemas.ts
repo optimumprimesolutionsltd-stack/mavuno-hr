@@ -34,24 +34,20 @@ export interface Principal {
   currencyCode: string;
 }
 
-export type LoginResultUser = {
+/**
+ * Flat, not nested -- matches the actual POST /login (and /clerk/session) response shape in routes/auth.ts. employeeId is null for an admin/HR account with no linked employee record.
+ */
+export interface LoginResult {
   id: number;
-  name: string;
   email: string;
-  role: string;
-  mustChangePassword: boolean;
-};
-
-export type LoginResultOrg = {
-  slug: string;
   name: string;
+  role: string;
+  employeeId?: number | null;
+  mustChangePassword: boolean;
+  orgSlug: string;
   countryCode: string;
   currencyCode: string;
-};
-
-export interface LoginResult {
-  user: LoginResultUser;
-  org: LoginResultOrg;
+  sessionToken: string;
 }
 
 export interface ChangePasswordInput {
@@ -146,6 +142,24 @@ export const EmployeeSalaryBasis = {
   net: 'net',
 } as const;
 
+/**
+ * @nullable
+ */
+export type EmployeeEducationLevel = typeof EmployeeEducationLevel[keyof typeof EmployeeEducationLevel] | null;
+
+
+export const EmployeeEducationLevel = {
+  none: 'none',
+  primary: 'primary',
+  secondary: 'secondary',
+  certificate: 'certificate',
+  diploma: 'diploma',
+  bachelor: 'bachelor',
+  master: 'master',
+  phd: 'phd',
+  other: 'other',
+} as const;
+
 export interface Employee {
   id: number;
   orgId: number;
@@ -170,11 +184,15 @@ export interface Employee {
   /** @nullable */
   bankName?: string | null;
   /** @nullable */
+  bankCode?: string | null;
+  /** @nullable */
   bankBranchCode?: string | null;
   /** @nullable */
   bankBranchName?: string | null;
   /** @nullable */
   bankAccount?: string | null;
+  /** @nullable */
+  mpesaPhone?: string | null;
   /** @nullable */
   departmentId?: number | null;
   position: string;
@@ -193,9 +211,27 @@ export interface Employee {
   mortgageInterest?: number;
   helbMonthly?: number;
   saccoMonthly?: number;
+  workDaysPerWeek?: number;
+  worksOnHolidays?: boolean;
+  /** @nullable */
+  dateOfBirth?: string | null;
+  /** @nullable */
+  region?: string | null;
+  /** @nullable */
+  educationLevel?: EmployeeEducationLevel;
+  /** @nullable */
+  nokName?: string | null;
+  /** @nullable */
+  nokRelationship?: string | null;
+  /** @nullable */
+  nokPhone?: string | null;
+  /** @nullable */
+  nokEmail?: string | null;
   hireDate: string;
   /** @nullable */
   terminationDate?: string | null;
+  /** @nullable */
+  terminationReason?: string | null;
   status: string;
   leaveBalance?: number;
   createdAt?: string;
@@ -243,6 +279,21 @@ export const EmployeeInputSalaryBasis = {
   net: 'net',
 } as const;
 
+export type EmployeeInputEducationLevel = typeof EmployeeInputEducationLevel[keyof typeof EmployeeInputEducationLevel];
+
+
+export const EmployeeInputEducationLevel = {
+  none: 'none',
+  primary: 'primary',
+  secondary: 'secondary',
+  certificate: 'certificate',
+  diploma: 'diploma',
+  bachelor: 'bachelor',
+  master: 'master',
+  phd: 'phd',
+  other: 'other',
+} as const;
+
 export interface EmployeeInput {
   firstName: string;
   lastName: string;
@@ -277,8 +328,32 @@ export interface EmployeeInput {
   mortgageInterest?: number;
   helbMonthly?: number;
   saccoMonthly?: number;
+  workDaysPerWeek?: number;
+  worksOnHolidays?: boolean;
+  dateOfBirth?: string;
+  region?: string;
+  educationLevel?: EmployeeInputEducationLevel;
+  nokName?: string;
+  nokRelationship?: string;
+  nokPhone?: string;
+  nokEmail?: string;
   hireDate: string;
 }
+
+export type EmployeeUpdateEducationLevel = typeof EmployeeUpdateEducationLevel[keyof typeof EmployeeUpdateEducationLevel];
+
+
+export const EmployeeUpdateEducationLevel = {
+  none: 'none',
+  primary: 'primary',
+  secondary: 'secondary',
+  certificate: 'certificate',
+  diploma: 'diploma',
+  bachelor: 'bachelor',
+  master: 'master',
+  phd: 'phd',
+  other: 'other',
+} as const;
 
 export interface EmployeeUpdate {
   firstName?: string;
@@ -305,8 +380,23 @@ export interface EmployeeUpdate {
   nssfNo?: string;
   shifNo?: string;
   bankName?: string;
+  bankCode?: string;
+  bankBranchCode?: string;
+  bankBranchName?: string;
   bankAccount?: string;
+  mpesaPhone?: string;
   payMethod?: string;
+  hireDate?: string;
+  workDaysPerWeek?: number;
+  worksOnHolidays?: boolean;
+  leaveBalance?: number;
+  dateOfBirth?: string;
+  region?: string;
+  educationLevel?: EmployeeUpdateEducationLevel;
+  nokName?: string;
+  nokRelationship?: string;
+  nokPhone?: string;
+  nokEmail?: string;
   status?: string;
 }
 
@@ -619,6 +709,8 @@ export interface LoanRequest {
   type: string;
   amount: number;
   months: number;
+  /** Basis points (100 = 1%). Only meaningful for sacco loans; 0 otherwise. */
+  interestRateBps?: number;
   /** @nullable */
   reason?: string | null;
   status: string;

@@ -5,10 +5,19 @@
  * Mavuno HR & Payroll API
  * OpenAPI spec version: 0.1.0
  */
-import type { LoginResultOrg } from './loginResultOrg';
-import type { LoginResultUser } from './loginResultUser';
 
+/**
+ * Flat, not nested -- matches the actual POST /login (and /clerk/session) response shape in routes/auth.ts. employeeId is null for an admin/HR account with no linked employee record.
+ */
 export interface LoginResult {
-  user: LoginResultUser;
-  org: LoginResultOrg;
+  id: number;
+  email: string;
+  name: string;
+  role: string;
+  employeeId?: number | null;
+  mustChangePassword: boolean;
+  orgSlug: string;
+  countryCode: string;
+  currencyCode: string;
+  sessionToken: string;
 }
