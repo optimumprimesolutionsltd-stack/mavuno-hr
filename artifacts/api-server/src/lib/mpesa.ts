@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { logger } from "./logger.js";
 import { HttpError } from "./http-error.js";
 
@@ -15,6 +16,13 @@ import { HttpError } from "./http-error.js";
  *   MPESA_CALLBACK_URL        — public HTTPS URL Safaricom posts results to
  *   MPESA_INITIATOR_NAME      — for Transaction Status API
  *   MPESA_SECURITY_CREDENTIAL — encrypted initiator password, for Transaction Status API
+ *
+ * Optional, for Paybill (C2B) payments made by hand rather than via STK Push:
+ *   MPESA_CALLBACK_IP_ALLOWLIST — comma-separated Safaricom source IPs
+ *   MPESA_C2B_CALLBACK_SECRET   — unguessable path segment on the registered
+ *                                 C2B URLs. Either of these authenticates a
+ *                                 confirmation; with neither, C2B payments are
+ *                                 recorded but held for manual allocation.
  */
 
 const BASE_URL =
@@ -188,6 +196,142 @@ export async function initiateStkPush(params: {
     responseDescription: body.ResponseDescription,
     customerMessage: body.CustomerMessage,
   };
+}
+
+// ── C2B (Paybill paid by hand) ───────────────────────────────────────────────
+
+/**
+ * The shape Safaricom posts to a C2B confirmation URL. Everything is a string
+ * or missing — the field names are Safaricom's, verbatim, so the mapping to
+ * ours stays visible at the one place it happens.
+ */
+export interface C2BConfirmation {
+  TransactionType?: string;
+  TransID?: string;
+  TransTime?: string;
+  TransAmount?: string | number;
+  BusinessShortCode?: string | number;
+  BillRefNumber?: string;
+  InvoiceNumber?: string;
+  OrgAccountBalance?: string | number;
+  ThirdPartyTransID?: string;
+  MSISDN?: string;
+  FirstName?: string;
+  MiddleName?: string;
+  LastName?: string;
+}
+
+export interface ParsedC2B {
+  transId: string;
+  amountCents: number;
+  billRefNumber: string;
+  msisdn: string | null;
+  payerName: string | null;
+  transTime: string | null;
+  /** Org the reference resolves to, or null when it doesn't parse. */
+  orgId: number | null;
+}
+
+/**
+ * Pull the fields we store out of a confirmation body. Returns null only when
+ * the body has no TransID or no amount — i.e. it isn't a payment notification
+ * at all. A bad *account reference* is not a parse failure: the money is real
+ * and has to be recorded either way, with orgId left null for a human.
+ */
+export function parseC2BConfirmation(body: C2BConfirmation): ParsedC2B | null {
+  const transId = String(body?.TransID ?? "").trim();
+  const amount = Number(body?.TransAmount ?? 0);
+  if (!transId || !Number.isFinite(amount) || amount <= 0) return null;
+
+  const billRefNumber = String(body?.BillRefNumber ?? "").trim();
+  const name = [body?.FirstName, body?.MiddleName, body?.LastName]
+    .map((n) => String(n ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
+
+  return {
+    transId,
+    amountCents: Math.round(amount * 100),
+    billRefNumber,
+    msisdn: String(body?.MSISDN ?? "").trim() || null,
+    payerName: name || null,
+    transTime: String(body?.TransTime ?? "").trim() || null,
+    orgId: billRefNumber ? parseAccountReference(billRefNumber) : null,
+  };
+}
+
+/**
+ * Can this confirmation be trusted enough to credit an account automatically?
+ *
+ * C2B has no equivalent of the STK flow's Transaction Status re-query: there is
+ * no CheckoutRequestID to ask Safaricom about, and the real Transaction Status
+ * API answers asynchronously to a separate result URL. So the confirmation body
+ * *is* the evidence, and an unauthenticated POST to a public URL must not be
+ * able to hand somebody a paid subscription.
+ *
+ * Two independent ways to authenticate it, either of which is enough:
+ *   - MPESA_CALLBACK_IP_ALLOWLIST — the source IP is one of Safaricom's.
+ *   - MPESA_C2B_CALLBACK_SECRET — an unguessable segment in the registered
+ *     confirmation URL, which only Safaricom and we know.
+ *
+ * With neither configured, the payment is still recorded — it is real money —
+ * but parked as unallocated for a super-admin instead of auto-credited.
+ */
+export function c2bTrustState(args: { ip: string; secretInUrl: string | null }): {
+  trusted: boolean;
+  how: "ip_allowlist" | "url_secret" | "none";
+} {
+  const secret = process.env.MPESA_C2B_CALLBACK_SECRET?.trim();
+  if (secret && args.secretInUrl && timingSafeEqualStr(args.secretInUrl, secret)) {
+    return { trusted: true, how: "url_secret" };
+  }
+  if (process.env.MPESA_CALLBACK_IP_ALLOWLIST?.trim() && isAllowedCallbackIp(args.ip)) {
+    return { trusted: true, how: "ip_allowlist" };
+  }
+  return { trusted: false, how: "none" };
+}
+
+function timingSafeEqualStr(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+}
+
+/**
+ * Register the validation and confirmation URLs with Safaricom. A one-off per
+ * shortcode (and again whenever the URLs change) — until this is done, a
+ * Paybill payment never reaches us at all.
+ *
+ * ResponseType "Completed" means: if our validation URL is unreachable,
+ * Safaricom completes the transaction anyway. The alternative ("Cancelled")
+ * rejects the customer's payment when we are down, which is a much worse
+ * failure — an unmatched payment we can allocate by hand, a rejected one at the
+ * till is a support call and a lost sale.
+ */
+export async function registerC2BUrls(baseUrl: string): Promise<{ responseDescription: string }> {
+  const shortcode = requiredEnv("MPESA_SHORTCODE");
+  const token = await getAccessToken();
+  const secret = process.env.MPESA_C2B_CALLBACK_SECRET?.trim();
+  const suffix = secret ? `/${encodeURIComponent(secret)}` : "";
+  const root = baseUrl.replace(/\/+$/, "");
+
+  const res = await fetch(`${BASE_URL}/mpesa/c2b/v1/registerurl`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ShortCode: shortcode,
+      ResponseType: "Completed",
+      ConfirmationURL: `${root}/api/billing/mpesa/c2b/confirmation${suffix}`,
+      ValidationURL: `${root}/api/billing/mpesa/c2b/validation${suffix}`,
+    }),
+  });
+
+  const body = (await res.json()) as any;
+  if (!res.ok || (body.ResponseCode !== undefined && String(body.ResponseCode) !== "0")) {
+    logger.error({ status: res.status, body }, "mpesa: C2B URL registration failed");
+    throw new HttpError(502, body.errorMessage ?? body.ResponseDescription ?? "Could not register the C2B URLs");
+  }
+  return { responseDescription: body.ResponseDescription ?? "Registered" };
 }
 
 export interface TransactionStatusResult {
