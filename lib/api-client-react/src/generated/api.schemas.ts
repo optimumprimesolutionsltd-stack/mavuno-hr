@@ -486,6 +486,7 @@ export const PayrollRunInputRunType = {
   off_cycle: 'off_cycle',
   bonus: 'bonus',
   final: 'final',
+  historical: 'historical',
 } as const;
 
 export interface PayrollRunInput {
