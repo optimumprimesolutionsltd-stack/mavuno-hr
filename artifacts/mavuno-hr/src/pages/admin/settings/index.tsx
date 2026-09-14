@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { DangerZone, ExportData } from "./danger-zone";
 import {
   Building2, Save, Loader2, ShieldCheck, Settings2, RefreshCw, CheckCircle2, History,
+  AlertTriangle,
 } from "lucide-react";
 
 interface OrgSettings {
@@ -49,6 +50,22 @@ interface OrgSettings {
   tier2Provider: "nssf" | "private";
   tier2ProviderName: string;
   hasOrgOverride: boolean;
+  /** Latest month that already has a historical run. 'YYYY-MM', or null. */
+  latestHistoricalRunPeriod: string | null;
+}
+
+/** 'YYYY-MM' -> "March 2026". */
+function fmtMonth(period: string) {
+  const [y, m] = period.split("-").map(Number);
+  if (!y || !m) return period;
+  return new Date(y, m - 1, 1).toLocaleDateString("en-KE", { month: "long", year: "numeric" });
+}
+
+/** The month after a 'YYYY-MM' — the earliest cutover that would be valid. */
+function nextMonthAfter(period: string) {
+  const [y, m] = period.split("-").map(Number);
+  if (!y || !m) return period;
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
 }
 
 function bpsToPercent(bps: number) {
@@ -98,6 +115,11 @@ export function AdminSettings() {
 
   // ── Payroll migration cutover ───────────────────────────────────────────────
   const [payrollStartPeriod, setPayrollStartPeriod] = useState("");
+
+  // 'YYYY-MM' strings sort lexicographically, so a plain >= is the comparison.
+  const latestHistorical = data?.latestHistoricalRunPeriod ?? null;
+  const cutoverClashesWithHistory =
+    !!payrollStartPeriod && !!latestHistorical && latestHistorical >= payrollStartPeriod;
 
   useEffect(() => {
     if (data?.org) setPayrollStartPeriod(data.org.payrollStartPeriod ?? "");
@@ -284,10 +306,33 @@ export function AdminSettings() {
               Leave blank if Mavuno has always been your payroll system — nothing will be treated as historical.
             </p>
           </div>
+
+          {/* The save is rejected server-side in this case, but finding that
+              out after clicking is a poor way to learn it — a historical run
+              for a month at or after the cutover would be "migrated" data for
+              a month Mavuno is supposed to own. */}
+          {cutoverClashesWithHistory && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 flex items-start gap-3">
+              <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="text-xs">
+                <p className="font-medium text-amber-400">
+                  {fmtMonth(payrollStartPeriod)} is not far enough forward.
+                </p>
+                <p className="text-muted-foreground mt-0.5">
+                  You already have a historical run recorded for{" "}
+                  {fmtMonth(data!.latestHistoricalRunPeriod!)}, which is on or after this month.
+                  A month can't be both migrated from your old system and owned by Mavuno. Pick
+                  {" "}{fmtMonth(nextMonthAfter(data!.latestHistoricalRunPeriod!))} or later, or
+                  reverse that run first.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-end">
             <Button
               onClick={() => saveCutover.mutate()}
-              disabled={saveCutover.isPending}
+              disabled={saveCutover.isPending || cutoverClashesWithHistory}
               variant="outline"
               className="font-mono gap-1.5"
             >
