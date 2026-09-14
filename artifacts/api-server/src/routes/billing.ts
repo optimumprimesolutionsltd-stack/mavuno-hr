@@ -4,6 +4,7 @@ import { eq, and, desc, isNull, ne, count } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   billingPayments, organizations, users, employees, billingCredits, billingCharges,
+  mpesaUnallocatedPayments,
 } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
@@ -11,7 +12,10 @@ import { sendReceiptEmail } from "../lib/mailer.js";
 import { writeAudit } from "../lib/audit.js";
 import {
   initiateStkPush, queryTransactionStatus, isAllowedCallbackIp, accountReferenceFor,
+  parseAccountReference, parseC2BConfirmation, c2bTrustState, type ParsedC2B,
 } from "../lib/mpesa.js";
+import { applyVerifiedPayment } from "../lib/payment-settlement.js";
+import { creditC2BPayment } from "../lib/mpesa-c2b.js";
 import {
   PLAN_RATES, standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents, extendAccessUntil,
 } from "../lib/pricing.js";
@@ -145,46 +149,25 @@ router.post("/:id/verify", ...requireSuperAdmin(), async (req, res, next) => {
     if (row.payment.status === "verified") throw new HttpError(409, "Payment already verified");
 
     const now = new Date();
-    const newAccessUntil = extendAccessUntil(row.org.accessUntil, row.org.billingCycle);
 
-    // Update status, reactivate the org, and push its access window forward —
-    // all in the same transaction. A verified payment should never leave the
-    // org sitting suspended or locked out.
-    const [updated] = await db.transaction(async (tx) => {
-      const [payment] = await tx.update(billingPayments)
-        .set({
-          status: "verified",
-          verifiedByUserId: p.userId,
-          verifiedAt: now,
-        })
-        .where(eq(billingPayments.id, id))
-        .returning();
+    const [updated] = await db.update(billingPayments)
+      .set({
+        status: "verified",
+        verifiedByUserId: p.userId,
+        verifiedAt: now,
+      })
+      .where(eq(billingPayments.id, id))
+      .returning();
 
-      const orgUpdates: Partial<typeof organizations.$inferInsert> = { accessUntil: newAccessUntil };
-      if (row.org.status !== "active") orgUpdates.status = "active";
-      await tx.update(organizations).set(orgUpdates).where(eq(organizations.id, row.org.id));
-
-      await writeAudit(tx as any, {
-        orgId: row.org.id, action: "ORG_ACCESS_UNTIL_SET", entity: "organizations", entityId: row.org.id,
-        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
-        detail: `Extended by payment ${payment.receiptNo}`,
-        before: { accessUntil: row.org.accessUntil }, after: { accessUntil: newAccessUntil },
-      });
-
-      // Opportunistic credit consumption (§4 steps 3-4) — never gates the
-      // extension above; it only records which open credits this payment
-      // happened to cover.
-      await consumeCreditsForPayment(tx, row.org.id, id, payment.amount, {
-        userId: p.userId, email: p.email, ip: getIp(req),
-      });
-
-      return [payment];
+    // Push access forward, reactivate, consume credits, close the period this
+    // payment settles — the same four things every verification path does.
+    await applyVerifiedPayment({
+      orgId: row.org.id,
+      paymentId: id,
+      amountCents: updated.amount,
+      actor: { userId: p.userId, email: p.email, ip: getIp(req) },
+      detail: `payment ${updated.receiptNo}`,
     });
-
-    // Close the period this payment settles (design §2). Best-effort and after
-    // the transaction on purpose: the payment is verified and access already
-    // extended regardless of whether a charge row exists to close.
-    await settleChargeForPayment(row.org.id, id, updated.amount);
 
     // Find company admin email(s) to send receipt
     const adminUsers = await db
@@ -565,43 +548,28 @@ router.post("/mpesa/callback", async (req, res) => {
       return;
     }
 
-    const [orgBefore] = await db.select({ accessUntil: organizations.accessUntil, billingCycle: organizations.billingCycle })
-      .from(organizations).where(eq(organizations.id, payment.orgId)).limit(1);
-    const newAccessUntil = extendAccessUntil(orgBefore?.accessUntil ?? null, orgBefore?.billingCycle ?? "monthly");
-
     const now = new Date();
-    await db.transaction(async (tx) => {
-      const receiptNo = `RCP-${now.getFullYear()}-${String(payment.id).padStart(5, "0")}`;
-      await tx.update(billingPayments)
-        .set({
-          status: "verified",
-          reference: mpesaReceiptNumber,
-          mpesaReceiptNumber,
-          receiptNo,
-          amount: amountPaid || payment.amount,
-          verifiedAt: now,
-        })
-        .where(eq(billingPayments.id, payment.id));
+    const creditedAmount = amountPaid || payment.amount;
+    const receiptNo = `RCP-${now.getFullYear()}-${String(payment.id).padStart(5, "0")}`;
 
-      await tx.update(organizations)
-        .set({ status: "active", accessUntil: newAccessUntil })
-        .where(eq(organizations.id, payment.orgId));
+    await db.update(billingPayments)
+      .set({
+        status: "verified",
+        reference: mpesaReceiptNumber,
+        mpesaReceiptNumber,
+        receiptNo,
+        amount: creditedAmount,
+        verifiedAt: now,
+      })
+      .where(eq(billingPayments.id, payment.id));
 
-      await writeAudit(tx as any, {
-        orgId: payment.orgId, action: "ORG_ACCESS_UNTIL_SET", entity: "organizations", entityId: payment.orgId,
-        actorUserId: null, actorEmail: "mpesa@system", actorIp: getIp(req),
-        detail: `Extended by M-Pesa payment ${mpesaReceiptNumber}`,
-        before: { accessUntil: orgBefore?.accessUntil ?? null }, after: { accessUntil: newAccessUntil },
-      });
-
-      // Opportunistic credit consumption (§4 steps 3-4) — never gates the
-      // extension above.
-      await consumeCreditsForPayment(tx, payment.orgId, payment.id, amountPaid || payment.amount, {
-        userId: null, email: "mpesa@system", ip: getIp(req),
-      });
+    await applyVerifiedPayment({
+      orgId: payment.orgId,
+      paymentId: payment.id,
+      amountCents: creditedAmount,
+      actor: { userId: null, email: "mpesa@system", ip: getIp(req) },
+      detail: `M-Pesa payment ${mpesaReceiptNumber}`,
     });
-
-    await settleChargeForPayment(payment.orgId, payment.id, amountPaid || payment.amount);
 
     logger.info({ checkoutRequestId, mpesaReceiptNumber, orgId: payment.orgId }, "mpesa: payment verified, org activated");
 
@@ -633,5 +601,162 @@ router.post("/mpesa/callback", async (req, res) => {
     logger.error({ err }, "mpesa: callback processing failed");
   }
 });
+
+// ── Paybill (C2B) — a customer paying the Paybill by hand ────────────────────
+//
+// STK Push is a payment *we* started: we know the org, the amount and the
+// CheckoutRequestID before the customer ever sees a prompt. A Paybill payment
+// is the opposite — the customer types our shortcode and an account number into
+// their own phone, and the first we hear of it is Safaricom telling us money has
+// already arrived. Two consequences shape everything below:
+//
+//   1. The reference is typed by a human, so it will sometimes be wrong. A
+//      payment we can't match must never be dropped: it goes to
+//      mpesa_unallocated_payments for a super-admin to assign.
+//   2. There is no Transaction Status re-query to fall back on, so the
+//      confirmation body itself is the evidence. It is only credited
+//      automatically when it can be authenticated (source IP or URL secret —
+//      see c2bTrustState); otherwise it is recorded and held.
+//
+// Both handlers are mounted twice: bare, and with a trailing secret segment, so
+// the registered URL can carry MPESA_C2B_CALLBACK_SECRET.
+
+/** Safaricom's "this account is fine" / "this account is not" contract. */
+const C2B_ACCEPT = { ResultCode: 0, ResultDesc: "Accepted" };
+const C2B_REJECT_ACCOUNT = { ResultCode: "C2B00012", ResultDesc: "Invalid Account Number" };
+
+// Validation runs *before* the money moves — but only if external validation is
+// enabled on the shortcode. It is a courtesy check: rejecting here is the only
+// moment a customer can be told, at their own phone, that they typed the
+// reference wrong. When it isn't enabled, the confirmation handler picks up the
+// same mistake afterwards, just less pleasantly.
+async function handleC2BValidation(req: Request, res: Response) {
+  try {
+    const parsed = parseC2BConfirmation(req.body ?? {});
+    const ref = parsed?.billRefNumber ?? String((req.body as any)?.BillRefNumber ?? "");
+    const orgId = parsed?.orgId ?? (ref ? parseAccountReference(ref) : null);
+
+    if (!orgId) {
+      logger.info({ ref }, "mpesa-c2b: validation rejected — reference does not resolve to an org");
+      res.status(200).json(C2B_REJECT_ACCOUNT);
+      return;
+    }
+
+    const [org] = await db.select({ id: organizations.id, status: organizations.status })
+      .from(organizations).where(eq(organizations.id, orgId)).limit(1);
+    if (!org) {
+      res.status(200).json(C2B_REJECT_ACCOUNT);
+      return;
+    }
+
+    // A suspended or deleted-pending org is deliberately still accepted: taking
+    // their payment is how they come back, and refusing money at the till is
+    // never the right way to communicate an account problem.
+    res.status(200).json(C2B_ACCEPT);
+  } catch (err) {
+    // Fail open. A validation URL that errors would otherwise block a real
+    // payment; the confirmation handler still catches anything wrong with it.
+    logger.error({ err }, "mpesa-c2b: validation failed, accepting");
+    res.status(200).json(C2B_ACCEPT);
+  }
+}
+
+async function handleC2BConfirmation(req: Request, res: Response) {
+  // Acknowledge immediately — Safaricom retries on a slow or non-200 response,
+  // and the TransID uniqueness checks below make a retry harmless.
+  res.status(200).json(C2B_ACCEPT);
+
+  const ip = getIp(req) ?? "";
+  const secretInUrl = typeof req.params.secret === "string" ? req.params.secret : null;
+
+  try {
+    // A configured IP allowlist is still a hard gate: traffic from outside it
+    // is not Safaricom, and recording it would just be storing someone's noise.
+    if (process.env.MPESA_CALLBACK_IP_ALLOWLIST?.trim() && !isAllowedCallbackIp(ip)) {
+      logger.warn({ ip }, "mpesa-c2b: confirmation rejected — IP not in configured allowlist");
+      return;
+    }
+
+    const parsed = parseC2BConfirmation(req.body ?? {});
+    if (!parsed) {
+      logger.warn({ body: req.body }, "mpesa-c2b: confirmation without a TransID or amount, ignoring");
+      return;
+    }
+
+    // Idempotency, both halves: an already-credited transaction and an already
+    // parked one. Safaricom retries, and a retry must not pay twice.
+    const [existingPayment] = await db.select({ id: billingPayments.id }).from(billingPayments)
+      .where(eq(billingPayments.mpesaReceiptNumber, parsed.transId)).limit(1);
+    if (existingPayment) {
+      logger.info({ transId: parsed.transId }, "mpesa-c2b: already credited, ignoring (idempotent)");
+      return;
+    }
+    const [existingUnallocated] = await db.select({ id: mpesaUnallocatedPayments.id })
+      .from(mpesaUnallocatedPayments)
+      .where(eq(mpesaUnallocatedPayments.transId, parsed.transId)).limit(1);
+    if (existingUnallocated) {
+      logger.info({ transId: parsed.transId }, "mpesa-c2b: already recorded as unallocated, ignoring");
+      return;
+    }
+
+    const trust = c2bTrustState({ ip, secretInUrl });
+
+    const park = async (reason: "no_match" | "untrusted") => {
+      await db.insert(mpesaUnallocatedPayments).values({
+        transId: parsed.transId,
+        amountCents: parsed.amountCents,
+        billRefNumber: parsed.billRefNumber || null,
+        msisdn: parsed.msisdn,
+        payerName: parsed.payerName,
+        transTime: parsed.transTime,
+        status: "unallocated",
+        reason,
+        raw: req.body ?? null,
+      }).onConflictDoNothing();
+      logger.warn(
+        { transId: parsed.transId, reason, ref: parsed.billRefNumber, amountCents: parsed.amountCents },
+        "mpesa-c2b: payment held for manual allocation",
+      );
+    };
+
+    if (!trust.trusted) {
+      // Real money, unverifiable source. Recorded, never auto-credited. Set
+      // MPESA_C2B_CALLBACK_SECRET or MPESA_CALLBACK_IP_ALLOWLIST to enable
+      // automatic crediting.
+      await park("untrusted");
+      return;
+    }
+
+    if (!parsed.orgId) {
+      await park("no_match");
+      return;
+    }
+
+    const [org] = await db.select().from(organizations)
+      .where(eq(organizations.id, parsed.orgId)).limit(1);
+    if (!org) {
+      await park("no_match");
+      return;
+    }
+
+    await creditC2BPayment({
+      orgId: org.id,
+      orgName: org.name,
+      orgPlan: org.plan,
+      parsed,
+      actorEmail: "mpesa-c2b@system",
+      actorUserId: null,
+      ip,
+    });
+  } catch (err) {
+    logger.error({ err }, "mpesa-c2b: confirmation processing failed");
+  }
+}
+
+
+router.post("/mpesa/c2b/validation", handleC2BValidation);
+router.post("/mpesa/c2b/validation/:secret", handleC2BValidation);
+router.post("/mpesa/c2b/confirmation", handleC2BConfirmation);
+router.post("/mpesa/c2b/confirmation/:secret", handleC2BConfirmation);
 
 export default router;

@@ -491,6 +491,41 @@ export const billingCharges = pgTable("billing_charges", {
   index("billing_charges_org_status_idx").on(t.orgId, t.status),
 ]);
 
+/* Paybill (C2B) payments that arrived without a usable account number.
+   Unlike an STK Push — which we initiate, and which already knows which org it
+   belongs to — a customer paying the Paybill by hand types the reference
+   themselves, and a typo is common. The money has already moved by the time
+   Safaricom tells us, so the one thing we must never do is drop the
+   notification: it lands here instead, for a super-admin to allocate. Also
+   where a confirmation we could not authenticate is parked rather than
+   auto-credited. */
+export const mpesaUnallocatedPayments = pgTable("mpesa_unallocated_payments", {
+  id: serial("id").primaryKey(),
+  transId: text("trans_id").notNull(),        // Safaricom's TransID, e.g. "SFC1A2B3C4"
+  amountCents: money("amount_cents").notNull(),
+  billRefNumber: text("bill_ref_number"),     // what the customer actually typed
+  msisdn: text("msisdn"),                     // payer's number, as Safaricom masks it
+  payerName: text("payer_name"),
+  transTime: text("trans_time"),              // Safaricom's YYYYMMDDHHmmss string, verbatim
+  /* unallocated | allocated | ignored */
+  status: text("status").notNull().default("unallocated"),
+  /* Why it is here: no_match (reference didn't resolve) | untrusted (the
+     confirmation could not be authenticated) | duplicate_org (ambiguous). */
+  reason: text("reason").notNull().default("no_match"),
+  allocatedOrgId: integer("allocated_org_id").references(() => organizations.id, { onDelete: "set null" }),
+  allocatedPaymentId: integer("allocated_payment_id").references(() => billingPayments.id),
+  allocatedByUserId: integer("allocated_by_user_id").references(() => users.id),
+  allocatedAt: timestamp("allocated_at"),
+  note: text("note"),
+  /* The whole confirmation body, kept verbatim — this is the only record of a
+     payment nobody has claimed, and the fields we parse out are a guess. */
+  raw: jsonb("raw"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("mpesa_unallocated_trans_id_uq").on(t.transId),
+  index("mpesa_unallocated_status_idx").on(t.status),
+]);
+
 export const passwordResetTokens = pgTable("password_reset_tokens", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),

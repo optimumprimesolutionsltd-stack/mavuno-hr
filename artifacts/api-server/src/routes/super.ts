@@ -3,7 +3,7 @@ import { z } from "zod";
 import crypto from "node:crypto";
 import { eq, ne, and, isNull, inArray, count, max, sql, desc } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { organizations, employees, payrollRuns, users, passwordResetTokens, statutoryConfigs, billingCredits, billingCharges, demoRequests } from "@workspace/db/schema";
+import { organizations, employees, payrollRuns, users, passwordResetTokens, statutoryConfigs, billingCredits, billingCharges, demoRequests, mpesaUnallocatedPayments } from "@workspace/db/schema";
 import { requireAuth, getIp, type AuthRequest } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
 import { writeAudit } from "../lib/audit.js";
@@ -11,8 +11,9 @@ import {
   PLAN_IDS, BILLING_CYCLES, PLAN_RATES,
   standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents,
 } from "../lib/pricing.js";
-import { accountReferenceFor, parseAccountReference } from "../lib/mpesa.js";
+import { accountReferenceFor, parseAccountReference, registerC2BUrls } from "../lib/mpesa.js";
 import { runBillingForPeriod } from "../lib/billing-run.js";
+import { creditC2BPayment } from "../lib/mpesa-c2b.js";
 import { logger } from "../lib/logger.js";
 import { accessStateOf } from "../lib/session.js";
 import { hashPassword, generateTempPassword } from "../lib/password.js";
@@ -709,6 +710,146 @@ router.get("/orgs/:id/charges", ...requireSuperAdmin(), async (req, res, next) =
   } catch (err) {
     next(err);
   }
+});
+
+// ── Paybill (C2B) payments nobody could match ───────────────────────────────
+// A customer paying the Paybill types the account reference themselves, so
+// some arrive wrong. The money is real, so the confirmation handler parks the
+// payment instead of dropping it, and it is allocated here by hand.
+
+router.get("/mpesa/unallocated", ...requireSuperAdmin(), async (req, res, next) => {
+  try {
+    const status = typeof req.query.status === "string" ? req.query.status : "unallocated";
+    const rows = await db.select().from(mpesaUnallocatedPayments)
+      .where(eq(mpesaUnallocatedPayments.status, status))
+      .orderBy(desc(mpesaUnallocatedPayments.createdAt))
+      .limit(200);
+
+    // The reference the customer typed, with our best guess at what they meant,
+    // so the operator has something to check against rather than a bare string.
+    res.json(rows.map((r) => ({
+      ...r,
+      parsedOrgId: r.billRefNumber ? parseAccountReference(r.billRefNumber) : null,
+    })));
+  } catch (err) { next(err); }
+});
+
+const allocateSchema = z.object({
+  orgId: z.number().int().positive(),
+  note: z.string().max(500).optional(),
+});
+
+router.post("/mpesa/unallocated/:id/allocate", ...requireSuperAdmin(), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = parseInt(String(req.params.id));
+    if (isNaN(id)) throw new HttpError(400, "Invalid payment id");
+
+    const parsedBody = allocateSchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      res.status(422).json({ error: "Validation failed", issues: parsedBody.error.flatten() }); return;
+    }
+
+    const [row] = await db.select().from(mpesaUnallocatedPayments)
+      .where(eq(mpesaUnallocatedPayments.id, id)).limit(1);
+    if (!row) throw new HttpError(404, "Unallocated payment not found");
+    if (row.status !== "unallocated") {
+      throw new HttpError(409, `This payment is already '${row.status}'`);
+    }
+
+    const [org] = await db.select().from(organizations)
+      .where(eq(organizations.id, parsedBody.data.orgId)).limit(1);
+    if (!org) throw new HttpError(404, "Organization not found");
+
+    // Credited exactly as a matched payment would have been, so an allocated
+    // payment is indistinguishable from one that found its own org.
+    const { paymentId, receiptNo } = await creditC2BPayment({
+      orgId: org.id,
+      orgName: org.name,
+      orgPlan: org.plan,
+      parsed: {
+        transId: row.transId,
+        amountCents: row.amountCents,
+        billRefNumber: row.billRefNumber ?? "",
+        msisdn: row.msisdn,
+        payerName: row.payerName,
+        transTime: row.transTime,
+        orgId: org.id,
+      },
+      actorEmail: p.email,
+      actorUserId: p.userId,
+      ip: getIp(req),
+    });
+
+    const now = new Date();
+    await db.transaction(async (tx) => {
+      await tx.update(mpesaUnallocatedPayments).set({
+        status: "allocated",
+        allocatedOrgId: org.id,
+        allocatedPaymentId: paymentId,
+        allocatedByUserId: p.userId,
+        allocatedAt: now,
+        note: parsedBody.data.note ?? null,
+      }).where(eq(mpesaUnallocatedPayments.id, id));
+
+      await writeAudit(tx as any, {
+        orgId: org.id, action: "MPESA_PAYMENT_ALLOCATED", entity: "mpesa_unallocated_payments", entityId: id,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        detail: `Allocated Paybill payment ${row.transId} (typed ref "${row.billRefNumber ?? ""}") to ${org.name}`,
+        before: { status: "unallocated", billRefNumber: row.billRefNumber },
+        after: { status: "allocated", orgId: org.id, paymentId, receiptNo },
+      });
+    });
+
+    res.json({ ok: true, paymentId, receiptNo });
+  } catch (err) { next(err); }
+});
+
+const ignoreSchema = z.object({ note: z.string().max(500).optional() });
+
+router.post("/mpesa/unallocated/:id/ignore", ...requireSuperAdmin(), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = parseInt(String(req.params.id));
+    if (isNaN(id)) throw new HttpError(400, "Invalid payment id");
+    const parsedBody = ignoreSchema.safeParse(req.body ?? {});
+    if (!parsedBody.success) { res.status(422).json({ error: "Validation failed" }); return; }
+
+    const [row] = await db.select().from(mpesaUnallocatedPayments)
+      .where(eq(mpesaUnallocatedPayments.id, id)).limit(1);
+    if (!row) throw new HttpError(404, "Unallocated payment not found");
+    if (row.status !== "unallocated") throw new HttpError(409, `This payment is already '${row.status}'`);
+
+    // Deliberately not a delete. "Ignored" still has to be findable — this is
+    // the only record of money that arrived, whatever was decided about it.
+    const [updated] = await db.update(mpesaUnallocatedPayments)
+      .set({ status: "ignored", note: parsedBody.data.note ?? null, allocatedByUserId: p.userId, allocatedAt: new Date() })
+      .where(eq(mpesaUnallocatedPayments.id, id))
+      .returning();
+
+    logger.warn({ transId: row.transId, actor: p.email }, "super: Paybill payment marked ignored");
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// ── POST /api/super/mpesa/register-c2b-urls ─────────────────────────────────
+// One-off per shortcode, and again whenever the public URL changes. Until it
+// runs, a Paybill payment never reaches this app at all.
+const registerUrlsSchema = z.object({
+  baseUrl: z.string().url().refine((u) => u.startsWith("https://"), "Safaricom requires HTTPS"),
+});
+
+router.post("/mpesa/register-c2b-urls", ...requireSuperAdmin(), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const parsed = registerUrlsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return;
+    }
+    const result = await registerC2BUrls(parsed.data.baseUrl);
+    logger.info({ actor: p.email, baseUrl: parsed.data.baseUrl, result }, "super: registered C2B URLs");
+    res.json(result);
+  } catch (err) { next(err); }
 });
 
 // ── POST /api/super/outage-credits — bulk SLA credit across affected orgs ───
