@@ -16,6 +16,9 @@ import { billingPayments, organizations, users } from "@workspace/db/schema";
 import { eq, and, lt, isNotNull } from "drizzle-orm";
 import { queryTransactionStatus, accountReferenceFor } from "./mpesa.js";
 import { sendReceiptEmail } from "./mailer.js";
+import { extendAccessUntil } from "./pricing.js";
+import { consumeCreditsForPayment } from "./billing-credits.js";
+import { settleChargeForPayment } from "./billing-run.js";
 import { logger } from "./logger.js";
 
 // Give Safaricom's own callback a fair chance to arrive first — only poll
@@ -65,17 +68,32 @@ async function pollPendingMpesaPayments(): Promise<void> {
       const receiptNow = new Date();
       const receiptNo = `RCP-${receiptNow.getFullYear()}-${String(payment.id).padStart(5, "0")}`;
 
+      // A recovered payment has to do everything the callback would have done.
+      // Reactivating the org without pushing access_until forward left the
+      // customer looking active and still locked out of payroll by
+      // requireActiveAccess() — the one difference between this path and the
+      // callback's, and invisible until somebody's callback went missing.
+      const [orgBefore] = await db.select({
+        accessUntil: organizations.accessUntil, billingCycle: organizations.billingCycle,
+      }).from(organizations).where(eq(organizations.id, payment.orgId)).limit(1);
+      const newAccessUntil = extendAccessUntil(orgBefore?.accessUntil ?? null, orgBefore?.billingCycle ?? "monthly");
+
       await db.transaction(async (tx) => {
         await tx.update(billingPayments)
           .set({ status: "verified", receiptNo, verifiedAt: receiptNow })
           .where(and(eq(billingPayments.id, payment.id), eq(billingPayments.status, "pending")));
         await tx.update(organizations)
-          .set({ status: "active" })
+          .set({ status: "active", accessUntil: newAccessUntil })
           .where(eq(organizations.id, payment.orgId));
+        await consumeCreditsForPayment(tx, payment.orgId, payment.id, payment.amount, {
+          userId: null, email: "mpesa-poller@system", ip: null,
+        });
       });
 
+      await settleChargeForPayment(payment.orgId, payment.id, payment.amount);
+
       logger.info(
-        { paymentId: payment.id, orgId: payment.orgId },
+        { paymentId: payment.id, orgId: payment.orgId, accessUntil: newAccessUntil },
         "mpesa-poller: recovered a payment whose callback never arrived",
       );
 

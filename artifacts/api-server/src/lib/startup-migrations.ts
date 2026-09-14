@@ -692,6 +692,36 @@ async function createBillingCreditsTable(): Promise<void> {
   `);
 }
 
+async function createBillingChargesTable(): Promise<void> {
+  // docs/design/billing-and-repricing.md §2/§6 — the frozen per-period bill,
+  // plus the link from a payment to the period it settles. Both additive: an
+  // org with no charge rows yet simply has no history, and every existing
+  // payment keeps charge_id NULL.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS billing_charges (
+      id                 SERIAL PRIMARY KEY,
+      org_id             INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      period             TEXT NOT NULL,
+      cycle              TEXT NOT NULL DEFAULT 'monthly',
+      plan               TEXT NOT NULL,
+      active_employees   INTEGER NOT NULL,
+      amount_cents       BIGINT NOT NULL,
+      cycle_amount_cents BIGINT NOT NULL,
+      source             TEXT NOT NULL DEFAULT 'rate_card',
+      status             TEXT NOT NULL DEFAULT 'open',
+      paid_at            TIMESTAMP,
+      voided_at          TIMESTAMP,
+      voided_by_user_id  INTEGER REFERENCES users(id),
+      created_at         TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS billing_charges_org_period_cycle_uq
+      ON billing_charges(org_id, period, cycle);
+    CREATE INDEX IF NOT EXISTS billing_charges_org_status_idx
+      ON billing_charges(org_id, status);
+  `);
+  await db.execute(sql`ALTER TABLE billing_payments ADD COLUMN IF NOT EXISTS charge_id INTEGER REFERENCES billing_charges(id)`);
+}
+
 async function createNotificationsTable(): Promise<void> {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS notifications (
@@ -832,6 +862,7 @@ export async function runStartupMigrations(): Promise<void> {
     ["addOrgRequiresPayrollApproval", addOrgRequiresPayrollApproval],
     ["addOrgAccessUntil", addOrgAccessUntil],
     ["createBillingCreditsTable", createBillingCreditsTable],
+    ["createBillingChargesTable", createBillingChargesTable],
   ];
 
   for (const [name, run] of steps) {

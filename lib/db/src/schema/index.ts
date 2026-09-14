@@ -426,6 +426,10 @@ export const billingPayments = pgTable("billing_payments", {
   merchantRequestId: text("merchant_request_id"),
   mpesaReceiptNumber: text("mpesa_receipt_number"),
   phoneNumber: text("phone_number"),
+  // docs/design/billing-and-repricing.md §2 — the frozen period charge this
+  // payment settles. Nullable: payments predate billing_charges, and an
+  // ad-hoc payment (a deposit, a part-payment before the run) settles nothing.
+  chargeId: integer("charge_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [
   index("billing_org_idx").on(t.orgId),
@@ -457,6 +461,34 @@ export const billingCredits = pgTable("billing_credits", {
   note: text("note"),
 }, (t) => [
   index("billing_credits_org_status_idx").on(t.orgId, t.status),
+]);
+
+/* docs/design/billing-and-repricing.md §2 — one row per org per billing period:
+   the bill, frozen. The rate card in lib/pricing.ts computes a price live from
+   *today's* plan and headcount, which means "amount due" used to move
+   retroactively every time somebody was hired. A charge row is written once by
+   the billing run and never recomputed: only status/paid_at change afterwards
+   (or a super-admin voids it). Unique on (org_id, period, cycle) so re-running
+   the job — on a restart, or a manual catch-up — is a no-op rather than a
+   second bill. */
+export const billingCharges = pgTable("billing_charges", {
+  id: serial("id").primaryKey(),
+  orgId: integer("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  period: text("period").notNull(),                  // 'YYYY-MM' — the month billed
+  cycle: text("cycle").notNull().default("monthly"), // monthly | annual
+  plan: text("plan").notNull(),                      // plan in force for this period
+  activeEmployees: integer("active_employees").notNull(),
+  amountCents: money("amount_cents").notNull(),        // effective monthly charge
+  cycleAmountCents: money("cycle_amount_cents").notNull(), // what is actually invoiced
+  source: text("source").notNull().default("rate_card"), // rate_card | override
+  status: text("status").notNull().default("open"),      // open | paid | void
+  paidAt: timestamp("paid_at"),
+  voidedAt: timestamp("voided_at"),
+  voidedByUserId: integer("voided_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("billing_charges_org_period_cycle_uq").on(t.orgId, t.period, t.cycle),
+  index("billing_charges_org_status_idx").on(t.orgId, t.status),
 ]);
 
 export const passwordResetTokens = pgTable("password_reset_tokens", {
