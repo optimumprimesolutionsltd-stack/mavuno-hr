@@ -48,6 +48,10 @@ export interface Principal {
      in middlewares/require-auth.ts. A lapsed org must still be able to log
      in, read its billing page, and pay. */
   accessUntil: Date | null;
+  /** e.g. "trial", "free", "starter" — lets the client phrase the access
+      banner correctly (a paid org approaching a billing boundary is not
+      "on a trial") without a separate billing fetch. */
+  plan: string;
 }
 
 export async function createSession(
@@ -147,5 +151,6 @@ export async function getPrincipal(req: Request): Promise<Principal | null> {
     countryCode: row.o.countryCode,
     currencyCode: row.o.currencyCode,
     accessUntil: row.o.accessUntil,
+    plan: row.o.plan,
   };
 }
