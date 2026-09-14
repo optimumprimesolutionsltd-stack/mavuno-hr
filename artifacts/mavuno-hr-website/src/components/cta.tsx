@@ -7,9 +7,14 @@ const CONTACT_EMAIL = "info@mavunohr.co.ke";
 // Used to open the visitor's mail client via mailto:, which does nothing
 // visible on a device with no mail app configured -- the click just vanishes.
 // Posts to /api/public/demo-requests instead, which writes a real row the
-// team can see in the super-admin panel even if the notification email
-// never arrives.
+// team can see in the super-admin panel (even if the notification email
+// never arrives) and pushes the lead into the Optimum Prime CRM, which
+// alerts the team on WhatsApp and sends the visitor a WhatsApp confirmation
+// -- both need a real name and phone number, which is why this collects
+// more than just an email address.
 export function Cta() {
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
@@ -25,6 +30,8 @@ export function Cta() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          name: name.trim(),
+          phone: phone.trim(),
           email: email.trim(),
           company: company.trim() || undefined,
           sourcePath: window.location.pathname,
@@ -36,7 +43,7 @@ export function Cta() {
         return;
       }
       if (!res.ok) {
-        setError("Enter a valid work email address.");
+        setError("Check your name, phone number, and email address, and try again.");
         setStatus("error");
         return;
       }
@@ -63,35 +70,53 @@ export function Cta() {
         {status === "sent" ? (
           <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl border border-border">
             <p className="text-lg font-semibold text-secondary">Request received.</p>
-            <p className="text-muted-foreground mt-2">We'll reach out at {email} shortly.</p>
+            <p className="text-muted-foreground mt-2">We'll reach out on WhatsApp or at {email} shortly.</p>
           </div>
         ) : (
           <form
-            className="max-w-md mx-auto bg-white p-2 rounded-2xl shadow-xl border border-border flex flex-col gap-2"
+            className="max-w-md mx-auto bg-white p-4 rounded-2xl shadow-xl border border-border flex flex-col gap-2.5"
             onSubmit={handleSubmit}
           >
-            <div className="flex flex-col sm:flex-row gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <Input
-                type="email"
-                name="email"
-                placeholder="Work email address"
-                className="border-0 focus-visible:ring-0 shadow-none text-base h-14 px-6"
+                type="text"
+                name="name"
+                placeholder="Your name"
+                className="text-base h-12 px-4"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
               />
-              <Button type="submit" size="lg" className="h-14 px-8 text-base shrink-0" disabled={status === "sending"}>
-                {status === "sending" ? "Sending…" : "Request Demo"}
-              </Button>
+              <Input
+                type="tel"
+                name="phone"
+                placeholder="WhatsApp / phone"
+                className="text-base h-12 px-4"
+                required
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
             </div>
+            <Input
+              type="email"
+              name="email"
+              placeholder="Work email address"
+              className="text-base h-12 px-4"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
             <Input
               type="text"
               name="company"
               placeholder="Company name (optional)"
-              className="border-0 focus-visible:ring-0 shadow-none text-base h-12 px-6"
+              className="text-base h-12 px-4"
               value={company}
               onChange={(e) => setCompany(e.target.value)}
             />
+            <Button type="submit" size="lg" className="h-12 text-base mt-1" disabled={status === "sending"}>
+              {status === "sending" ? "Sending…" : "Request Demo"}
+            </Button>
           </form>
         )}
 

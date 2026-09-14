@@ -17,6 +17,7 @@ import { computePayslip, emptyPayInput, solveGrossForNet } from "../lib/payroll.
 import { resolveCountryConfig } from "../lib/statutory-resolve.js";
 import { toCents } from "../lib/money.js";
 import { sendDemoRequestNotification } from "../lib/mailer.js";
+import { pushLeadToOptimumCrm, notifyOptimumCrmOfDemoLead } from "../lib/optimum-crm.js";
 import { logger } from "../lib/logger.js";
 
 const router = Router();
@@ -226,6 +227,8 @@ router.post("/calculator/net-to-gross", rateLimit, async (req, res, next) => {
 const DEMO_NOTIFY_TO = process.env.DEMO_REQUEST_NOTIFY_EMAIL?.trim() || "info@mavunohr.co.ke";
 
 const demoRequestSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  phone: z.string().trim().regex(/^[0-9+()\s-]{9,20}$/, "Enter a valid phone number"),
   email: z.string().email().max(255),
   company: z.string().trim().max(200).optional(),
   message: z.string().trim().max(2000).optional(),
@@ -236,31 +239,33 @@ router.post("/demo-requests", rateLimit, async (req, res, next) => {
   try {
     const parsed = demoRequestSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(422).json({ error: "Enter a valid work email address." });
+      res.status(422).json({ error: "Enter your name, phone number, and a valid work email address." });
       return;
     }
-    const { email, company, message, sourcePath } = parsed.data;
+    const { name, phone, email, company, message, sourcePath } = parsed.data;
 
     await db.insert(demoRequests).values({
+      name,
+      phone,
       email: email.toLowerCase(),
       company: company || null,
       message: message || null,
       sourcePath: sourcePath || null,
     });
 
-    // Best-effort: a lost notification is a nuisance, a lost lead is not —
-    // the row above already exists regardless of what happens here.
-    try {
-      await sendDemoRequestNotification({
-        to: DEMO_NOTIFY_TO,
-        email,
-        company: company || null,
-        message: message || null,
-        sourcePath: sourcePath || null,
-      });
-    } catch (err) {
-      logger.warn({ err, email }, "public: demo request saved but the notification email failed");
-    }
+    const crmLead = { name, email, phone, company: company || null, message: message || null };
+
+    // Both best-effort, in parallel — a lost notification or CRM sync is a
+    // nuisance, a lost lead is not. The row above already exists regardless
+    // of what happens to either of these.
+    const [emailResult, crmResult, waResult] = await Promise.allSettled([
+      sendDemoRequestNotification({ to: DEMO_NOTIFY_TO, email, company: company || null, message: message || null, sourcePath: sourcePath || null }),
+      pushLeadToOptimumCrm(crmLead),
+      notifyOptimumCrmOfDemoLead(crmLead),
+    ]);
+    if (emailResult.status === "rejected") logger.warn({ err: emailResult.reason, email }, "public: demo request saved but the internal notification email failed");
+    if (crmResult.status === "rejected") logger.warn({ err: crmResult.reason, email }, "public: demo request saved but writing it into the Optimum CRM failed");
+    if (waResult.status === "rejected") logger.warn({ err: waResult.reason, email }, "public: demo request saved but the CRM WhatsApp/email lead notification failed");
 
     res.status(201).json({ ok: true });
   } catch (err) {

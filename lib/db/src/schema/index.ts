@@ -492,6 +492,11 @@ export const notifications = pgTable("notifications", {
 // not the source of truth (see routes/public.ts).
 export const demoRequests = pgTable("demo_requests", {
   id: serial("id").primaryKey(),
+  // Added alongside the push into the Optimum Prime CRM (routes/public.ts,
+  // lib/optimum-crm.ts) -- the CRM's WhatsApp confirmation and team alert
+  // both need a name and a phone number to be worth anything.
+  name: text("name").notNull().default(""),
+  phone: text("phone").notNull().default(""),
   email: text("email").notNull(),
   company: text("company"),
   message: text("message"),
