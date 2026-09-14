@@ -567,6 +567,13 @@ export const demoRequests = pgTable("demo_requests", {
   email: text("email").notNull(),
   company: text("company"),
   message: text("message"),
+  // The slot the visitor asked for, as text in the shapes the CRM stores and
+  // the notifier formats: YYYY-MM-DD and 24-hour HH:MM. Text, not a timestamp
+  // -- this is a preference in Nairobi office hours, not an instant, and
+  // turning it into one only invites a timezone to shift it. Null when they
+  // left it blank, which the form allows.
+  demoDate: text("demo_date"),
+  demoTime: text("demo_time"),
   sourcePath: text("source_path"), // which marketing page the form was on, e.g. "/pricing"
   status: text("status").notNull().default("new"), // "new" | "contacted"
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

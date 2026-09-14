@@ -232,6 +232,11 @@ const demoRequestSchema = z.object({
   email: z.string().email().max(255),
   company: z.string().trim().max(200).optional(),
   message: z.string().trim().max(2000).optional(),
+  // The slot they'd prefer, in the shapes the CRM stores: YYYY-MM-DD and
+  // 24-hour HH:MM. Optional -- the form does not insist, and a request
+  // without one is still a request.
+  demoDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid date").optional(),
+  demoTime: z.string().trim().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter a valid time").optional(),
   sourcePath: z.string().trim().max(200).optional(),
 });
 
@@ -242,7 +247,11 @@ router.post("/demo-requests", rateLimit, async (req, res, next) => {
       res.status(422).json({ error: "Enter your name, phone number, and a valid work email address." });
       return;
     }
-    const { name, phone, email, company, message, sourcePath } = parsed.data;
+    const { name, phone, email, company, message, demoDate, demoTime, sourcePath } = parsed.data;
+    // A time on its own says nothing — "2pm" which day? — so it is only kept
+    // when a date came with it.
+    const slotDate = demoDate || null;
+    const slotTime = slotDate ? demoTime || null : null;
 
     await db.insert(demoRequests).values({
       name,
@@ -250,16 +259,26 @@ router.post("/demo-requests", rateLimit, async (req, res, next) => {
       email: email.toLowerCase(),
       company: company || null,
       message: message || null,
+      demoDate: slotDate,
+      demoTime: slotTime,
       sourcePath: sourcePath || null,
     });
 
-    const crmLead = { name, email, phone, company: company || null, message: message || null };
+    const crmLead = {
+      name,
+      email,
+      phone,
+      company: company || null,
+      message: message || null,
+      demoDate: slotDate,
+      demoTime: slotTime,
+    };
 
     // Both best-effort, in parallel — a lost notification or CRM sync is a
     // nuisance, a lost lead is not. The row above already exists regardless
     // of what happens to either of these.
     const [emailResult, crmResult, waResult] = await Promise.allSettled([
-      sendDemoRequestNotification({ to: DEMO_NOTIFY_TO, email, company: company || null, message: message || null, sourcePath: sourcePath || null }),
+      sendDemoRequestNotification({ to: DEMO_NOTIFY_TO, name, phone, email, company: company || null, message: message || null, demoDate: slotDate, demoTime: slotTime, sourcePath: sourcePath || null }),
       pushLeadToOptimumCrm(crmLead),
       notifyOptimumCrmOfDemoLead(crmLead),
     ]);

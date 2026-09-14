@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { blockedReason, timeSlotsFor, todayIso } from "../lib/demo-timings";
 
 const CONTACT_EMAIL = "info@mavunohr.co.ke";
 
@@ -12,17 +13,41 @@ const CONTACT_EMAIL = "info@mavunohr.co.ke";
 // alerts the team on WhatsApp and sends the visitor a WhatsApp confirmation
 // -- both need a real name and phone number, which is why this collects
 // more than just an email address.
+//
+// It also asks when they'd like the demo. The CRM's booking flow confirms a
+// slot and sends the customer that date and time; without a preferred one to
+// work from, every Mavuno request starts with a round of phone tag that the
+// Tally site's equivalent form has never needed.
 export function Cta() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
+  const [demoDate, setDemoDate] = useState("");
+  const [demoTime, setDemoTime] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+
+  const dateProblem = blockedReason(demoDate);
+  const slots = useMemo(() => (dateProblem ? [] : timeSlotsFor(demoDate)), [demoDate, dateProblem]);
+
+  // Saturday is a shorter day, so a time picked on a weekday can stop existing
+  // when the date moves. Drop it rather than submitting a slot we no longer
+  // offer.
+  const pickDate = (value: string) => {
+    setDemoDate(value);
+    setError(null);
+    if (demoTime && !timeSlotsFor(value).some((s) => s.value === demoTime)) setDemoTime("");
+  };
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (status === "sending") return;
+    if (dateProblem) {
+      setError(dateProblem);
+      setStatus("error");
+      return;
+    }
     setStatus("sending");
     setError(null);
     try {
@@ -34,6 +59,8 @@ export function Cta() {
           phone: phone.trim(),
           email: email.trim(),
           company: company.trim() || undefined,
+          demoDate: demoDate || undefined,
+          demoTime: demoDate && demoTime ? demoTime : undefined,
           sourcePath: window.location.pathname,
         }),
       });
@@ -114,6 +141,41 @@ export function Cta() {
               value={company}
               onChange={(e) => setCompany(e.target.value)}
             />
+
+            {/* When would suit them. Optional on purpose — a required field
+                here costs more requests than the round of phone tag it
+                saves — but offered up front, because the team confirms a
+                slot and sends that date and time straight back. */}
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="date"
+                name="demoDate"
+                aria-label="Preferred demo date"
+                min={todayIso()}
+                className="text-base h-12 px-4 w-full rounded-md border border-input bg-background text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                value={demoDate}
+                onChange={(e) => pickDate(e.target.value)}
+              />
+              <select
+                name="demoTime"
+                aria-label="Preferred demo time"
+                disabled={!demoDate || slots.length === 0}
+                className="text-base h-12 px-4 w-full rounded-md border border-input bg-background text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
+                value={demoTime}
+                onChange={(e) => setDemoTime(e.target.value)}
+              >
+                <option value="">{demoDate ? "Preferred time" : "Pick a date first"}</option>
+                {slots.map((slot) => (
+                  <option key={slot.value} value={slot.value}>{slot.label}</option>
+                ))}
+              </select>
+            </div>
+            <p className="text-xs text-muted-foreground text-left -mt-1">
+              {dateProblem
+                ? <span className="text-red-600">{dateProblem}</span>
+                : "Optional. Mon–Fri 8am–5pm, Sat 8am–1pm. We'll confirm the slot with you."}
+            </p>
+
             <Button type="submit" size="lg" className="h-12 text-base mt-1" disabled={status === "sending"}>
               {status === "sending" ? "Sending…" : "Request Demo"}
             </Button>
