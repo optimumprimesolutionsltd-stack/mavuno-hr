@@ -21,6 +21,53 @@ const outputDir = path.join(root, "dist", "public");
 const problems = [];
 const note = (route, message) => problems.push(`${route}: ${message}`);
 
+// Warnings are things worth fixing that do not make the build unshippable, so
+// they are reported without failing the deploy. A title a few pixels over the
+// SERP limit costs you the tail of a headline; it does not break the page, and
+// failing a deploy over it would be worse than the problem.
+const warnings = [];
+const warn = (route, message) => warnings.push(`${route}: ${message}`);
+
+// Google truncates result titles on rendered WIDTH, not character count, which
+// is why a 61-character lowercase title can fit where a 58-character one full
+// of capitals does not. This approximates Arial at the desktop SERP size; it is
+// close enough to catch a title drifting over, which a .length check is not.
+const NARROW_CHARS = "iljtfrI.,:;'|!()[]- ";
+const WIDE_CHARS = "mwMW—…@%";
+const TITLE_WIDTH_LIMIT = 600;
+// The prerendered HTML escapes the title, so "&" arrives as "&amp;" and would
+// be measured as five characters rather than one - enough on its own to push a
+// title 43px over the limit and report a problem that does not exist. Measure
+// what a reader sees, not the markup.
+function decodeEntities(text) {
+  const named = {
+    amp: "&",
+    lt: "<",
+    gt: ">",
+    quot: String.fromCharCode(34),
+    apos: String.fromCharCode(39),
+    nbsp: " ",
+    mdash: String.fromCharCode(8212),
+    ndash: String.fromCharCode(8211),
+    hellip: String.fromCharCode(8230),
+  };
+  return text
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#([0-9]+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
+    .replace(/&([a-zA-Z]+);/g, (whole, name) => (name in named ? named[name] : whole));
+}
+
+function titleWidth(text) {
+  let width = 0;
+  for (const character of text) {
+    if (NARROW_CHARS.includes(character)) width += 5.6;
+    else if (WIDE_CHARS.includes(character)) width += 16.5;
+    else if (character >= "A" && character <= "Z") width += 13.3;
+    else width += 10.4;
+  }
+  return Math.round(width);
+}
+
 const sitemapXml = await readFile(path.join(outputDir, "sitemap.xml"), "utf8");
 const locations = [...sitemapXml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
 
@@ -46,7 +93,17 @@ for (const location of locations) {
   }
 
   const title = html.match(/<title>([^<]*)<\/title>/)?.[1];
-  if (!title) note(route, "has no <title>.");
+  if (!title) {
+    note(route, "has no <title>.");
+  } else {
+    const width = titleWidth(decodeEntities(title));
+    if (width > TITLE_WIDTH_LIMIT) {
+      warn(
+        route,
+        `title renders ~${width}px, over the ~${TITLE_WIDTH_LIMIT}px SERP limit - Google will truncate it. Shorten it in src/site-routes.ts.`,
+      );
+    }
+  }
 
   const description = html.match(/<meta name="description" content="([^"]*)"/)?.[1];
   if (!description) note(route, "has no meta description.");
@@ -99,6 +156,14 @@ for (const location of locations) {
   if (!llmsTxt.includes(location)) {
     note(new URL(location).pathname, "is in the sitemap but missing from llms.txt.");
   }
+}
+
+if (warnings.length > 0) {
+  console.warn("");
+  console.warn("Shippable, but worth fixing:");
+  console.warn("");
+  for (const warning of warnings) console.warn(`  - ${warning}`);
+  console.warn("");
 }
 
 if (problems.length > 0) {

@@ -76,7 +76,7 @@ export const SITE_ROUTES: SiteRoute[] = [
   },
   {
     path: "/paye-calculator",
-    title: "Kenya PAYE Calculator — Net Pay After NSSF, SHIF & Housing Levy",
+    title: "Kenya PAYE Calculator — Net Pay, NSSF, SHIF & Housing Levy",
     description:
       "Free Kenyan PAYE calculator. Enter a monthly gross salary to see PAYE, NSSF, SHIF and Housing Levy deductions, take-home pay, and total employer cost.",
     social:
