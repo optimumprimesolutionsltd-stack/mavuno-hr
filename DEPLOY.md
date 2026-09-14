@@ -57,6 +57,31 @@ changing the value here and in the CRM's function config.
 Build-time (read by Vite): `VITE_CLERK_PUBLISHABLE_KEY`,
 `VITE_CLERK_PROXY_URL=/api/__clerk`.
 
+**Paybill (C2B) payments** — a customer paying the Paybill by hand, rather than
+through the in-app STK Push prompt. Two steps, both required:
+
+1. Set **one** of these so a confirmation can be authenticated:
+   - `MPESA_C2B_CALLBACK_SECRET` — any unguessable string. It becomes a path
+     segment on the URLs registered with Safaricom, so only they and we know it.
+     Simplest option, and it survives Safaricom changing their IP ranges.
+   - `MPESA_CALLBACK_IP_ALLOWLIST` — comma-separated Safaricom source IPs from
+     the Daraja portal. Also enforced on the STK Push callback.
+
+   With neither set, Paybill payments are still **recorded** — the money is real
+   — but held as unallocated for a super-admin instead of being credited
+   automatically. That is deliberate: the confirmation URL is public, and
+   without one of the above anyone who found it could grant themselves a paid
+   subscription.
+
+2. Register the URLs with Safaricom, once per shortcode and again whenever the
+   public URL changes: `POST /api/super/mpesa/register-c2b-urls` with
+   `{"baseUrl": "https://mavunohr.co.ke"}`. Until this runs, a Paybill payment
+   never reaches the app at all.
+
+Payments that arrive with a mistyped account reference land in
+`GET /api/super/mpesa/unallocated` and are assigned with
+`POST /api/super/mpesa/unallocated/:id/allocate`.
+
 **Custom domains** (on the web service): `mavunohr.co.ke` + `www.mavunohr.co.ke`
 (www redirects to the apex). No separate `app.` / `api.` hosts — the single
 origin covers both.

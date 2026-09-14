@@ -722,6 +722,36 @@ async function createBillingChargesTable(): Promise<void> {
   await db.execute(sql`ALTER TABLE billing_payments ADD COLUMN IF NOT EXISTS charge_id INTEGER REFERENCES billing_charges(id)`);
 }
 
+async function createMpesaUnallocatedPaymentsTable(): Promise<void> {
+  // Paybill (C2B) money that arrived without a usable account reference, or
+  // whose confirmation could not be authenticated. Never dropped — the funds
+  // are real either way.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS mpesa_unallocated_payments (
+      id                    SERIAL PRIMARY KEY,
+      trans_id              TEXT NOT NULL,
+      amount_cents          BIGINT NOT NULL,
+      bill_ref_number       TEXT,
+      msisdn                TEXT,
+      payer_name            TEXT,
+      trans_time            TEXT,
+      status                TEXT NOT NULL DEFAULT 'unallocated',
+      reason                TEXT NOT NULL DEFAULT 'no_match',
+      allocated_org_id      INTEGER REFERENCES organizations(id) ON DELETE SET NULL,
+      allocated_payment_id  INTEGER REFERENCES billing_payments(id),
+      allocated_by_user_id  INTEGER REFERENCES users(id),
+      allocated_at          TIMESTAMP,
+      note                  TEXT,
+      raw                   JSONB,
+      created_at            TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS mpesa_unallocated_trans_id_uq
+      ON mpesa_unallocated_payments(trans_id);
+    CREATE INDEX IF NOT EXISTS mpesa_unallocated_status_idx
+      ON mpesa_unallocated_payments(status);
+  `);
+}
+
 async function createNotificationsTable(): Promise<void> {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS notifications (
@@ -863,6 +893,7 @@ export async function runStartupMigrations(): Promise<void> {
     ["addOrgAccessUntil", addOrgAccessUntil],
     ["createBillingCreditsTable", createBillingCreditsTable],
     ["createBillingChargesTable", createBillingChargesTable],
+    ["createMpesaUnallocatedPaymentsTable", createMpesaUnallocatedPaymentsTable],
   ];
 
   for (const [name, run] of steps) {
