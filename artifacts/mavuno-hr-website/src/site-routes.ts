@@ -141,6 +141,17 @@ export const SITE_ROUTES: SiteRoute[] = [
     article: { published: "2026-09-13" },
   },
   {
+    path: "/guides/how-to-run-payroll-in-kenya",
+    title: "How to Run Payroll in Kenya: A Step-by-Step Guide | Mavuno HR",
+    description:
+      "What a new employer has to do before and after the first payslip: registering with KRA, NSSF and SHIF, getting employee records right, fixing a pay date, and the run-file-pay cycle every month.",
+    social:
+      "Registering as an employer, getting employee records right, and the run-file-pay cycle every month after.",
+    priority: "0.8",
+    breadcrumb: "How to run payroll in Kenya",
+    article: { published: "2026-09-14" },
+  },
+  {
     path: "/privacy",
     title: "Privacy Policy | Mavuno HR",
     description:
