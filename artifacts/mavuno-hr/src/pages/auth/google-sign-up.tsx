@@ -170,6 +170,7 @@ export function GoogleSignUp() {
             <CardHeader className="pb-4">
               <CardTitle className="font-mono text-base">SET UP YOUR COMPANY</CardTitle>
               <CardDescription>One last step — tell us about the organisation</CardDescription>
+              <p className="text-xs text-muted-foreground">Starts with a free 30-day trial. No card required, cancel anytime.</p>
             </CardHeader>
             <CardContent>
               <Form {...form}>
@@ -258,7 +259,7 @@ export function GoogleSignUp() {
 
                   <Button type="submit" className="w-full font-mono font-bold mt-2" disabled={submitting}>
                     {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    CREATE COMPANY
+                    START FREE TRIAL
                   </Button>
                 </form>
               </Form>
