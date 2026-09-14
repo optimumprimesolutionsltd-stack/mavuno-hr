@@ -218,10 +218,25 @@ export async function sendOrgInviteEmail(
   name: string,
   orgName: string,
   setupUrl: string,
+  plan: { label: string; trialEndsAt: Date | null },
 ): Promise<void> {
   if (!resend) {
     throw new Error("RESEND_NOT_CONFIGURED");
   }
+  // The super-admin can provision an org for a customer who can't self-serve
+  // (docs/design/super-admin-org-lifecycle.md §3) -- but that account, and
+  // its trial clock, exists before the customer has clicked anything. Say so
+  // plainly rather than a generic "your account is ready": what plan they've
+  // been put on, and -- for a trial -- exactly when it ends, matching the
+  // same disclosure the self-serve signup forms already give (see register.tsx).
+  const fmtDate = (d: Date) =>
+    d.toLocaleString("en-KE", { dateStyle: "long", timeZone: "Africa/Nairobi" });
+  const planLine = plan.trialEndsAt
+    ? `This sets up a free trial on the <strong style="color:#e5e5e5">${plan.label}</strong> plan, running until <strong style="color:#e5e5e5">${fmtDate(plan.trialEndsAt)}</strong>. No card is needed to get started; you can pick a plan and pay any time from Billing before then.`
+    : `This sets up your account on the <strong style="color:#e5e5e5">${plan.label}</strong> plan.`;
+  const planLineText = plan.trialEndsAt
+    ? `This sets up a free trial on the ${plan.label} plan, running until ${fmtDate(plan.trialEndsAt)}. No card is needed to get started; you can pick a plan and pay any time from Billing before then.`
+    : `This sets up your account on the ${plan.label} plan.`;
   const { error } = await resend.emails.send({
     from: RESEND_FROM(),
     to,
@@ -242,10 +257,13 @@ export async function sendOrgInviteEmail(
         </td></tr>
         <tr><td style="padding:36px">
           <p style="margin:0 0 16px;font-size:14px;color:#a3a3a3;text-transform:uppercase;letter-spacing:1px">YOUR ACCOUNT IS READY</p>
-          <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#e5e5e5">
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#e5e5e5">
             Hi ${name},<br><br>
             Mavuno HR has set up <strong style="color:#22c55e">${orgName}</strong> for you.
             Click below to choose a password and sign in.
+          </p>
+          <p style="margin:0 0 24px;font-size:13px;line-height:1.6;color:#a3a3a3">
+            ${planLine}
           </p>
           <table cellpadding="0" cellspacing="0" style="margin:0 0 28px">
             <tr><td style="background:#22c55e;border-radius:6px">
@@ -268,7 +286,7 @@ export async function sendOrgInviteEmail(
   </table>
 </body>
 </html>`,
-    text: `Hi ${name},\n\nMavuno HR has set up ${orgName} for you. Set your password: ${setupUrl}\n\nThis link expires in 7 days.\n\n— Mavuno HR`,
+    text: `Hi ${name},\n\nMavuno HR has set up ${orgName} for you. Set your password: ${setupUrl}\n\n${planLineText}\n\nThis link expires in 7 days.\n\n— Mavuno HR`,
   });
   if (error) { const e = new Error(error.message ?? "Resend error"); e.name = error.name ?? "ResendError"; throw e; }
   logger.info({ to, orgName }, "mailer: org invite email sent via Resend");
