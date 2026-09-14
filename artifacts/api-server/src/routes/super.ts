@@ -313,7 +313,10 @@ router.post("/orgs", ...requireSuperAdmin(), async (req, res, next) => {
     let inviteEmailed = false;
     if (d.admin.sendInvite) {
       try {
-        await sendOrgInviteEmail(adminEmail, d.admin.name, d.name, inviteUrl);
+        await sendOrgInviteEmail(adminEmail, d.admin.name, d.name, inviteUrl, {
+          label: rate.label,
+          trialEndsAt: d.plan === "trial" ? accessUntil : null,
+        });
         inviteEmailed = true;
       } catch (err) {
         warnings.push("Invite email failed to send — share the invite link below manually.");
