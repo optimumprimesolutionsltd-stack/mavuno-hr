@@ -29,6 +29,7 @@ import { PortalLayout, PortalGuard } from "@/components/layout/portal-layout";
 import { SuperAdminLayout, SuperAdminGuard } from "@/components/layout/super-layout";
 import { SuperAdminCompanies } from "@/pages/super";
 import { SuperAdminBilling } from "@/pages/super/billing";
+import { SuperAdminDemoRequests } from "@/pages/super/demo-requests";
 import { AdminBilling } from "@/pages/admin/billing";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
@@ -106,6 +107,7 @@ export function Router() {
           <SuperAdminLayout>
             <Switch>
               <Route path="/super/billing" component={SuperAdminBilling} />
+              <Route path="/super/demo-requests" component={SuperAdminDemoRequests} />
               <Route><Redirect to="/super" /></Route>
             </Switch>
           </SuperAdminLayout>

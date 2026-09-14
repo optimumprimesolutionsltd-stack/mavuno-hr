@@ -12,9 +12,12 @@ import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
+import { demoRequests } from "@workspace/db/schema";
 import { computePayslip, emptyPayInput, solveGrossForNet } from "../lib/payroll.js";
 import { resolveCountryConfig } from "../lib/statutory-resolve.js";
 import { toCents } from "../lib/money.js";
+import { sendDemoRequestNotification } from "../lib/mailer.js";
+import { logger } from "../lib/logger.js";
 
 const router = Router();
 
@@ -209,6 +212,57 @@ router.post("/calculator/net-to-gross", rateLimit, async (req, res, next) => {
         warnings: r.warnings,
       },
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// --- Demo request (marketing site "Request Demo" form) ---------------------
+// Replaces the old mailto: handoff, which silently did nothing on a device
+// with no mail client configured. The row in demo_requests is the record of
+// the request; the notification email below is best-effort on top of it, not
+// a requirement for the submission to succeed.
+
+const DEMO_NOTIFY_TO = process.env.DEMO_REQUEST_NOTIFY_EMAIL?.trim() || "info@mavunohr.co.ke";
+
+const demoRequestSchema = z.object({
+  email: z.string().email().max(255),
+  company: z.string().trim().max(200).optional(),
+  message: z.string().trim().max(2000).optional(),
+  sourcePath: z.string().trim().max(200).optional(),
+});
+
+router.post("/demo-requests", rateLimit, async (req, res, next) => {
+  try {
+    const parsed = demoRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ error: "Enter a valid work email address." });
+      return;
+    }
+    const { email, company, message, sourcePath } = parsed.data;
+
+    await db.insert(demoRequests).values({
+      email: email.toLowerCase(),
+      company: company || null,
+      message: message || null,
+      sourcePath: sourcePath || null,
+    });
+
+    // Best-effort: a lost notification is a nuisance, a lost lead is not —
+    // the row above already exists regardless of what happens here.
+    try {
+      await sendDemoRequestNotification({
+        to: DEMO_NOTIFY_TO,
+        email,
+        company: company || null,
+        message: message || null,
+        sourcePath: sourcePath || null,
+      });
+    } catch (err) {
+      logger.warn({ err, email }, "public: demo request saved but the notification email failed");
+    }
+
+    res.status(201).json({ ok: true });
   } catch (err) {
     next(err);
   }

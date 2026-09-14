@@ -460,6 +460,16 @@ async function createBaseSchema(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`,
     `CREATE INDEX IF NOT EXISTS notifications_user_idx ON notifications(user_id, read_at)`,
+    `CREATE TABLE IF NOT EXISTS demo_requests (
+      id SERIAL PRIMARY KEY,
+      email TEXT NOT NULL,
+      company TEXT,
+      message TEXT,
+      source_path TEXT,
+      status TEXT NOT NULL DEFAULT 'new',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS demo_requests_created_idx ON demo_requests(created_at)`,
   ];
 
   for (const stmt of statements) {

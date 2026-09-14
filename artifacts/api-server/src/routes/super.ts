@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
 import crypto from "node:crypto";
-import { eq, ne, and, isNull, inArray, count, max, sql } from "drizzle-orm";
+import { eq, ne, and, isNull, inArray, count, max, sql, desc } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { organizations, employees, payrollRuns, users, passwordResetTokens, statutoryConfigs, billingCredits } from "@workspace/db/schema";
+import { organizations, employees, payrollRuns, users, passwordResetTokens, statutoryConfigs, billingCredits, demoRequests } from "@workspace/db/schema";
 import { requireAuth, getIp, type AuthRequest } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
 import { writeAudit } from "../lib/audit.js";
@@ -89,6 +89,28 @@ function requireSuperAdminOrSyncKey() {
 }
 
 // ── GET /api/super/orgs ───────────────────────────────────────────────────────
+// ── Marketing site "Request Demo" leads ─────────────────────────────────────
+// No org context -- these are pre-signup, so they live outside /orgs.
+router.get("/demo-requests", ...requireSuperAdmin(), async (_req, res, next) => {
+  try {
+    const rows = await db.select().from(demoRequests).orderBy(desc(demoRequests.createdAt)).limit(200);
+    res.json(rows);
+  } catch (err) { next(err); }
+});
+
+const updateDemoRequestSchema = z.object({ status: z.enum(["new", "contacted"]) });
+router.patch("/demo-requests/:id", ...requireSuperAdmin(), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const parsed = updateDemoRequestSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(422).json({ error: "Invalid status" }); return; }
+    const [updated] = await db.update(demoRequests).set({ status: parsed.data.status })
+      .where(eq(demoRequests.id, id)).returning();
+    if (!updated) { res.status(404).json({ error: "Demo request not found" }); return; }
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
 router.get("/orgs", requireSuperAdminOrSyncKey(), async (_req, res, next) => {
   try {
     // Per-org aggregates: employee count, payroll run count, last run date, admin email
