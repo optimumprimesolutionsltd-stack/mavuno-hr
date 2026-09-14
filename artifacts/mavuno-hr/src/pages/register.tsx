@@ -167,6 +167,11 @@ export function Register() {
              Mavuno<span className="text-primary"> HR</span>
           </h1>
           <p className="text-muted-foreground text-sm">Set up your company in 2 minutes</p>
+          <p className="text-xs text-muted-foreground">
+            {payDirect
+              ? "You'll land on Billing to pick a plan and pay right away."
+              : "Starts with a free 30-day trial. No card required, cancel anytime."}
+          </p>
         </div>
 
         {/* Step indicator */}
@@ -368,7 +373,7 @@ export function Register() {
                     </Button>
                     <Button type="submit" className="flex-1 font-mono font-bold" disabled={loading}>
                       {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                      CREATE ACCOUNT
+                      {payDirect ? "CREATE ACCOUNT & CONTINUE TO BILLING" : "START FREE TRIAL"}
                     </Button>
                   </div>
                 </form>
