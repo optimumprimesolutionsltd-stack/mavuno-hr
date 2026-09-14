@@ -8,7 +8,16 @@ import { logger } from "./logger.js";
 const resendApiKey = process.env.RESEND_API_KEY?.trim() ?? "";
 const resendFromAddress = process.env.RESEND_FROM_EMAIL?.trim() ?? "";
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
-const RESEND_FROM = () => `Mavuno HR <${resendFromAddress}>`;
+// RESEND_FROM_EMAIL on Render is already the full "Mavuno HR <noreply@...>"
+// display-name form (confirmed live), but this always re-wrapped it in
+// another "Mavuno HR <...>" regardless, producing a doubly-nested, invalid
+// From header -- "Mavuno HR <Mavuno HR <noreply@mavunohr.co.ke>>" -- that
+// Resend correctly rejected with validation_error on every single send.
+// Every outbound email (receipts, payslips, password resets, filing
+// confirmations, demo-request alerts) has been going through this. Only wrap
+// a bare address; pass an already-formatted one through untouched.
+const RESEND_FROM = () =>
+  resendFromAddress.includes("<") ? resendFromAddress : `Mavuno HR <${resendFromAddress}>`;
 
 /**
  * Resend returns { message, error } rather than throwing. Log the real detail,
