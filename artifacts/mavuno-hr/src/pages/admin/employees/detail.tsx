@@ -422,8 +422,19 @@ export function EmployeeDetail() {
                     </div>
                   ))}
                 </div>
+                {/* "Taken this year" only counts leave approved in Mavuno. An
+                    employer who migrated mid-year has staff who already took
+                    leave under the old system that Mavuno cannot see, so the
+                    entitlement figure has to absorb it — otherwise everyone
+                    silently gets a full year's leave twice. */}
+                <p className="text-xs text-muted-foreground">
+                  <span className="text-foreground">Taken this year</span> counts only leave approved in
+                  Mavuno. If you moved to Mavuno partway through the year, set the entitlement to the days
+                  each employee had <span className="text-foreground">left</span> at that point — an opening
+                  balance — not their full annual entitlement.
+                </p>
                 {editingLeave && (
-                  <div className="flex items-center gap-3 p-3 rounded-lg border border-primary/20 bg-primary/5">
+                  <div className="flex items-center gap-3 p-3 mt-3 rounded-lg border border-primary/20 bg-primary/5">
                     <span className="text-sm font-mono text-muted-foreground shrink-0">Annual entitlement (days):</span>
                     <input
                       type="number"

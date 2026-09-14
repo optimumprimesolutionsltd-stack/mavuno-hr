@@ -50,6 +50,21 @@ router.get("/", requireAuth("org:admin"), async (req, res, next) => {
 
     const cfg = resolved?.config as any ?? null;
 
+    // The latest month that already has a historical run. PATCH /org refuses a
+    // cutover at or before this (a "migrated" month Mavuno supposedly owns is
+    // nonsense), and the settings screen uses it to say so while the admin is
+    // still choosing, rather than only after a rejected save.
+    const [latestHistorical] = await db
+      .select({ period: payrollRuns.period })
+      .from(payrollRuns)
+      .where(and(
+        eq(payrollRuns.orgId, p.orgId),
+        eq(payrollRuns.runType, "historical"),
+        ne(payrollRuns.status, "reversed"),
+      ))
+      .orderBy(desc(payrollRuns.period))
+      .limit(1);
+
     res.json({
       org: {
         id: org.id,
@@ -72,6 +87,7 @@ router.get("/", requireAuth("org:admin"), async (req, res, next) => {
       tier2Provider: cfg?.socialSecurity?.tier2Provider ?? "nssf",
       tier2ProviderName: cfg?.socialSecurity?.tier2ProviderName ?? "",
       hasOrgOverride: !!orgOverride,
+      latestHistoricalRunPeriod: latestHistorical?.period ?? null,
     });
   } catch (err) { next(err); }
 });
