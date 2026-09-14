@@ -513,3 +513,49 @@ export async function sendStatutoryRemittanceEmail(opts: {
   if (error) { const e = new Error(error.message ?? "Resend error"); e.name = error.name ?? "ResendError"; throw e; }
   logger.info({ to, kind, period }, "mailer: statutory remittance email sent via Resend");
 }
+
+// ── Demo request notification (marketing site → internal team) ─────────────
+// The demo_requests row is the source of truth (see routes/public.ts) — this
+// is a best-effort nudge on top of it, not the record itself. The caller
+// swallows a failure here rather than let a Resend outage break the form for
+// the visitor who filled it in.
+
+export async function sendDemoRequestNotification(opts: {
+  to: string;
+  email: string;
+  company: string | null;
+  message: string | null;
+  sourcePath: string | null;
+}): Promise<void> {
+  const { to, email, company, message, sourcePath } = opts;
+  if (!resend) {
+    throw new Error("RESEND_NOT_CONFIGURED");
+  }
+  const html = `
+<p>New demo request from the marketing site.</p>
+<table>
+  <tr><td><strong>Email</strong></td><td>${email}</td></tr>
+  ${company ? `<tr><td><strong>Company</strong></td><td>${company}</td></tr>` : ""}
+  ${sourcePath ? `<tr><td><strong>Page</strong></td><td>${sourcePath}</td></tr>` : ""}
+  ${message ? `<tr><td><strong>Message</strong></td><td>${message}</td></tr>` : ""}
+</table>`;
+  const text = [
+    `New demo request from the marketing site.`,
+    ``,
+    `Email:   ${email}`,
+    company ? `Company: ${company}` : null,
+    sourcePath ? `Page:    ${sourcePath}` : null,
+    message ? `Message: ${message}` : null,
+  ].filter((line): line is string => line !== null).join("\n");
+
+  const { error } = await resend.emails.send({
+    from: RESEND_FROM(),
+    to,
+    replyTo: email,
+    subject: `[Mavuno HR] Demo request — ${company || email}`,
+    html,
+    text,
+  });
+  if (error) { const e = new Error(error.message ?? "Resend error"); e.name = error.name ?? "ResendError"; throw e; }
+  logger.info({ email }, "mailer: demo request notification sent via Resend");
+}

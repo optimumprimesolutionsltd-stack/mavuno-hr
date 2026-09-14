@@ -484,3 +484,20 @@ export const notifications = pgTable("notifications", {
 }, (t) => [
   index("notifications_user_idx").on(t.userId, t.readAt),
 ]);
+
+/* ==================== MARKETING SITE LEADS ==================== */
+// No orgId -- these come from an anonymous visitor on the public marketing
+// site, before any organization exists. The row itself is the record of the
+// request; the notification email to the team is best-effort on top of it,
+// not the source of truth (see routes/public.ts).
+export const demoRequests = pgTable("demo_requests", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull(),
+  company: text("company"),
+  message: text("message"),
+  sourcePath: text("source_path"), // which marketing page the form was on, e.g. "/pricing"
+  status: text("status").notNull().default("new"), // "new" | "contacted"
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("demo_requests_created_idx").on(t.createdAt),
+]);

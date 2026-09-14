@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useLogout } from "@workspace/api-client-react";
 import { useClerk } from "@clerk/react";
 import { clearToken } from "@/lib/session";
-import { Building2, LayoutGrid, LogOut, Loader2, ShieldCheck, CreditCard } from "lucide-react";
+import { Building2, LayoutGrid, LogOut, Loader2, ShieldCheck, CreditCard, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function SuperAdminGuard({ children }: { children: ReactNode }) {
@@ -61,6 +61,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
           {[
             { href: "/super", label: "Companies", icon: LayoutGrid, exact: true },
             { href: "/super/billing", label: "Billing", icon: CreditCard },
+            { href: "/super/demo-requests", label: "Demo Requests", icon: Mail },
           ].map((item) => {
             const isActive = item.exact ? location === item.href : location.startsWith(item.href);
             return (
