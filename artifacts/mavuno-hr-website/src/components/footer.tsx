@@ -35,6 +35,7 @@ export function Footer() {
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li><Link href="/paye-calculator" className="hover:text-primary transition-colors">PAYE Calculator</Link></li>
               <li><Link href="/net-to-gross-calculator" className="hover:text-primary transition-colors">Net to Gross Calculator</Link></li>
+              <li><Link href="/guides" className="hover:text-primary transition-colors">Guides</Link></li>
               <li><Link href="/compliance" className="hover:text-primary transition-colors">Statutory Compliance</Link></li>
               <li><a href="mailto:info@mavunohr.co.ke" className="hover:text-primary transition-colors">Contact Support</a></li>
             </ul>

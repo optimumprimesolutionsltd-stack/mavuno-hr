@@ -91,12 +91,24 @@ app.use(
 // is how the two drift apart.
 function prerenderedRoutes(dir: string): Set<string> {
   const routes = new Set<string>(["/"]);
-  try {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (entry.isDirectory() && fs.existsSync(path.join(dir, entry.name, "index.html"))) {
-        routes.add(`/${entry.name}`);
-      }
+
+  // Recursive, because routes are not all one level deep: /guides/<slug> lives
+  // at guides/<slug>/index.html and a single-level scan would prerender it
+  // happily and then 404 it, which is the worst of both.
+  const walk = (current: string, prefix: string): void => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const full = path.join(current, entry.name);
+      const route = `${prefix}/${entry.name}`;
+      if (fs.existsSync(path.join(full, "index.html"))) routes.add(route);
+      // Keep descending regardless: an index page and its children are both
+      // routes, and a directory without one can still hold them.
+      walk(full, route);
     }
+  };
+
+  try {
+    walk(dir, "");
   } catch {
     // No dist yet (API-only run) — tolerated, same as the mounts above.
   }
