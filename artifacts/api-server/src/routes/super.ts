@@ -3,7 +3,7 @@ import { z } from "zod";
 import crypto from "node:crypto";
 import { eq, ne, and, isNull, inArray, count, max, sql, desc } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { organizations, employees, payrollRuns, users, passwordResetTokens, statutoryConfigs, billingCredits, demoRequests } from "@workspace/db/schema";
+import { organizations, employees, payrollRuns, users, passwordResetTokens, statutoryConfigs, billingCredits, billingCharges, demoRequests } from "@workspace/db/schema";
 import { requireAuth, getIp, type AuthRequest } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
 import { writeAudit } from "../lib/audit.js";
@@ -12,6 +12,8 @@ import {
   standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents,
 } from "../lib/pricing.js";
 import { accountReferenceFor, parseAccountReference } from "../lib/mpesa.js";
+import { runBillingForPeriod } from "../lib/billing-run.js";
+import { logger } from "../lib/logger.js";
 import { accessStateOf } from "../lib/session.js";
 import { hashPassword, generateTempPassword } from "../lib/password.js";
 import { sendOrgInviteEmail } from "../lib/mailer.js";
@@ -133,6 +135,34 @@ router.get("/orgs", requireSuperAdminOrSyncKey(), async (_req, res, next) => {
         .where(eq(users.role, "admin")),
     ]);
 
+    // Latest non-void charge per org, for currentPeriodStatus (design §4).
+    // One query, narrow columns, newest first — the first row seen for an org
+    // is its latest period. A charge table is one row per org per month, so
+    // this stays small for a long time; if it stops being small it wants a
+    // DISTINCT ON, not a per-org query in the loop below.
+    const chargeRows = await db
+      .select({
+        orgId: billingCharges.orgId,
+        period: billingCharges.period,
+        status: billingCharges.status,
+        cycleAmountCents: billingCharges.cycleAmountCents,
+      })
+      .from(billingCharges)
+      .where(ne(billingCharges.status, "void"))
+      .orderBy(desc(billingCharges.period));
+
+    const latestCharge = new Map<number, (typeof chargeRows)[number]>();
+    for (const c of chargeRows) if (!latestCharge.has(c.orgId)) latestCharge.set(c.orgId, c);
+
+    // "Overdue" is an open charge whose period ended more than this long ago.
+    // Dunning (design §7 phase 5) is not built; this is the flag it will use.
+    const OVERDUE_AFTER_DAYS = 14;
+    const overdueCutoff = new Date(Date.now() - OVERDUE_AFTER_DAYS * 24 * 60 * 60 * 1000);
+    const periodEndedBefore = (period: string, cutoff: Date): boolean => {
+      const [y, m] = period.split("-").map(Number);
+      return new Date(y, m, 1).getTime() < cutoff.getTime();
+    };
+
     const empMap = Object.fromEntries(empCounts.map((r) => [r.orgId, r.cnt]));
     const runMap = Object.fromEntries(runCounts.map((r) => [r.orgId, { cnt: r.cnt, lastRun: r.lastRun }]));
     const adminMap: Record<number, { email: string; name: string }[]> = {};
@@ -180,6 +210,17 @@ router.get("/orgs", requireSuperAdminOrSyncKey(), async (_req, res, next) => {
           payrollRuns: runMap[o.id]?.cnt ?? 0,
           lastPayrollRun: runMap[o.id]?.lastRun ?? null,
           admins: adminMap[o.id] ?? [],
+          // The frozen bill, not the live rate-card estimate above it.
+          // null = the billing run has never written a charge for this org
+          // (new, on trial, or mid-annual-term).
+          currentPeriod: latestCharge.get(o.id)?.period ?? null,
+          currentPeriodAmountCents: latestCharge.get(o.id)?.cycleAmountCents ?? null,
+          currentPeriodStatus: (() => {
+            const c = latestCharge.get(o.id);
+            if (!c) return null;
+            if (c.status === "paid") return "paid";
+            return periodEndedBefore(c.period, overdueCutoff) ? "overdue" : "open";
+          })(),
         };
       })
     );
@@ -584,6 +625,87 @@ router.post("/credits/:id/void", ...requireSuperAdmin(), async (req, res, next) 
     });
 
     res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── POST /api/super/billing-run — trigger the billing run now ───────────────
+// docs/design/billing-and-repricing.md §4. Idempotent by construction (unique
+// (org_id, period, cycle)), so this is safe to hit for a catch-up after
+// downtime, or to bill a month by hand. Omitting `period` bills last month,
+// exactly as the scheduled execution does.
+const billingRunSchema = z.object({
+  period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "period must be YYYY-MM").optional(),
+});
+
+router.post("/billing-run", ...requireSuperAdmin(), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const parsed = billingRunSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return;
+    }
+
+    const summary = await runBillingForPeriod(parsed.data.period);
+
+    // Audited against no single org — the run spans all of them — so this is
+    // recorded per the same convention outage-credits uses: attach it to
+    // nothing and let the response be the summary. Only the operator-visible
+    // log records who triggered it.
+    logger.info({ summary, actor: p.email }, "super: manual billing run");
+
+    res.json(summary);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── POST /api/super/charges/:id/void — write off a period ───────────────────
+router.post("/charges/:id/void", ...requireSuperAdmin(), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = parseInt(String(req.params.id));
+    if (isNaN(id)) throw new HttpError(400, "Invalid charge id");
+
+    const [charge] = await db.select().from(billingCharges).where(eq(billingCharges.id, id));
+    if (!charge) throw new HttpError(404, "Charge not found");
+    if (charge.status === "void") throw new HttpError(409, "Charge is already void");
+
+    const now = new Date();
+    const [updated] = await db.transaction(async (tx) => {
+      const [row] = await tx.update(billingCharges)
+        .set({ status: "void", voidedAt: now, voidedByUserId: p.userId })
+        .where(eq(billingCharges.id, id))
+        .returning();
+
+      await writeAudit(tx as any, {
+        orgId: charge.orgId, action: "BILLING_CHARGE_VOID", entity: "billing_charges", entityId: id,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        detail: `Wrote off ${charge.period} (${charge.cycle}), ${charge.cycleAmountCents} cents`,
+        before: { status: charge.status }, after: { status: "void" },
+      });
+
+      return [row];
+    });
+
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── GET /api/super/orgs/:id/charges — one org's billing history ─────────────
+router.get("/orgs/:id/charges", ...requireSuperAdmin(), async (req, res, next) => {
+  try {
+    const id = parseInt(String(req.params.id));
+    if (isNaN(id)) throw new HttpError(400, "Invalid org id");
+
+    const charges = await db.select().from(billingCharges)
+      .where(eq(billingCharges.orgId, id))
+      .orderBy(desc(billingCharges.period));
+
+    res.json({ charges });
   } catch (err) {
     next(err);
   }

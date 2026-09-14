@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
-import { eq, and, desc, isNull, count } from "drizzle-orm";
+import { eq, and, desc, isNull, ne, count } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
-  billingPayments, organizations, users, employees, billingCredits,
+  billingPayments, organizations, users, employees, billingCredits, billingCharges,
 } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
@@ -17,6 +17,7 @@ import {
 } from "../lib/pricing.js";
 import { accessStateOf } from "../lib/session.js";
 import { computeExpectedForOrg, consumeCreditsForPayment } from "../lib/billing-credits.js";
+import { projectNextCharge, settleChargeForPayment } from "../lib/billing-run.js";
 import { logger } from "../lib/logger.js";
 import type { Request, Response, NextFunction } from "express";
 
@@ -180,6 +181,11 @@ router.post("/:id/verify", ...requireSuperAdmin(), async (req, res, next) => {
       return [payment];
     });
 
+    // Close the period this payment settles (design §2). Best-effort and after
+    // the transaction on purpose: the payment is verified and access already
+    // extended regardless of whether a charge row exists to close.
+    await settleChargeForPayment(row.org.id, id, updated.amount);
+
     // Find company admin email(s) to send receipt
     const adminUsers = await db
       .select({ email: users.email, name: users.name })
@@ -333,7 +339,39 @@ router.get("/my", requireAuth("org:admin"), async (req, res, next) => {
       .orderBy(billingCredits.createdAt);
     const openCreditCents = openCredits.reduce((s, c) => s + c.amountCents, 0);
 
-    res.json({ org, payments, credits: openCredits, openCreditCents });
+    // docs/design/billing-and-repricing.md §4. The billing run bills in
+    // arrears, so "current" here is the most recent charge written — the one
+    // the customer owes — not necessarily the calendar month they're standing
+    // in. Everything above it on this screen is a live rate-card estimate;
+    // this is the frozen figure.
+    const [latestCharge] = await db.select().from(billingCharges)
+      .where(and(eq(billingCharges.orgId, p.orgId), ne(billingCharges.status, "void")))
+      .orderBy(desc(billingCharges.period))
+      .limit(1);
+
+    const currentCharge = latestCharge
+      ? {
+          id: latestCharge.id,
+          period: latestCharge.period,
+          cycle: latestCharge.cycle,
+          plan: latestCharge.plan,
+          activeEmployees: latestCharge.activeEmployees,
+          amountCents: latestCharge.amountCents,
+          cycleAmountCents: latestCharge.cycleAmountCents,
+          source: latestCharge.source,
+          status: latestCharge.status,
+          paidAt: latestCharge.paidAt,
+          shortfallCents: latestCharge.status === "paid"
+            ? 0
+            : Math.max(0, latestCharge.cycleAmountCents - openCreditCents),
+        }
+      : null;
+
+    // What the next run will bill, at today's headcount — so a band move is
+    // visible before the invoice, not after it.
+    const nextChargeProjection = await projectNextCharge(p.orgId);
+
+    res.json({ org, payments, credits: openCredits, openCreditCents, currentCharge, nextChargeProjection });
   } catch (err) { next(err); }
 });
 
@@ -562,6 +600,8 @@ router.post("/mpesa/callback", async (req, res) => {
         userId: null, email: "mpesa@system", ip: getIp(req),
       });
     });
+
+    await settleChargeForPayment(payment.orgId, payment.id, amountPaid || payment.amount);
 
     logger.info({ checkoutRequestId, mpesaReceiptNumber, orgId: payment.orgId }, "mpesa: payment verified, org activated");
 

@@ -1,8 +1,20 @@
 # Design: billing runs & repricing
 
-Status: **draft / for review**
+Status: **phases 1–4 built** (see §7 for what each covers, and what is left)
 Author: engineering
-Last updated: 2026-09-10
+Last updated: 2026-09-14
+
+**What exists now:** `billing_charges`, `billing_payments.charge_id`, the
+scheduled run (`lib/billing-run.ts`, decisions in `lib/billing-policy.ts`),
+repricing in both directions, trial-end plan assignment, annual renewal-month
+handling, `currentCharge` / `nextChargeProjection` on `GET /api/billing/my`
+with the "next bill" banner on the billing screen, and the super-admin surfaces
+(`POST /api/super/billing-run`, `POST /api/super/charges/:id/void`,
+`GET /api/super/orgs/:id/charges`, `currentPeriodStatus` on `/api/super/orgs`).
+`PATCH /api/billing/plan` and the plan picker (§9.1–9.2) shipped earlier.
+
+**Not built:** dunning and auto-suspend (§7 phase 5), invoice PDFs (§10 q4),
+and capturing expected team size at registration (§9.4).
 
 ---
 

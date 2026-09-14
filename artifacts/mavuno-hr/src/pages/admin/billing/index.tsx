@@ -42,6 +42,26 @@ interface BillingData {
   payments: { payment: BillingPayment; verifierEmail: string | null }[];
   credits: { id: number; amountCents: number; kind: string; reason: string; period: string | null; createdAt: string }[];
   openCreditCents: number;
+  /** The frozen bill for the most recent period the billing run wrote — not a
+   *  live rate-card estimate. null until the first run covers this org. */
+  currentCharge: {
+    id: number; period: string; cycle: string; plan: string; activeEmployees: number;
+    amountCents: number; cycleAmountCents: number; source: string;
+    status: string; paidAt: string | null; shortfallCents: number;
+  } | null;
+  /** What the next run will bill at today's headcount. */
+  nextChargeProjection: {
+    period: string; plan: string; changingFrom: string | null; activeEmployees: number;
+    amountCents: number; cycleAmountCents: number; cycle: string; source: string;
+    skip: "not_active" | "pending_deletion" | "trial" | "mid_annual_term" | null;
+  } | null;
+}
+
+/** 'YYYY-MM' -> "August 2026". */
+function fmtPeriod(period: string) {
+  const [y, m] = period.split("-").map(Number);
+  if (!y || !m) return period;
+  return new Date(y, m - 1, 1).toLocaleDateString("en-KE", { month: "long", year: "numeric" });
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -327,6 +347,16 @@ export function AdminBilling() {
   const recommendedMonthly = standardMonthlyCents(recommended, headcount);
   const showUpgradeNudge = !usingOverride && recommended !== plan && recommendedMonthly >= monthly;
 
+  // The frozen bill and the projection of the next one.
+  const charge = data?.currentCharge ?? null;
+  const projection = data?.nextChargeProjection ?? null;
+  // Only worth a banner when something is actually changing: a different band,
+  // or a different amount from the charge the customer is looking at. With no
+  // charge to compare against (the first month, a trial) the plan card already
+  // says what they'll pay, so don't say it twice.
+  const showProjection = !!projection && !!charge
+    && (projection.changingFrom !== null || projection.cycleAmountCents !== charge.cycleAmountCents);
+
   // ?pay=1 (from the access-expiry banner / redirect) jumps straight to the
   // right dialog instead of landing on a page where a still-on-trial org
   // (monthly === 0) has no visible "Pay Now" button at all.
@@ -501,6 +531,70 @@ export function AdminBilling() {
               </div>
             )}
           </div>
+
+          {/* This period's bill — the frozen charge the billing run wrote.
+              Everything in the plan card above it is a live estimate at today's
+              headcount; this is the figure that does not move. */}
+          {charge && (
+            <div className="rounded-lg border border-border/50 bg-card/30 p-5 space-y-3">
+              <div className="flex items-start justify-between flex-wrap gap-4">
+                <div className="space-y-1">
+                  <p className="text-xs font-mono text-muted-foreground">THIS PERIOD</p>
+                  <p className="text-lg font-mono font-bold text-foreground">{fmtPeriod(charge.period)}</p>
+                  <p className="text-xs text-muted-foreground font-mono">
+                    {PLAN_LABELS[charge.plan] ?? charge.plan} · {charge.activeEmployees} active{" "}
+                    {charge.activeEmployees === 1 ? "employee" : "employees"}
+                    {charge.source === "override" ? " · agreed price" : ""}
+                  </p>
+                </div>
+                <div className="space-y-1 text-right">
+                  <p className="text-xs font-mono text-muted-foreground">AMOUNT</p>
+                  <p className="text-2xl font-bold font-mono text-primary">{fmtKes(charge.cycleAmountCents)}</p>
+                </div>
+                <div className="space-y-1 text-right">
+                  <p className="text-xs font-mono text-muted-foreground">STATUS</p>
+                  {charge.status === "paid" ? (
+                    <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-mono">
+                      <CheckCircle2 className="h-3 w-3 mr-1" /> PAID
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30 font-mono">
+                      <Clock className="h-3 w-3 mr-1" /> DUE
+                    </Badge>
+                  )}
+                  {charge.status !== "paid" && charge.shortfallCents > 0 && charge.shortfallCents !== charge.cycleAmountCents && (
+                    <p className="text-xs font-mono text-muted-foreground">
+                      {fmtKes(charge.shortfallCents)} left after credits
+                    </p>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Worked out from your plan and headcount at the end of {fmtPeriod(charge.period)}. It
+                doesn't change afterwards — hiring since then shows up on the next bill, not this one.
+              </p>
+            </div>
+          )}
+
+          {/* Price change coming — design §4's "next month" banner. Shown only
+              when the next run would actually bill something different from
+              this period's frozen charge, so a steady org never sees it. */}
+          {projection && !projection.skip && showProjection && (
+            <div className="rounded-lg border border-primary/40 bg-primary/5 px-4 py-3 flex items-start gap-3">
+              <TrendingUp className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <span className="font-medium text-primary">
+                  Next bill: {fmtKes(projection.cycleAmountCents)}
+                  {projection.changingFrom ? ` (${PLAN_LABELS[projection.plan] ?? projection.plan})` : ""}
+                </span>{" "}
+                <span className="text-muted-foreground">
+                  {projection.changingFrom
+                    ? `Your team is now ${projection.activeEmployees}, which moves you from ${PLAN_LABELS[projection.changingFrom] ?? projection.changingFrom} to ${PLAN_LABELS[projection.plan] ?? projection.plan} from ${fmtPeriod(projection.period)}.`
+                    : `Based on your ${projection.activeEmployees} active ${projection.activeEmployees === 1 ? "employee" : "employees"} today, for ${fmtPeriod(projection.period)}.`}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Billing account number */}
           {billingRef && (
