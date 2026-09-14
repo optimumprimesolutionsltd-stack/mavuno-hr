@@ -10,6 +10,7 @@ import PayeCalculatorPage from '@/pages/paye-calculator';
 import NetToGrossCalculatorPage from '@/pages/net-to-gross-calculator';
 import GuidesIndex from '@/pages/guides/index';
 import CostOfHiringInKenya from '@/pages/guides/cost-of-hiring-in-kenya';
+import HowToRunPayrollInKenya from '@/pages/guides/how-to-run-payroll-in-kenya';
 import PrivacyPage from '@/pages/privacy';
 import TermsPage from '@/pages/terms';
 import SecurityPage from '@/pages/security';
@@ -30,6 +31,7 @@ const PAGES: Record<string, ComponentType> = {
   '/net-to-gross-calculator': NetToGrossCalculatorPage,
   '/guides': GuidesIndex,
   '/guides/cost-of-hiring-in-kenya': CostOfHiringInKenya,
+  '/guides/how-to-run-payroll-in-kenya': HowToRunPayrollInKenya,
   '/privacy': PrivacyPage,
   '/terms': TermsPage,
   '/security': SecurityPage,

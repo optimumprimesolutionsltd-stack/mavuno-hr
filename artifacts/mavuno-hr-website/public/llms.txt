@@ -23,6 +23,11 @@ before PAYE is computed rather than sitting alongside it. Getting one wrong
 quietly changes the PAYE figure too, which is the usual source of a payroll that
 almost balances.
 
+## Guides
+
+- [What a Hire Actually Costs in Kenya](https://mavunohr.co.ke/guides/cost-of-hiring-in-kenya): The salary you agree is not what you pay or what they receive. Real figures showing the gap between employer cost, gross and take-home — computed from the production payroll engine, and why the gap widens as salaries rise.
+- [How to Run Payroll in Kenya: A Step-by-Step Guide](https://mavunohr.co.ke/guides/how-to-run-payroll-in-kenya): What a new employer has to do before and after the first payslip — registering with KRA, NSSF and SHIF, getting employee records right, fixing a pay date, and the run-file-pay cycle every month, due by the 9th.
+
 ## Product
 
 - [Features](https://mavunohr.co.ke/features): One-click payroll runs, a single employee directory with documents, leave, loans and timesheets, a self-service portal for payslips and leave requests, bank and M-Pesa payment files, and an audit trail.
