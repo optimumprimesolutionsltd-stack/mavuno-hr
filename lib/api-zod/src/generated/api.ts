@@ -682,7 +682,7 @@ export const ListPayrollRunsResponse = zod.array(ListPayrollRunsResponseItem)
  */
 export const CreatePayrollRunBody = zod.object({
   "period": zod.string().describe('YYYY-MM'),
-  "runType": zod.enum(['regular', 'off_cycle', 'bonus', 'final']),
+  "runType": zod.enum(['regular', 'off_cycle', 'bonus', 'final', 'historical']),
   "employeeIds": zod.array(zod.number()).optional()
 })
 

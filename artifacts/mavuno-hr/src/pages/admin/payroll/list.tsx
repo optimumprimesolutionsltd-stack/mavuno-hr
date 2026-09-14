@@ -11,8 +11,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Wallet, Search, Loader2, Zap, History } from "lucide-react";
+import { Plus, Wallet, Search, Loader2, Zap, History, Info } from "lucide-react";
 import { HistoricalImportDialog } from "./historical-import-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+
+const CURRENT_PERIOD = new Date().toISOString().slice(0, 7); // YYYY-MM
 
 export function PayrollList() {
   const { data: runs, isLoading } = useListPayrollRuns();
@@ -23,9 +26,43 @@ export function PayrollList() {
   const [open, setOpen] = useState(false);
   const [offCycleOpen, setOffCycleOpen] = useState(false);
 
-  const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
-  const [runType, setRunType] = useState<"regular" | "off_cycle" | "bonus" | "final">("regular");
+  const [period, setPeriod] = useState(CURRENT_PERIOD);
+  const [runType, setRunType] = useState<"regular" | "off_cycle" | "bonus" | "final" | "historical">("regular");
+  const [includePriorYear, setIncludePriorYear] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [historicalOnly, setHistoricalOnly] = useState(false);
+
+  const isHistorical = runType === "historical";
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1; // 1-indexed
+
+  // Historical runs record a month already run on a previous system, so the
+  // period picker only offers months that have actually happened —
+  // this year up to last month by default, or back one more year with the
+  // toggle. Regular/off-cycle/bonus/final keep the wider forward-looking range.
+  const yearOptions = isHistorical
+    ? (includePriorYear ? [currentYear - 1, currentYear] : [currentYear])
+    : Array.from({ length: 5 }, (_, i) => currentYear - 1 + i);
+
+  function monthOptionsFor(year: number): string[] {
+    const all = ["01","02","03","04","05","06","07","08","09","10","11","12"];
+    if (!isHistorical || year !== currentYear) return all;
+    return all.filter((m) => Number(m) < currentMonth); // strictly past — this month isn't "historical" yet
+  }
+
+  function handleRunTypeChange(v: string) {
+    setRunType(v as typeof runType);
+    if (v === "historical") {
+      // Land on a definitely-valid historical period rather than whatever
+      // was selected for a forward-looking run type a moment ago.
+      const y = currentMonth > 1 ? currentYear : currentYear - 1;
+      const m = currentMonth > 1 ? currentMonth - 1 : 12;
+      setPeriod(`${y}-${String(m).padStart(2, "0")}`);
+      setIncludePriorYear(false);
+    } else {
+      setPeriod(CURRENT_PERIOD);
+    }
+  }
 
   // Off-cycle form state
   const [offCycleName, setOffCycleName] = useState("");
@@ -37,10 +74,16 @@ export function PayrollList() {
     createRun.mutate(
       { data: { period, runType } },
       {
-        onSuccess: () => {
-          toast({ title: "Run Created", description: `Payroll run for ${period} created.` });
+        onSuccess: (result: any) => {
+          toast({
+            title: isHistorical ? "Historical Run Recorded" : "Run Created",
+            description: isHistorical
+              ? `Draft historical run for ${period} created. Review the payslips, then finalize.`
+              : `Payroll run for ${period} created.`,
+          });
           queryClient.invalidateQueries({ queryKey: getListPayrollRunsQueryKey() });
           setOpen(false);
+          if (result?.run?.id) setLocation(`/admin/payroll/${result.run.id}`);
         },
         onError: (err: any) => {
           const msg = err?.data?.error || err?.message || "Failed to create payroll run.";
@@ -210,39 +253,8 @@ export function PayrollList() {
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label className="font-mono text-xs text-muted-foreground">PAYROLL PERIOD</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Select
-                      value={period.slice(0, 4)}
-                      onValueChange={(y) => setPeriod(`${y}-${period.slice(5, 7)}`)}
-                    >
-                      <SelectTrigger className="font-mono"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 5 }, (_, i) => {
-                          const y = String(new Date().getFullYear() - 1 + i);
-                          return <SelectItem key={y} value={y}>{y}</SelectItem>;
-                        })}
-                      </SelectContent>
-                    </Select>
-                    <Select
-                      value={period.slice(5, 7)}
-                      onValueChange={(m) => setPeriod(`${period.slice(0, 4)}-${m}`)}
-                    >
-                      <SelectTrigger className="font-mono"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {["01","02","03","04","05","06","07","08","09","10","11","12"].map((m) => (
-                          <SelectItem key={m} value={m}>
-                            {new Date(`2000-${m}-01`).toLocaleString("en-KE", { month: "long" })}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <p className="text-xs text-muted-foreground font-mono">Selected: {period}</p>
-                </div>
-                <div className="space-y-2">
                   <Label>Run Type</Label>
-                  <Select value={runType} onValueChange={(v: any) => setRunType(v)}>
+                  <Select value={runType} onValueChange={handleRunTypeChange}>
                     <SelectTrigger className="font-mono">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
@@ -251,18 +263,76 @@ export function PayrollList() {
                       <SelectItem value="off_cycle">OFF CYCLE</SelectItem>
                       <SelectItem value="bonus">BONUS</SelectItem>
                       <SelectItem value="final">FINAL DUES</SelectItem>
+                      <SelectItem value="historical">HISTORICAL / MIGRATION</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="space-y-2">
+                  <Label className="font-mono text-xs text-muted-foreground">PAYROLL PERIOD</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select
+                      value={period.slice(0, 4)}
+                      onValueChange={(y) => {
+                        const months = monthOptionsFor(Number(y));
+                        const m = months.includes(period.slice(5, 7)) ? period.slice(5, 7) : months[months.length - 1];
+                        setPeriod(`${y}-${m}`);
+                      }}
+                    >
+                      <SelectTrigger className="font-mono"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {yearOptions.map((y) => (
+                          <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={period.slice(5, 7)}
+                      onValueChange={(m) => setPeriod(`${period.slice(0, 4)}-${m}`)}
+                    >
+                      <SelectTrigger className="font-mono"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {monthOptionsFor(Number(period.slice(0, 4))).map((m) => (
+                          <SelectItem key={m} value={m}>
+                            {new Date(`2000-${m}-01`).toLocaleString("en-KE", { month: "long" })}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p className="text-xs text-muted-foreground font-mono">Selected: {period}</p>
+                  {isHistorical && currentYear - 1 >= 2025 && (
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer pt-1">
+                      <Checkbox checked={includePriorYear} onCheckedChange={(v) => setIncludePriorYear(!!v)} />
+                      Include {currentYear - 1}
+                    </label>
+                  )}
+                </div>
+
+                {isHistorical && (
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 flex gap-2">
+                    <Info className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Records a month you already ran on your previous system. Builds your
+                      year-to-date and P9A. Will not file returns, generate bank files, or email payslips.
+                    </p>
+                  </div>
+                )}
+
                 <Button onClick={handleCreate} className="w-full font-mono mt-4" disabled={createRun.isPending}>
                   {createRun.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wallet className="h-4 w-4 mr-2" />}
-                  INITIALIZE RUN
+                  {isHistorical ? "RECORD HISTORICAL RUN" : "INITIALIZE RUN"}
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
         </div>
       </div>
+
+      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer w-fit">
+        <Checkbox checked={historicalOnly} onCheckedChange={(v) => setHistoricalOnly(!!v)} />
+        Migration history only
+      </label>
 
       <div className="border border-border/50 rounded-lg overflow-hidden bg-card/30">
         <Table>
@@ -290,8 +360,14 @@ export function PayrollList() {
                   NO PAYROLL RUNS FOUND
                 </TableCell>
               </TableRow>
+            ) : (runs.filter((r) => !historicalOnly || r.runType === "historical")).length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground font-mono">
+                  NO MIGRATION HISTORY RUNS FOUND
+                </TableCell>
+              </TableRow>
             ) : (
-              runs.map((run) => (
+              runs.filter((r) => !historicalOnly || r.runType === "historical").map((run) => (
                 <TableRow key={run.id} className="group transition-colors hover:bg-muted/20">
                   <TableCell className="font-mono text-sm">
                     <Link href={`/admin/payroll/${run.id}`} className="hover:text-primary transition-colors font-bold">
@@ -304,7 +380,11 @@ export function PayrollList() {
                     </Link>
                   </TableCell>
                   <TableCell>
-                    <span className="text-xs font-mono uppercase bg-muted px-2 py-1 rounded">{run.runType.replace('_', ' ')}</span>
+                    <span className={`text-xs font-mono uppercase px-2 py-1 rounded ${
+                      run.runType === "historical" ? "bg-violet-500/15 text-violet-400" : "bg-muted"
+                    }`}>
+                      {run.runType.replace('_', ' ')}
+                    </span>
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm">
                     {run.employeeCount}

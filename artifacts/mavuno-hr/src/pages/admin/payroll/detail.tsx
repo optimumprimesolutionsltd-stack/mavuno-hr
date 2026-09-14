@@ -14,7 +14,7 @@ import {
   ArrowLeft, CheckCircle, Send, PlayCircle, RotateCcw,
   RefreshCw, Pencil, Mail, Download, TrendingDown, TrendingUp,
   FileSpreadsheet, FileText, AlertTriangle, ExternalLink, ChevronDown, ChevronUp,
-  ArrowUpDown,
+  ArrowUpDown, History,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PayslipEditDialog } from "./payslip-edit-dialog";
@@ -412,6 +412,7 @@ export function PayrollDetail() {
 
   const { run, payslips, filings } = data as any;
   const canEdit = run?.status === "draft" || run?.status === "pending_approval";
+  const isHistorical = run?.runType === "historical";
   const p10Filing = (filings as any[])?.find((f: any) => f.kind === "P10");
   const nssfFiling = (filings as any[])?.find((f: any) => f.kind === "NSSF");
   const shifFiling = (filings as any[])?.find((f: any) => f.kind === "SHIF");
@@ -482,7 +483,16 @@ export function PayrollDetail() {
               RECALCULATE
             </Button>
           )}
-          {run?.status === "draft" && (
+          {run?.status === "draft" && isHistorical && (
+            <Button
+              size="sm" onClick={() => handleAction("finalize")} disabled={actionMutation.isPending}
+              className="font-mono bg-violet-600 hover:bg-violet-700 text-white"
+              title="Record this as paid. No approval step, no payout, no filing, no payslip email."
+            >
+              <History className="h-4 w-4 mr-2" /> FINALIZE
+            </Button>
+          )}
+          {run?.status === "draft" && !isHistorical && (
             <Button size="sm" onClick={handleSubmit} disabled={actionMutation.isPending} className="font-mono">
               <Send className="h-4 w-4 mr-2" /> SUBMIT
             </Button>
@@ -580,15 +590,17 @@ export function PayrollDetail() {
                   <span className="ml-1 text-[10px] bg-violet-500/20 text-violet-300 px-1 rounded font-mono">FILED</span>
                 )}
               </Button>
-              <Button
-                size="sm" variant="outline"
-                onClick={handleEmailPayslips}
-                disabled={emailSending}
-                className="font-mono gap-1.5 border-primary/50 text-primary hover:bg-primary/10"
-              >
-                <Mail className={`h-3.5 w-3.5 ${emailSending ? "animate-pulse" : ""}`} />
-                {emailSending ? "SENDING..." : "EMAIL PAYSLIPS"}
-              </Button>
+              {!isHistorical && (
+                <Button
+                  size="sm" variant="outline"
+                  onClick={handleEmailPayslips}
+                  disabled={emailSending}
+                  className="font-mono gap-1.5 border-primary/50 text-primary hover:bg-primary/10"
+                >
+                  <Mail className={`h-3.5 w-3.5 ${emailSending ? "animate-pulse" : ""}`} />
+                  {emailSending ? "SENDING..." : "EMAIL PAYSLIPS"}
+                </Button>
+              )}
               <Button
                 size="sm" variant="destructive"
                 onClick={() => handleAction("reverse")}
@@ -601,6 +613,19 @@ export function PayrollDetail() {
           )}
         </div>
       </div>
+
+      {/* Historical / migration banner */}
+      {isHistorical && (
+        <div className="rounded-lg border border-violet-500/30 bg-violet-500/5 px-4 py-3 flex items-center gap-3">
+          <History className="h-4 w-4 text-violet-400 shrink-0" />
+          <p className="text-sm text-muted-foreground">
+            {run.status === "paid"
+              ? <>Recorded {formatDateTime(run.paidAt)} — migrated from prior system.</>
+              : <>Draft — migrated from prior system. Review the payslips below, then finalize.</>}
+            {" "}Feeds year-to-date totals and the P9A; no payout, filing, or payslip email will be generated for this run.
+          </p>
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
