@@ -10,6 +10,8 @@ import { Mail, Loader2, CheckCircle2 } from "lucide-react";
 
 interface DemoRequest {
   id: number;
+  name: string;
+  phone: string;
   email: string;
   company: string | null;
   message: string | null;
@@ -73,6 +75,8 @@ export function SuperAdminDemoRequests() {
         <Table>
           <TableHeader className="bg-muted/30">
             <TableRow>
+              <TableHead className="font-mono text-xs">NAME</TableHead>
+              <TableHead className="font-mono text-xs">PHONE</TableHead>
               <TableHead className="font-mono text-xs">EMAIL</TableHead>
               <TableHead className="font-mono text-xs">COMPANY</TableHead>
               <TableHead className="font-mono text-xs">PAGE</TableHead>
@@ -84,19 +88,25 @@ export function SuperAdminDemoRequests() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground font-mono">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground font-mono">
                   LOADING…
                 </TableCell>
               </TableRow>
             ) : requests.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground font-mono">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground font-mono">
                   NO DEMO REQUESTS YET
                 </TableCell>
               </TableRow>
             ) : (
               requests.map((r) => (
                 <TableRow key={r.id} className="hover:bg-muted/10">
+                  <TableCell className="text-sm font-medium">{r.name || "—"}</TableCell>
+                  <TableCell className="text-sm">
+                    {r.phone
+                      ? <a href={`https://wa.me/${r.phone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noreferrer" className="hover:text-primary transition-colors font-mono">{r.phone}</a>
+                      : "—"}
+                  </TableCell>
                   <TableCell className="text-sm">
                     <a href={`mailto:${r.email}`} className="hover:text-primary transition-colors font-medium">{r.email}</a>
                   </TableCell>

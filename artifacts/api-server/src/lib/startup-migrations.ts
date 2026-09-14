@@ -470,6 +470,11 @@ async function createBaseSchema(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`,
     `CREATE INDEX IF NOT EXISTS demo_requests_created_idx ON demo_requests(created_at)`,
+    // Added once the form started pushing into the Optimum Prime CRM, which
+    // needs a name and phone number for its WhatsApp alert/confirmation to
+    // be worth anything -- table already existed in production by then.
+    `ALTER TABLE demo_requests ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE demo_requests ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT ''`,
   ];
 
   for (const stmt of statements) {
