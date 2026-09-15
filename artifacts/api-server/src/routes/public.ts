@@ -16,7 +16,7 @@ import { demoRequests, newsletterSubscribers } from "@workspace/db/schema";
 import { computePayslip, emptyPayInput, solveGrossForNet } from "../lib/payroll.js";
 import { resolveCountryConfig } from "../lib/statutory-resolve.js";
 import { toCents } from "../lib/money.js";
-import { sendDemoRequestNotification } from "../lib/mailer.js";
+import { sendDemoRequestNotification, sendDemoRequestAcknowledgement } from "../lib/mailer.js";
 import { pushLeadToOptimumCrm, notifyOptimumCrmOfDemoLead } from "../lib/optimum-crm.js";
 import { logger } from "../lib/logger.js";
 
@@ -277,14 +277,28 @@ router.post("/demo-requests", rateLimit, async (req, res, next) => {
     // Both best-effort, in parallel — a lost notification or CRM sync is a
     // nuisance, a lost lead is not. The row above already exists regardless
     // of what happens to either of these.
-    const [emailResult, crmResult, waResult] = await Promise.allSettled([
+    const [emailResult, crmResult, waResult, ackResult] = await Promise.allSettled([
       sendDemoRequestNotification({ to: DEMO_NOTIFY_TO, name, phone, email, company: company || null, message: message || null, demoDate: slotDate, demoTime: slotTime, sourcePath: sourcePath || null }),
       pushLeadToOptimumCrm(crmLead),
       notifyOptimumCrmOfDemoLead(crmLead),
+      // The requester's own copy. Best-effort like the rest: the row above
+      // is the record, and nobody filling in a form has a stake in whether
+      // our mail provider is having a good day.
+      sendDemoRequestAcknowledgement({
+        to: email,
+        name,
+        company: company || null,
+        demoDate: slotDate,
+        demoTime: slotTime,
+      }),
     ]);
     if (emailResult.status === "rejected") logger.warn({ err: emailResult.reason, email }, "public: demo request saved but the internal notification email failed");
     if (crmResult.status === "rejected") logger.warn({ err: crmResult.reason, email }, "public: demo request saved but writing it into the Optimum CRM failed");
     if (waResult.status === "rejected") logger.warn({ err: waResult.reason, email }, "public: demo request saved but the CRM WhatsApp/email lead notification failed");
+    // Logged like the others rather than left off the end of the destructure:
+    // an acknowledgement that quietly fails is a person who thinks nobody
+    // received their request.
+    if (ackResult.status === "rejected") logger.warn({ err: ackResult.reason, email }, "public: demo request saved but the requester's acknowledgement email failed");
 
     res.status(201).json({ ok: true });
   } catch (err) {
