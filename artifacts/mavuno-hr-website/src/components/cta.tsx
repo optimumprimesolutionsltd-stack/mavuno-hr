@@ -35,6 +35,19 @@ export function Cta({ heading, blurb }: { heading?: string; blurb?: string } = {
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
 
+  /** Back to an empty form — for someone booking a second demo, or who
+   *  mistyped an address and noticed on the confirmation. */
+  const resetForm = () => {
+    setName("");
+    setPhone("");
+    setEmail("");
+    setCompany("");
+    setDemoDate("");
+    setDemoTime("");
+    setError(null);
+    setStatus("idle");
+  };
+
   const dateProblem = blockedReason(demoDate);
   const slots = useMemo(() => (dateProblem ? [] : timeSlotsFor(demoDate)), [demoDate, dateProblem]);
 
@@ -100,9 +113,39 @@ export function Cta({ heading, blurb }: { heading?: string; blurb?: string } = {
         <p className="text-lg text-muted-foreground mb-10">{blurb}</p>
 
         {status === "sent" ? (
-          <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl border border-border">
+          /* A confirmation is not the end of the visit. This used to be two
+             lines of text and nothing else — the form vanished, no button
+             remained, and on a phone the card filled the screen with a dead
+             end. Somebody who has just asked for a demo is the most interested
+             person on the site; leaving them with nowhere to go is the one
+             moment not to do it. They also do not have to wait for the call:
+             the trial is self-service and available now. */
+          <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl border border-border text-left">
             <p className="text-lg font-semibold text-secondary">Request received.</p>
-            <p className="text-muted-foreground mt-2">We'll reach out on WhatsApp or at {email} shortly.</p>
+            <p className="text-muted-foreground mt-2">
+              We'll reach out on WhatsApp or at {email} shortly — usually within one working day.
+            </p>
+
+            <div className="mt-6 pt-6 border-t border-border space-y-3">
+              <p className="text-sm text-muted-foreground">
+                You don't have to wait for us to start looking around:
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button asChild className="flex-1">
+                  <a href="/app/register">Start a free trial</a>
+                </Button>
+                <Button asChild variant="outline" className="flex-1">
+                  <a href="/features">See what it does</a>
+                </Button>
+              </div>
+              <button
+                type="button"
+                onClick={resetForm}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4"
+              >
+                Book another demo
+              </button>
+            </div>
           </div>
         ) : (
           <form
@@ -141,20 +184,22 @@ export function Cta({ heading, blurb }: { heading?: string; blurb?: string } = {
             <Input
               type="text"
               name="company"
-              placeholder="Company name (optional)"
+              required
+              placeholder="Company name"
               className="text-base h-12 px-4"
               value={company}
               onChange={(e) => setCompany(e.target.value)}
             />
 
-            {/* When would suit them. Optional on purpose — a required field
-                here costs more requests than the round of phone tag it
-                saves — but offered up front, because the team confirms a
-                slot and sends that date and time straight back. */}
+            {/* When would suit them. Required: the team confirms a slot and
+                sends that date and time straight back, and a request with no
+                preferred time starts with a round of phone tag instead. Date
+                first, then the slots that actually exist on that day. */}
             <div className="grid grid-cols-2 gap-2">
               <input
                 type="date"
                 name="demoDate"
+                required
                 aria-label="Preferred demo date"
                 min={todayIso()}
                 className="text-base h-12 px-4 w-full rounded-md border border-input bg-background text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
@@ -163,6 +208,7 @@ export function Cta({ heading, blurb }: { heading?: string; blurb?: string } = {
               />
               <select
                 name="demoTime"
+                required
                 aria-label="Preferred demo time"
                 disabled={!demoDate || slots.length === 0}
                 className="text-base h-12 px-4 w-full rounded-md border border-input bg-background text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
@@ -178,7 +224,7 @@ export function Cta({ heading, blurb }: { heading?: string; blurb?: string } = {
             <p className="text-xs text-muted-foreground text-left -mt-1">
               {dateProblem
                 ? <span className="text-red-600">{dateProblem}</span>
-                : "Optional. Mon–Fri 8am–5pm, Sat 8am–1pm. We'll confirm the slot with you."}
+                : "Mon–Fri 8am–5pm, Sat 8am–1pm. We'll confirm the slot with you."}
             </p>
 
             <Button type="submit" size="lg" className="h-12 text-base mt-1" disabled={status === "sending"}>

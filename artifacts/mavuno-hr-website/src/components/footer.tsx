@@ -75,8 +75,12 @@ export function Footer() {
             exactly who wants a demo or a quick question answered, and keeping
             them here leaves the header free for Sign Up / Sign In. */}
         <div className="pt-8 border-t border-border flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
+          {/* #demo, not /demo: the button says "Book a Demo", so it should land
+              on the form. The page's own pitch sits two screens above it, and
+              arriving at the top of an explanation you have already decided to
+              act on reads as though the button did nothing. */}
           <Button asChild size="lg" className="gap-2 sm:w-auto">
-            <Link href="/demo">
+            <Link href="/demo#demo">
               <CalendarCheck className="h-4 w-4" />
               Book a Demo
             </Link>

@@ -30,7 +30,15 @@ export function RouteEffects() {
       return;
     }
 
-    if (!window.location.hash) {
+    // A #fragment means the link asked for somewhere specific on the page, so
+    // honour it instead of going to the top. The browser does this itself on a
+    // full page load but not when a router swaps the page — and at this point
+    // the target does not exist yet, because React has not painted the new
+    // page. Hence scrollToFragment's retry rather than a bare querySelector.
+    const hash = window.location.hash.slice(1);
+    if (hash) {
+      scrollToFragment(hash);
+    } else {
       window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
     }
 
@@ -65,7 +73,19 @@ export function RouteEffects() {
       if (!href || !href.startsWith("/") || anchor.getAttribute("target") === "_blank") return;
 
       const [path, hash] = href.split("#");
-      if (path !== window.location.pathname || hash) return;
+      if (path !== window.location.pathname) return;
+
+      // Same page. A fragment means "take me to that part of it" — which the
+      // browser also declines to do when the URL is otherwise unchanged, so
+      // "Book a Demo" from the foot of /demo has to be handled here too.
+      if (hash) {
+        e.preventDefault();
+        scrollToFragment(hash);
+        if (window.location.hash.slice(1) !== hash) {
+          window.history.replaceState(null, "", `${path}#${hash}`);
+        }
+        return;
+      }
 
       window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
     }
@@ -85,6 +105,67 @@ export function RouteEffects() {
 // the page, and this reads more plainly than a ref that exists only to hold a
 // boolean nobody renders.
 let isFirstRender = true;
+
+/**
+ * Scroll a #fragment into view, allowing for the page not being there yet.
+ *
+ * Scrolls as soon as the target exists, then corrects itself a few times while
+ * the rest of the page lays out. Arriving from the foot of a taller page makes
+ * that necessary: the browser clamps the inherited scroll position to the
+ * shorter document, content renders underneath, and a position computed before
+ * that has already stopped being true.
+ *
+ * setTimeout, NOT requestAnimationFrame. rAF does not fire in a background or
+ * hidden tab, so an rAF retry loop simply stops — the first frame runs, finds
+ * the element, and the callback that would have done the scrolling never
+ * arrives. Measured exactly that: the trace ended after one entry and the page
+ * never moved. Anyone opening a link in a background tab would have hit it too.
+ */
+function scrollToFragment(id: string, attemptsLeft = 10) {
+  const target = document.getElementById(id);
+
+  if (!target) {
+    if (attemptsLeft <= 0) {
+      // Nothing to scroll to. Better the top of the page than wherever the
+      // previous page happened to be scrolled to.
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+      return;
+    }
+    window.setTimeout(() => scrollToFragment(id, attemptsLeft - 1), 50);
+    return;
+  }
+
+  // HEADER_OFFSET clears the fixed navbar, which would otherwise cover the
+  // heading of whatever we just scrolled to.
+  //
+  // "instant", not "smooth": a smooth scroll requested in the same breath as a
+  // navigation is silently dropped. Measured — the identical call lands with
+  // "instant" and does nothing at all with "smooth". It is also what a browser
+  // does for a #fragment on a normal page load.
+  const scrollToTarget = () => {
+    const top = Math.round(target.getBoundingClientRect().top + window.scrollY);
+    window.scrollTo({ top: Math.max(0, top - HEADER_OFFSET), left: 0, behavior: "instant" as ScrollBehavior });
+  };
+
+  scrollToTarget();
+
+  // Then correct for anything that lays out late — a font swapping in, an
+  // image finally sizing itself. Cheap, bounded, and stops as soon as the
+  // element holds still.
+  let previous = Math.round(target.getBoundingClientRect().top);
+  let corrections = 0;
+  const settle = window.setInterval(() => {
+    const now = Math.round(target.getBoundingClientRect().top);
+    if (now !== previous) {
+      previous = now;
+      scrollToTarget();
+    }
+    if (++corrections >= 8) window.clearInterval(settle);
+  }, 80);
+}
+
+/** Height of the fixed navbar (h-20), plus a little breathing room. */
+const HEADER_OFFSET = 96;
 
 function setMeta(keyAttr: "name" | "property", key: string, value: string) {
   let el = document.head.querySelector<HTMLMetaElement>(`meta[${keyAttr}="${key}"]`);

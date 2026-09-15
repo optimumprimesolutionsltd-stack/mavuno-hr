@@ -230,13 +230,15 @@ const demoRequestSchema = z.object({
   name: z.string().trim().min(1).max(120),
   phone: z.string().trim().regex(/^[0-9+()\s-]{9,20}$/, "Enter a valid phone number"),
   email: z.string().email().max(255),
-  company: z.string().trim().max(200).optional(),
+  company: z.string().trim().min(1, "Tell us which company").max(200),
   message: z.string().trim().max(2000).optional(),
   // The slot they'd prefer, in the shapes the CRM stores: YYYY-MM-DD and
-  // 24-hour HH:MM. Optional -- the form does not insist, and a request
-  // without one is still a request.
-  demoDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid date").optional(),
-  demoTime: z.string().trim().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter a valid time").optional(),
+  // 24-hour HH:MM. Required, and required HERE as well as in the form: the
+  // CRM confirms a slot and sends the customer that date and time back, so a
+  // request arriving without one starts with a round of phone tag. The form
+  // marks them required too, but a form is a convenience, not a constraint.
+  demoDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid date"),
+  demoTime: z.string().trim().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter a valid time"),
   sourcePath: z.string().trim().max(200).optional(),
 });
 
@@ -244,14 +246,16 @@ router.post("/demo-requests", rateLimit, async (req, res, next) => {
   try {
     const parsed = demoRequestSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(422).json({ error: "Enter your name, phone number, and a valid work email address." });
+      res.status(422).json({
+        error: "Enter your name, phone number, work email, company, and a preferred demo date and time.",
+      });
       return;
     }
     const { name, phone, email, company, message, demoDate, demoTime, sourcePath } = parsed.data;
-    // A time on its own says nothing — "2pm" which day? — so it is only kept
-    // when a date came with it.
-    const slotDate = demoDate || null;
-    const slotTime = slotDate ? demoTime || null : null;
+    // Both are required by the schema above, so the earlier "a time without a
+    // date says nothing" guard cannot trigger any more. Kept as plain values.
+    const slotDate = demoDate;
+    const slotTime = demoTime;
 
     await db.insert(demoRequests).values({
       name,
