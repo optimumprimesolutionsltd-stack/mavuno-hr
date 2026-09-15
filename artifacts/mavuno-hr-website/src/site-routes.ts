@@ -141,6 +141,17 @@ export const SITE_ROUTES: SiteRoute[] = [
     article: { published: "2026-09-13" },
   },
   {
+    path: "/guides/switching-payroll-mid-year",
+    title: "Switching Payroll Systems Mid-Year in Kenya | Mavuno HR",
+    description:
+      "Nobody changes payroll system in January. What to carry across when you move part-way through a tax year, why historical months are records rather than payroll runs, and how to keep your P9s covering the whole year.",
+    social:
+      "Moving payroll mid-year? What to carry across, and how to keep your P9s covering the whole year.",
+    priority: "0.8",
+    breadcrumb: "Switching payroll mid-year",
+    article: { published: "2026-09-15" },
+  },
+  {
     path: "/guides/how-to-run-payroll-in-kenya",
     title: "How to Run Payroll in Kenya: A Step-by-Step Guide | Mavuno HR",
     description:

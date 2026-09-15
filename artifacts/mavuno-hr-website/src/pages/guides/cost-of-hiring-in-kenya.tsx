@@ -18,29 +18,29 @@ import { Cta } from "@/components/cta";
  * If these numbers are refreshed, rerun them against the live endpoint rather
  * than adjusting by hand, and move FIGURES_DATE with them.
  */
-const FIGURES_DATE = "13 September 2026";
-const FIGURES_PACK = "Kenya FY2025/26 (Finance Act 2025 / TLAA 2024)";
+const FIGURES_DATE = "15 September 2026";
+const FIGURES_PACK = "Kenya FY2026/27 (NSSF Year 4 limits)";
 
 const GROSS_ROWS = [
   ["30,000", "26,193.75", "32,300.00", "+23%"],
   ["50,000", "39,029.15", "53,800.00", "+38%"],
-  ["80,000", "58,212.65", "85,570.00", "+47%"],
-  ["120,000", "85,022.65", "126,170.00", "+48%"],
-  ["200,000", "138,642.65", "207,370.00", "+50%"],
+  ["80,000", "57,876.65", "86,050.00", "+49%"],
+  ["120,000", "83,510.65", "128,330.00", "+54%"],
+  ["200,000", "137,130.65", "209,530.00", "+53%"],
 ];
 
 const NET_ROWS = [
   ["30,000", "35,654.60", "38,378.70", "+28%"],
   ["50,000", "67,462.55", "72,572.24", "+45%"],
-  ["100,000", "142,345.91", "148,851.10", "+49%"],
+  ["100,000", "144,601.79", "153,300.82", "+53%"],
 ];
 
 const ONCOST_ROWS = [
   ["30,000", "2,300.00", "7.7%"],
   ["50,000", "3,800.00", "7.6%"],
-  ["80,000", "5,570.00", "7.0%"],
-  ["120,000", "6,170.00", "5.1%"],
-  ["200,000", "7,370.00", "3.7%"],
+  ["80,000", "6,050.00", "7.6%"],
+  ["120,000", "8,330.00", "6.9%"],
+  ["200,000", "9,530.00", "4.8%"],
 ];
 
 export default function CostOfHiringInKenya() {
@@ -115,7 +115,7 @@ export default function CostOfHiringInKenya() {
           So the widening gap between what you pay and what they receive is not
           driven by your contributions. It is almost entirely tax. By the time
           you are paying someone 200,000 a month, the difference between your
-          cost and their take-home is close to 69,000 — and only about 7,400 of
+          cost and their take-home is over 72,000 — and only about 9,500 of
           that is yours. The rest went to the KRA before the employee saw it.
         </p>
       </GuideSection>
@@ -137,9 +137,9 @@ export default function CostOfHiringInKenya() {
         />
 
         <KeyPoint>
-          Agreeing to a take-home of 100,000 commits you to nearly{" "}
-          <strong>149,000</strong> a month — almost half as much again as the
-          figure discussed. Over a year that is a difference of about 586,000
+          Agreeing to a take-home of 100,000 commits you to over{" "}
+          <strong>153,000</strong> a month — more than half as much again as the
+          figure discussed. Over a year that is a difference of about 640,000
           against a budget built on the number in the conversation.
         </KeyPoint>
 
