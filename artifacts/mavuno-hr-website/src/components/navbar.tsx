@@ -15,19 +15,20 @@ export function Navbar() {
           <Link href="/compliance" className="hover:text-primary transition-colors">Compliance</Link>
           <Link href="/paye-calculator" className="hover:text-primary transition-colors">PAYE Calculator</Link>
           <Link href="/pricing" className="hover:text-primary transition-colors">Pricing</Link>
-          <Link href="/demo" className="hover:text-primary transition-colors">Book a Demo</Link>
         </div>
 
-        {/* "Book a demo" is the primary action for someone who has not signed
-            up; "Log in" is only useful to someone who already has. Ordering
-            them the other way round, as this did, put the button that helps
-            the fewest visitors in the loudest position. */}
+        {/* The top-right corner is for the two things a visitor does with their
+            own account: start one, or get back into it. Booking a demo is a
+            slower path that ends in a conversation rather than a login, so it
+            lives at the foot of the page — offered to someone who has read
+            everything and still wants to talk to a person, instead of
+            competing with Sign Up in the loudest position on the page. */}
         <div className="flex items-center gap-3">
           <Button asChild variant="ghost" className="hidden sm:inline-flex">
-            <a href="/app/">Log In</a>
+            <a href="/app/">Sign In</a>
           </Button>
           <Button asChild>
-            <Link href="/demo">Book a Demo</Link>
+            <a href="/app/register">Sign Up</a>
           </Button>
         </div>
       </div>
