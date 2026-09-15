@@ -12,10 +12,10 @@
  * different set of details to hand the mailer, and a failed email must never
  * roll back a successful payment.
  */
-import { eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { organizations } from "@workspace/db/schema";
-import { extendAccessUntil } from "./pricing.js";
+import { billingCharges, employees, organizations } from "@workspace/db/schema";
+import { cycleChargeCents, effectiveMonthlyCents, extendAccessForPayment } from "./pricing.js";
 import { consumeCreditsForPayment } from "./billing-credits.js";
 import { settleChargeForPayment } from "./billing-run.js";
 import { writeAudit } from "./audit.js";
@@ -29,6 +29,8 @@ export interface SettlementActor {
 
 export interface SettlementResult {
   accessUntil: Date;
+  /** How much of a billing cycle this payment actually bought. */
+  cyclesPaid: number;
   /** The charge this payment closed, if it covered one. */
   chargeId: number | null;
   chargeStatus: "paid" | "open" | null;
@@ -36,13 +38,56 @@ export interface SettlementResult {
 }
 
 /**
+ * What one billing cycle costs this org, in KES cents — the server's own
+ * figure, never the client's.
+ *
+ * The oldest open charge wins when there is one: that is the frozen bill the
+ * billing run wrote, and it is what the customer actually owes. Falling back to
+ * the live rate card covers an org the run has not reached yet (a new signup,
+ * a trial that just ended) and returns 0 for anyone on Trial or Free, which
+ * extendAccessForPayment() reads as "nothing to fall short of".
+ */
+export async function cycleAmountOwed(orgId: number): Promise<number> {
+  const [charge] = await db
+    .select({ cycleAmountCents: billingCharges.cycleAmountCents })
+    .from(billingCharges)
+    .where(and(eq(billingCharges.orgId, orgId), eq(billingCharges.status, "open")))
+    .orderBy(billingCharges.period)
+    .limit(1);
+  if (charge) return charge.cycleAmountCents;
+
+  const [org] = await db
+    .select({ plan: organizations.plan, billingCycle: organizations.billingCycle, monthlyCharge: organizations.monthlyCharge })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+  if (!org) return 0;
+
+  const [{ cnt: activeEmployees }] = await db
+    .select({ cnt: count() })
+    .from(employees)
+    .where(and(eq(employees.orgId, orgId), eq(employees.status, "active")));
+
+  const monthly = effectiveMonthlyCents({
+    plan: org.plan,
+    activeEmployees,
+    overrideCents: org.monthlyCharge ?? 0,
+  });
+  return cycleChargeCents(monthly, org.billingCycle ?? "monthly");
+}
+
+/**
  * Push the org's access window forward, reactivate it, consume open credits and
  * close the period this payment settles.
  *
- * Credit consumption and charge settlement are both deliberately
- * non-blocking: neither gates the access extension. Tying access to an exact
- * expected amount would risk locking out a legitimate payment over a rounding
- * difference or a stale rate-card figure — a bigger decision than this makes.
+ * How far the window moves is decided by the amount, not by the fact that a
+ * payment happened. It used to be the latter, and the amount was attacker-
+ * controlled from two directions — /mpesa/initiate read it out of the request
+ * body, and a Paybill payer types their own figure — so KES 1 bought a whole
+ * month. See extendAccessForPayment().
+ *
+ * Credit consumption and charge settlement remain non-blocking: they record
+ * what the payment covered, they do not gate it.
  */
 export async function applyVerifiedPayment(args: {
   orgId: number;
@@ -60,7 +105,10 @@ export async function applyVerifiedPayment(args: {
     .where(eq(organizations.id, orgId))
     .limit(1);
 
-  const accessUntil = extendAccessUntil(orgBefore?.accessUntil ?? null, orgBefore?.billingCycle ?? "monthly");
+  const cycle = orgBefore?.billingCycle ?? "monthly";
+  const owedCents = await cycleAmountOwed(orgId);
+  const { until: accessUntil, cyclesPaid, shortfallCents } =
+    extendAccessForPayment(orgBefore?.accessUntil ?? null, cycle, owedCents, amountCents);
 
   await db.transaction(async (tx) => {
     await tx.update(organizations)
@@ -70,9 +118,11 @@ export async function applyVerifiedPayment(args: {
     await writeAudit(tx as any, {
       orgId, action: "ORG_ACCESS_UNTIL_SET", entity: "organizations", entityId: orgId,
       actorUserId: actor.userId, actorEmail: actor.email, actorIp: actor.ip,
-      detail: `Extended by ${detail}`,
+      detail: shortfallCents > 0
+        ? `Extended by ${detail} — short ${shortfallCents} cents of ${owedCents}, so ${cyclesPaid.toFixed(2)} of a cycle`
+        : `Extended by ${detail}`,
       before: { accessUntil: orgBefore?.accessUntil ?? null },
-      after: { accessUntil },
+      after: { accessUntil, owedCents, paidCents: amountCents, cyclesPaid },
     });
 
     await consumeCreditsForPayment(tx, orgId, paymentId, amountCents, actor);
@@ -80,15 +130,24 @@ export async function applyVerifiedPayment(args: {
 
   const settled = await settleChargeForPayment(orgId, paymentId, amountCents);
 
+  if (shortfallCents > 0) {
+    logger.warn(
+      { orgId, paymentId, owedCents, paidCents: amountCents, shortfallCents, cyclesPaid, accessUntil },
+      "payment-settlement: short payment — access extended proportionally",
+    );
+  }
   logger.info(
-    { orgId, paymentId, accessUntil, chargeId: settled?.chargeId ?? null },
+    { orgId, paymentId, accessUntil, cyclesPaid, chargeId: settled?.chargeId ?? null },
     "payment-settlement: applied",
   );
 
   return {
     accessUntil,
+    cyclesPaid,
     chargeId: settled?.chargeId ?? null,
     chargeStatus: settled?.status ?? null,
-    shortfallCents: settled?.shortfallCents ?? 0,
+    // The charge row's own shortfall when there is one, else what this payment
+    // fell short of the cycle price.
+    shortfallCents: settled?.shortfallCents ?? shortfallCents,
   };
 }

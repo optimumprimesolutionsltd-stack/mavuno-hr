@@ -91,26 +91,21 @@ function PayNowDialog({ open, onOpenChange, defaultAmountCents }: {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [amountKes, setAmountKes] = useState(defaultAmountCents > 0 ? String(defaultAmountCents / 100) : "");
+  const [cycles, setCycles] = useState(1);
   const [pollingPaymentId, setPollingPaymentId] = useState<number | null>(null);
 
-  // defaultAmountCents can change after this dialog is first mounted (e.g.
-  // chained open right after a plan change) — re-seed the amount whenever
-  // it opens, same pattern ChangePlanDialog uses for `selected`.
-  useEffect(() => {
-    if (open) setAmountKes(defaultAmountCents > 0 ? String(defaultAmountCents / 100) : "");
-  }, [open, defaultAmountCents]);
+  useEffect(() => { if (open) setCycles(1); }, [open]);
 
+  // The amount is no longer sent. It was an editable field here and a trusted
+  // number on the server, which together let the person being billed decide
+  // what to pay — KES 1 bought a month. The server prices it now; `cycles` is
+  // the only lever, and it can only pay for more.
   const initiate = useMutation({
     mutationFn: () =>
       customFetch("/api/billing/mpesa/initiate", {
         method: "POST",
-        body: JSON.stringify({
-          phoneNumber,
-          amount: Math.round(Number(amountKes) * 100),
-          period: new Date().toLocaleDateString("en-KE", { month: "long", year: "numeric" }),
-        }),
-      }) as Promise<{ paymentId: number; message: string }>,
+        body: JSON.stringify({ phoneNumber, cycles }),
+      }) as Promise<{ paymentId: number; message: string; amountCents: number }>,
     onSuccess: (data) => {
       toast({ title: "Check your phone", description: data.message });
       setPollingPaymentId(data.paymentId);
@@ -171,15 +166,30 @@ function PayNowDialog({ open, onOpenChange, defaultAmountCents }: {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-mono text-muted-foreground">AMOUNT (KES)</label>
-              <Input
-                type="number"
-                min={1}
-                value={amountKes}
-                onChange={(e) => setAmountKes(e.target.value)}
+              <label className="text-xs font-mono text-muted-foreground">PAY FOR</label>
+              <select
+                value={cycles}
+                onChange={(e) => setCycles(Number(e.target.value))}
                 disabled={initiate.isPending}
-              />
+                className="w-full h-10 px-3 rounded-md border border-border bg-background font-mono text-sm"
+              >
+                {[1, 2, 3, 6, 12].map((n) => (
+                  <option key={n} value={n}>
+                    {n === 1 ? "1 month" : `${n} months`}
+                    {defaultAmountCents > 0 ? ` — ${fmtKes(defaultAmountCents * n)}` : ""}
+                  </option>
+                ))}
+              </select>
             </div>
+            {/* The figure is confirmed by the server when the prompt is sent;
+                this is what it is expected to be, not what will be charged. */}
+            <p className="text-xs text-muted-foreground">
+              You'll be prompted for{" "}
+              <span className="text-foreground font-mono">
+                {defaultAmountCents > 0 ? fmtKes(defaultAmountCents * cycles) : "the amount due"}
+              </span>
+              . The amount is set from your plan and current bill.
+            </p>
           </div>
         )}
 
@@ -188,7 +198,7 @@ function PayNowDialog({ open, onOpenChange, defaultAmountCents }: {
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={initiate.isPending}>Cancel</Button>
             <Button
               onClick={() => initiate.mutate()}
-              disabled={initiate.isPending || !phoneNumber || !amountKes || Number(amountKes) <= 0}
+              disabled={initiate.isPending || !phoneNumber}
             >
               {initiate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send Payment Request"}
             </Button>
