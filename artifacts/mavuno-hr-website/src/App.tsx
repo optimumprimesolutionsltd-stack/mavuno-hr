@@ -16,6 +16,8 @@ import TermsPage from '@/pages/terms';
 import SecurityPage from '@/pages/security';
 import DemoPage from '@/pages/demo';
 import { SITE_ROUTES } from '@/site-routes';
+import { RouteEffects } from '@/components/route-effects';
+import { ChatWidget } from '@/components/chat-widget';
 
 const queryClient = new QueryClient();
 
@@ -63,7 +65,13 @@ function App({ ssrPath }: { ssrPath?: string }) {
   return (
     <QueryClientProvider client={queryClient}>
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')} ssrPath={ssrPath}>
+        {/* Scroll + <head> on client-side navigation; without it a footer link
+            leaves the reader at the bottom of the page they just opened. */}
+        <RouteEffects />
         <Router />
+        {/* Rendered inside the Router because both buttons read the current
+            path to pre-fill what the visitor is asking about. */}
+        <ChatWidget />
       </WouterRouter>
     </QueryClientProvider>
   );
