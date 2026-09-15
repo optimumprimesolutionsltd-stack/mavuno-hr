@@ -11,11 +11,7 @@ export function Footer() {
   return (
     <footer className="bg-white border-t border-border pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="mb-16">
-          <NewsletterSignup />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-12 mb-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-10 mb-16">
           <div className="md:col-span-1">
             <img src={logoSvg} alt="Mavuno HR" className="h-8 w-auto mb-3" />
             <p className="mb-6 text-xs font-bold uppercase tracking-[0.22em] text-secondary/70">
@@ -70,6 +66,8 @@ export function Footer() {
               <li>Nairobi, Kenya</li>
             </ul>
           </div>
+
+          <NewsletterSignup compact />
         </div>
         
         {/* The talk-to-a-human options, at the end of the page rather than in

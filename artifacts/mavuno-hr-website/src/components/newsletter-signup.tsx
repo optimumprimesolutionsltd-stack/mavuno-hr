@@ -19,7 +19,16 @@ import { CheckCircle2, Loader2, Mail } from "lucide-react";
  * Rendered at build time in its empty state, identical on both sides of
  * hydration.
  */
-export function NewsletterSignup({ pagePath }: { pagePath?: string }) {
+export function NewsletterSignup({
+  pagePath,
+  compact = false,
+}: {
+  /** Which page the signup happened on, for the CRM. */
+  pagePath?: string;
+  /** Narrow column form, for sitting inside the footer grid rather than
+   *  as a full-width banner above it. */
+  compact?: boolean;
+}) {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +61,44 @@ export function NewsletterSignup({ pagePath }: { pagePath?: string }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  const form = sent ? (
+    <p className="flex items-start gap-2 text-sm text-secondary">
+      <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+      <span>You are on the list. We only write when something actually changes.</span>
+    </p>
+  ) : (
+    <form onSubmit={handleSubmit} className="space-y-2">
+      <Input
+        name="email"
+        type="email"
+        required
+        autoComplete="email"
+        aria-label="Email address"
+        placeholder="you@company.co.ke"
+        className="bg-white"
+      />
+      <Button type="submit" disabled={busy} className="w-full">
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Subscribe"}
+      </Button>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+    </form>
+  );
+
+  // Footer-column form: same promise, stacked instead of side by side, so it
+  // sits beside Product/Resources/Legal instead of taking a band of its own.
+  if (compact) {
+    return (
+      <div id="newsletter">
+        <h4 className="font-semibold text-secondary mb-4">Stay updated</h4>
+        <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+          When PAYE, SHIF, NSSF or the Housing Levy change, we email a short
+          note on what moved. Nothing else.
+        </p>
+        {form}
+      </div>
+    );
   }
 
   return (
