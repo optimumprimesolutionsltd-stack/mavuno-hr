@@ -14,10 +14,10 @@ import {
   initiateStkPush, queryTransactionStatus, isAllowedCallbackIp, accountReferenceFor,
   parseAccountReference, parseC2BConfirmation, c2bTrustState, type ParsedC2B,
 } from "../lib/mpesa.js";
-import { applyVerifiedPayment } from "../lib/payment-settlement.js";
+import { applyVerifiedPayment, cycleAmountOwed } from "../lib/payment-settlement.js";
 import { creditC2BPayment } from "../lib/mpesa-c2b.js";
 import {
-  PLAN_RATES, standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents, extendAccessUntil,
+  PLAN_RATES, standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents,
 } from "../lib/pricing.js";
 import { accessStateOf } from "../lib/session.js";
 import { computeExpectedForOrg, consumeCreditsForPayment } from "../lib/billing-credits.js";
@@ -420,24 +420,44 @@ router.patch("/plan", requireAuth("org:admin"), async (req, res, next) => {
 });
 
 // ── POST /api/billing/mpesa/initiate — company admin: pay via M-Pesa STK Push ─
+// The amount is deliberately NOT read from the request. It used to be, which
+// let the party being charged set their own price: ask for an STK prompt of
+// KES 1, pay it, and the callback extended access by a full month. The server
+// prices the cycle itself now, from the open charge or the rate card.
+//
+// `cycles` is the only quantity the customer controls, and it can only make the
+// payment larger — it is how somebody pays several months up front.
 const initiateSchema = z.object({
-  amount: z.number().int().positive(),  // KES cents
   phoneNumber: z.string().min(9).max(15),
-  period: z.string().min(1).max(100),
+  cycles: z.number().int().min(1).max(12).default(1),
 });
 
 router.post("/mpesa/initiate", requireAuth("org:admin"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
-    const parsed = initiateSchema.safeParse(req.body);
+    const parsed = initiateSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
       res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return;
     }
     const d = parsed.data;
 
+    const owedCents = await cycleAmountOwed(p.orgId);
+    if (owedCents <= 0) {
+      throw new HttpError(
+        409,
+        "There is nothing to pay on this account right now.",
+        "NOTHING_DUE",
+      );
+    }
+    const amountCents = owedCents * d.cycles;
+
+    // Safaricom's Amount is whole KES. Round UP, so rounding can never be a
+    // route to paying less than the bill.
+    const amountKes = Math.ceil(amountCents / 100);
+
     const stk = await initiateStkPush({
       orgId: p.orgId,
-      amount: d.amount / 100, // Safaricom's Amount is whole KES, not cents
+      amount: amountKes,
       phoneNumber: d.phoneNumber,
       transactionDesc: "Mavuno HR",
     });
@@ -447,8 +467,8 @@ router.post("/mpesa/initiate", requireAuth("org:admin"), async (req, res, next) 
     const [payment] = await db.insert(billingPayments).values({
       orgId: p.orgId,
       receiptNo: "RCP-PENDING",
-      amount: d.amount,
-      period: d.period,
+      amount: amountKes * 100,
+      period: new Date().toLocaleDateString("en-KE", { month: "long", year: "numeric" }),
       method: "mpesa",
       status: "pending",
       checkoutRequestId: stk.checkoutRequestId,
@@ -459,6 +479,7 @@ router.post("/mpesa/initiate", requireAuth("org:admin"), async (req, res, next) 
     res.status(202).json({
       paymentId: payment.id,
       checkoutRequestId: stk.checkoutRequestId,
+      amountCents: amountKes * 100,
       message: stk.customerMessage || "Check your phone to complete the M-Pesa payment.",
     });
   } catch (err) { next(err); }

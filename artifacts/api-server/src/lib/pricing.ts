@@ -134,6 +134,87 @@ export function extendAccessUntil(current: Date | null, cycle: string): Date {
   return base;
 }
 
+/**
+ * A payment is worth the access it paid for — no more.
+ *
+ * extendAccessUntil() moves the window a whole cycle regardless of amount,
+ * which is only safe if something upstream guarantees the amount. Nothing did:
+ * /mpesa/initiate took the amount straight from the request body, and a Paybill
+ * payer types their own figure at the till. KES 1 bought a month; on an annual
+ * cycle, a year.
+ *
+ * Paying part of what you owe now buys part of a cycle instead of all of it.
+ * Deliberately proportional rather than all-or-nothing: refusing to extend on a
+ * short payment would lock out a customer whose bank shaved a fee off a
+ * transfer, and "we took your money and gave you nothing" is a worse failure
+ * than a few days of grace. Overpayment runs the window further forward, so
+ * paying three months up front works instead of being quietly pocketed.
+ *
+ * @param owedCents what one cycle costs. 0 — trial, Free, nothing billed yet —
+ *   means there is nothing to fall short of, so a full cycle is granted.
+ * @param paidCents what actually arrived.
+ */
+export function extendAccessForPayment(
+  current: Date | null,
+  cycle: string,
+  owedCents: number,
+  paidCents: number,
+): { until: Date; cyclesPaid: number; shortfallCents: number } {
+  if (!owedCents || owedCents <= 0) {
+    return { until: extendAccessUntil(current, cycle), cyclesPaid: 1, shortfallCents: 0 };
+  }
+
+  const base = current && current.getTime() > Date.now() ? new Date(current) : new Date();
+  const raw = Math.max(0, paidCents) / owedCents;
+
+  // Treat a near-miss as payment in full. Safaricom deals in whole shillings
+  // and banks deduct transfer fees, so an exact-to-the-cent match is not
+  // something a real payment reliably achieves.
+  const shortBy = owedCents - paidCents;
+  const withinTolerance =
+    shortBy > 0 && shortBy <= Math.max(TOLERANCE_CENTS, owedCents * TOLERANCE_FRACTION);
+
+  const cycles = withinTolerance ? 1 : Math.min(raw, MAX_CYCLES_PER_PAYMENT);
+
+  return {
+    until: addCycles(base, cycle, cycles),
+    cyclesPaid: cycles,
+    shortfallCents: Math.max(0, shortBy),
+  };
+}
+
+/** KES 50, or 1% of the bill — whichever is more forgiving. */
+const TOLERANCE_CENTS = 50 * 100;
+const TOLERANCE_FRACTION = 0.01;
+
+/**
+ * A single payment buys at most this many cycles — a guard against a typo'd
+ * M-Pesa amount (one extra zero) silently granting a decade of access. The
+ * full amount is still recorded on the payment, so a genuine prepayment that
+ * trips this is a conversation, not a loss.
+ */
+const MAX_CYCLES_PER_PAYMENT = 12;
+
+/** Move a date forward by a fractional number of billing cycles. */
+function addCycles(base: Date, cycle: string, cycles: number): Date {
+  const annual = isBillingCycle(cycle) && cycle === "annual";
+  const whole = Math.floor(cycles);
+  const out = new Date(base);
+  if (annual) out.setFullYear(out.getFullYear() + whole);
+  else out.setMonth(out.getMonth() + whole);
+
+  // Measure the remainder against the cycle that actually follows: months are
+  // not equal lengths, so a flat 30 days would drift.
+  const remainder = cycles - whole;
+  if (remainder > 0) {
+    const next = new Date(out);
+    if (annual) next.setFullYear(next.getFullYear() + 1);
+    else next.setMonth(next.getMonth() + 1);
+    out.setTime(out.getTime() + Math.round((next.getTime() - out.getTime()) * remainder));
+  }
+  return out;
+}
+
 /** Cheapest paid plan that fits a headcount (ignores Trial). */
 export function recommendPlan(activeEmployees: number): PlanId {
   const seats = Math.max(0, Math.floor(activeEmployees || 0));
