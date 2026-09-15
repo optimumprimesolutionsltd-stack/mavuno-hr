@@ -7,7 +7,7 @@
  * a Paybill payer types their own figure at the till. KES 1 bought a month; on
  * an annual cycle, a year.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { extendAccessForPayment, extendAccessUntil } from "../lib/pricing.js";
 
 const K = 100; // KES -> cents
@@ -20,6 +20,14 @@ function daysBetween(a: Date, b: Date): number {
 }
 
 const NOW = new Date(2026, 8, 15, 12, 0, 0); // 15 Sept 2026, midday
+
+// The clock is frozen at NOW, and that is load-bearing rather than tidiness.
+// extendAccessUntil()/extendAccessForPayment() extend from the LATER of the
+// current window and "now", so once the wall clock passed NOW they both fell
+// back to new Date() — and two calls a millisecond apart stopped being equal.
+// The suite passed when it was written and began failing later the same day.
+beforeAll(() => { vi.useFakeTimers(); vi.setSystemTime(NOW); });
+afterAll(() => { vi.useRealTimers(); });
 
 describe("the exploit is closed", () => {
   it("does not buy a month for KES 1", () => {

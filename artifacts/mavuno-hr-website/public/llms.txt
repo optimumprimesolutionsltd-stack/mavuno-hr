@@ -26,6 +26,7 @@ almost balances.
 ## Guides
 
 - [What a Hire Actually Costs in Kenya](https://mavunohr.co.ke/guides/cost-of-hiring-in-kenya): The salary you agree is not what you pay or what they receive. Real figures showing the gap between employer cost, gross and take-home — computed from the production payroll engine, and why the gap widens as salaries rise.
+- [Switching Payroll Systems Mid-Year in Kenya](https://mavunohr.co.ke/guides/switching-payroll-mid-year): What to carry across when you move payroll part-way through a tax year, why already-paid months must be recorded rather than re-run, how leave opening balances work, and how to keep P9s covering the whole year.
 - [How to Run Payroll in Kenya: A Step-by-Step Guide](https://mavunohr.co.ke/guides/how-to-run-payroll-in-kenya): What a new employer has to do before and after the first payslip — registering with KRA, NSSF and SHIF, getting employee records right, fixing a pay date, and the run-file-pay cycle every month, due by the 9th.
 
 ## Product
