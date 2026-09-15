@@ -12,7 +12,7 @@ import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { demoRequests } from "@workspace/db/schema";
+import { demoRequests, newsletterSubscribers } from "@workspace/db/schema";
 import { computePayslip, emptyPayInput, solveGrossForNet } from "../lib/payroll.js";
 import { resolveCountryConfig } from "../lib/statutory-resolve.js";
 import { toCents } from "../lib/money.js";
@@ -290,6 +290,51 @@ router.post("/demo-requests", rateLimit, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// --- Newsletter signup (marketing site footer) -----------------------------
+// Answers 200 to anything that parses. A visitor filling in a form has no
+// stake in our storage layer, and a failure here must never look like a reason
+// to give up on the product — so the row is best-effort and the reply is
+// reassuring either way. Failures are logged, not surfaced.
+
+const email = z.string().email().max(254);
+
+/** POST /api/public/newsletter */
+router.post("/newsletter", rateLimit, async (req, res) => {
+  const parsed = z
+    .object({
+      email,
+      name: z.string().max(120).optional(),
+      pagePath: z.string().max(200).optional(),
+    })
+    .safeParse(req.body);
+
+  if (!parsed.success) {
+    res.status(422).json({ error: "That does not look like an email address." });
+    return;
+  }
+
+  try {
+    // Re-subscribing is not an error and must not 500 on the unique index. It
+    // also un-unsubscribes: someone typing their address into the box again is
+    // asking to receive the thing.
+    await db
+      .insert(newsletterSubscribers)
+      .values({
+        email: parsed.data.email.trim().toLowerCase(),
+        name: parsed.data.name?.trim() || null,
+        pagePath: parsed.data.pagePath?.trim() || null,
+      })
+      .onConflictDoUpdate({
+        target: newsletterSubscribers.email,
+        set: { status: "active", name: parsed.data.name?.trim() || null },
+      });
+  } catch (err) {
+    logger.error({ err }, "newsletter: could not store");
+  }
+
+  res.json({ received: true });
 });
 
 export default router;
