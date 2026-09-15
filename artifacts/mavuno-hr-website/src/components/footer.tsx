@@ -1,6 +1,9 @@
 import { Link } from "wouter";
 import logoSvg from "@assets/branding/mavuno-hr-wordmark.svg";
 import { NewsletterSignup } from "./newsletter-signup";
+import { Button } from "./ui/button";
+import { CalendarCheck } from "lucide-react";
+import { WhatsAppButton } from "./whatsapp-button";
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -69,6 +72,23 @@ export function Footer() {
           </div>
         </div>
         
+        {/* The talk-to-a-human options, at the end of the page rather than in
+            the header. Someone who has read this far without signing up is
+            exactly who wants a demo or a quick question answered, and keeping
+            them here leaves the header free for Sign Up / Sign In. */}
+        <div className="pt-8 border-t border-border flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
+          <Button asChild size="lg" className="gap-2 sm:w-auto">
+            <Link href="/demo">
+              <CalendarCheck className="h-4 w-4" />
+              Book a Demo
+            </Link>
+          </Button>
+          <WhatsAppButton />
+          <p className="text-sm text-muted-foreground">
+            Half an hour on your own numbers — or just ask us on WhatsApp.
+          </p>
+        </div>
+
         <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
             <p>© {currentYear} Mavuno HR. All rights reserved.</p>
           <div className="flex items-center gap-6">
