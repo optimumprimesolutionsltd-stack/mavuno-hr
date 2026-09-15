@@ -542,7 +542,77 @@ export async function sendStatutoryRemittanceEmail(opts: {
   logger.info({ to, kind, period }, "mailer: statutory remittance email sent via Resend");
 }
 
-// ── Demo request notification (marketing site → internal team) ─────────────
+
+// ── Demo request acknowledgement (to the person who asked) ────────────
+// A demo request used to produce exactly one message to the requester: a
+// WhatsApp sent through the Optimum notifier, branded for TallyPrime and
+// dependent on that account's billing being in good standing. When that
+// billing lapsed, people who asked for a demo heard nothing at all and
+// nobody found out. This is the Mavuno-branded acknowledgement, on a
+// channel of our own.
+
+export async function sendDemoRequestAcknowledgement(opts: {
+  to: string;
+  name: string;
+  company?: string | null;
+  demoDate?: string | null;
+  demoTime?: string | null;
+}): Promise<void> {
+  const { to, name, company, demoDate, demoTime } = opts;
+  if (!resend) {
+    throw new Error("RESEND_NOT_CONFIGURED");
+  }
+  const slot = describeSlot(demoDate, demoTime);
+  const rows: Array<[string, string]> = [];
+  if (company) rows.push(["Company", company]);
+  if (slot) rows.push(["You asked for", slot]);
+  const rowsHtml = rows
+    .map(
+      ([k, v]) =>
+        `<tr><td style="padding:6px 16px 6px 0;color:#8b949e;font-size:13px;">${k}</td>` +
+        `<td style="padding:6px 0;color:#e6edf3;font-size:14px;font-weight:600;">${v}</td></tr>`,
+    )
+    .join("");
+
+  const html = `
+<div style="background:#0d1117;padding:32px;font-family:'Segoe UI',Arial,sans-serif;">
+  <div style="max-width:560px;margin:0 auto;border:1px solid #21262d;border-radius:14px;padding:32px;">
+    <p style="margin:0 0 20px;font-family:monospace;letter-spacing:2px;color:#fff;font-weight:700;">MAVUNO HR</p>
+    <h1 style="margin:0 0 8px;color:#e6edf3;font-size:21px;">Thanks, ${name} — we have your request</h1>
+    <p style="margin:0 0 20px;color:#8b949e;font-size:15px;line-height:1.6;">
+      We've received your request for a Mavuno HR demo. Someone from our team will be in touch
+      shortly to confirm a time that works for you.</p>
+    ${rowsHtml ? `<table style="border-collapse:collapse;">${rowsHtml}</table>` : ""}
+    <p style="margin:24px 0 0;color:#8b949e;font-size:13px;line-height:1.6;">
+      This is not a confirmation yet — we'll confirm the slot with you first.<br/>
+      Questions? Just reply to this email.</p>
+  </div>
+</div>`;
+
+  const text = [
+    `Thanks, ${name} - we have your request.`,
+    "",
+    "We've received your request for a Mavuno HR demo. Someone from our team will be in",
+    "touch shortly to confirm a time that works for you.",
+    "",
+    company ? `Company:       ${company}` : null,
+    slot ? `You asked for: ${slot}` : null,
+    "",
+    "This is not a confirmation yet - we'll confirm the slot with you first.",
+    "Questions? Just reply to this email.",
+  ].filter((l): l is string => l !== null).join("\n");
+
+  const { error } = await resend.emails.send({
+    from: RESEND_FROM(),
+    to,
+    subject: "We have your Mavuno HR demo request",
+    html,
+    text,
+  });
+  if (error) { const e = new Error(error.message ?? "Resend error"); e.name = error.name ?? "ResendError"; throw e; }
+  logger.info({ to }, "mailer: demo request acknowledgement sent to the requester");
+}
+// ── Demo request notification (to the internal team) ─────────────────────
 // The demo_requests row is the source of truth (see routes/public.ts) — this
 // is a best-effort nudge on top of it, not the record itself. The caller
 // swallows a failure here rather than let a Resend outage break the form for
@@ -569,25 +639,25 @@ export async function sendDemoRequestNotification(opts: {
     throw new Error("RESEND_NOT_CONFIGURED");
   }
   const html = `
-<p>New demo request from the marketing site.</p>
+<p>New demo request from mavunohr.co.ke.</p>
 <table>
   ${name ? `<tr><td><strong>Name</strong></td><td>${name}</td></tr>` : ""}
   ${phone ? `<tr><td><strong>Phone</strong></td><td>${phone}</td></tr>` : ""}
   <tr><td><strong>Email</strong></td><td>${email}</td></tr>
   ${company ? `<tr><td><strong>Company</strong></td><td>${company}</td></tr>` : ""}
   ${slot ? `<tr><td><strong>Wants</strong></td><td>${slot}</td></tr>` : ""}
-  ${sourcePath ? `<tr><td><strong>Page</strong></td><td>${sourcePath}</td></tr>` : ""}
+  ${sourcePath ? `<tr><td><strong>Came from</strong></td><td>${sourcePath}</td></tr>` : ""}
   ${message ? `<tr><td><strong>Message</strong></td><td>${message}</td></tr>` : ""}
 </table>`;
   const text = [
-    `New demo request from the marketing site.`,
+    `New demo request from mavunohr.co.ke.`,
     ``,
     name ? `Name:    ${name}` : null,
     phone ? `Phone:   ${phone}` : null,
     `Email:   ${email}`,
     company ? `Company: ${company}` : null,
     slot ? `Wants:   ${slot}` : null,
-    sourcePath ? `Page:    ${sourcePath}` : null,
+    sourcePath ? `Came from: ${sourcePath}` : null,
     message ? `Message: ${message}` : null,
   ].filter((line): line is string => line !== null).join("\n");
 
