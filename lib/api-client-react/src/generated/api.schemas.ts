@@ -160,6 +160,21 @@ export const EmployeeEducationLevel = {
   other: 'other',
 } as const;
 
+/**
+ * @nullable
+ */
+export type EmployeeIdType = typeof EmployeeIdType[keyof typeof EmployeeIdType] | null;
+
+
+export const EmployeeIdType = {
+  national_id: 'national_id',
+  alien_id: 'alien_id',
+  passport: 'passport',
+  refugee_id: 'refugee_id',
+  military_id: 'military_id',
+  other: 'other',
+} as const;
+
 export interface Employee {
   id: number;
   orgId: number;
@@ -227,6 +242,26 @@ export interface Employee {
   nokPhone?: string | null;
   /** @nullable */
   nokEmail?: string | null;
+  /** @nullable */
+  idType?: EmployeeIdType;
+  /** @nullable */
+  nok2Name?: string | null;
+  /** @nullable */
+  nok2Relationship?: string | null;
+  /** @nullable */
+  nok2Phone?: string | null;
+  /** @nullable */
+  nok2Email?: string | null;
+  /** @nullable */
+  emergencyContactName?: string | null;
+  /** @nullable */
+  emergencyContactRelationship?: string | null;
+  /** @nullable */
+  emergencyContactPhone?: string | null;
+  /** @nullable */
+  photoKey?: string | null;
+  /** @nullable */
+  photoMimeType?: string | null;
   hireDate: string;
   /** @nullable */
   terminationDate?: string | null;
@@ -271,6 +306,76 @@ export interface EmployeeDetail {
   loans?: EmployeeDetailLoansItem[];
 }
 
+export type EmployeeDocumentCategory = typeof EmployeeDocumentCategory[keyof typeof EmployeeDocumentCategory];
+
+
+export const EmployeeDocumentCategory = {
+  passport_photo: 'passport_photo',
+  certificate: 'certificate',
+  nssf_card: 'nssf_card',
+  shif_card: 'shif_card',
+  id_card_scan: 'id_card_scan',
+  resume: 'resume',
+  contract: 'contract',
+  disciplinary_letter: 'disciplinary_letter',
+  leave_document: 'leave_document',
+  other: 'other',
+} as const;
+
+export interface EmployeeDocument {
+  id: number;
+  orgId: number;
+  employeeId: number;
+  category: EmployeeDocumentCategory;
+  fileName: string;
+  storageKey?: string;
+  mimeType: string;
+  size: number;
+  /** @nullable */
+  uploadedByUserId?: number | null;
+  uploadedAt: string;
+}
+
+export type EmployeeTotalsTotals = {
+  nssfEmployee?: number;
+  nssfEmployer?: number;
+  shif?: number;
+  housingLevyEmployee?: number;
+  housingLevyEmployer?: number;
+  helb?: number;
+  insurancePremium?: number;
+  paidRunCount?: number;
+};
+
+export interface EmployeeTotals {
+  totals: EmployeeTotalsTotals;
+}
+
+export type UploadEmployeeDocumentRequestCategory = typeof UploadEmployeeDocumentRequestCategory[keyof typeof UploadEmployeeDocumentRequestCategory];
+
+
+export const UploadEmployeeDocumentRequestCategory = {
+  passport_photo: 'passport_photo',
+  certificate: 'certificate',
+  nssf_card: 'nssf_card',
+  shif_card: 'shif_card',
+  id_card_scan: 'id_card_scan',
+  resume: 'resume',
+  contract: 'contract',
+  disciplinary_letter: 'disciplinary_letter',
+  leave_document: 'leave_document',
+  other: 'other',
+} as const;
+
+export interface UploadEmployeeDocumentRequest {
+  file: string;
+  category: UploadEmployeeDocumentRequestCategory;
+}
+
+export interface UploadEmployeePhotoRequest {
+  file: string;
+}
+
 export type EmployeeInputSalaryBasis = typeof EmployeeInputSalaryBasis[keyof typeof EmployeeInputSalaryBasis];
 
 
@@ -291,6 +396,18 @@ export const EmployeeInputEducationLevel = {
   bachelor: 'bachelor',
   master: 'master',
   phd: 'phd',
+  other: 'other',
+} as const;
+
+export type EmployeeInputIdType = typeof EmployeeInputIdType[keyof typeof EmployeeInputIdType];
+
+
+export const EmployeeInputIdType = {
+  national_id: 'national_id',
+  alien_id: 'alien_id',
+  passport: 'passport',
+  refugee_id: 'refugee_id',
+  military_id: 'military_id',
   other: 'other',
 } as const;
 
@@ -337,6 +454,14 @@ export interface EmployeeInput {
   nokRelationship?: string;
   nokPhone?: string;
   nokEmail?: string;
+  idType?: EmployeeInputIdType;
+  nok2Name?: string;
+  nok2Relationship?: string;
+  nok2Phone?: string;
+  nok2Email?: string;
+  emergencyContactName?: string;
+  emergencyContactRelationship?: string;
+  emergencyContactPhone?: string;
   hireDate: string;
 }
 
@@ -352,6 +477,18 @@ export const EmployeeUpdateEducationLevel = {
   bachelor: 'bachelor',
   master: 'master',
   phd: 'phd',
+  other: 'other',
+} as const;
+
+export type EmployeeUpdateIdType = typeof EmployeeUpdateIdType[keyof typeof EmployeeUpdateIdType];
+
+
+export const EmployeeUpdateIdType = {
+  national_id: 'national_id',
+  alien_id: 'alien_id',
+  passport: 'passport',
+  refugee_id: 'refugee_id',
+  military_id: 'military_id',
   other: 'other',
 } as const;
 
@@ -397,6 +534,14 @@ export interface EmployeeUpdate {
   nokRelationship?: string;
   nokPhone?: string;
   nokEmail?: string;
+  idType?: EmployeeUpdateIdType;
+  nok2Name?: string;
+  nok2Relationship?: string;
+  nok2Phone?: string;
+  nok2Email?: string;
+  emergencyContactName?: string;
+  emergencyContactRelationship?: string;
+  emergencyContactPhone?: string;
   status?: string;
 }
 

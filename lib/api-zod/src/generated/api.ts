@@ -191,6 +191,16 @@ export const ListEmployeesResponseItem = zod.object({
   "nokRelationship": zod.string().nullish(),
   "nokPhone": zod.string().nullish(),
   "nokEmail": zod.string().nullish(),
+  "idType": zod.union([zod.literal('national_id'),zod.literal('alien_id'),zod.literal('passport'),zod.literal('refugee_id'),zod.literal('military_id'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "nok2Name": zod.string().nullish(),
+  "nok2Relationship": zod.string().nullish(),
+  "nok2Phone": zod.string().nullish(),
+  "nok2Email": zod.string().nullish(),
+  "emergencyContactName": zod.string().nullish(),
+  "emergencyContactRelationship": zod.string().nullish(),
+  "emergencyContactPhone": zod.string().nullish(),
+  "photoKey": zod.string().nullish(),
+  "photoMimeType": zod.string().nullish(),
   "hireDate": zod.string(),
   "terminationDate": zod.string().nullish(),
   "terminationReason": zod.string().nullish(),
@@ -252,6 +262,14 @@ export const CreateEmployeeBody = zod.object({
   "nokRelationship": zod.string().optional(),
   "nokPhone": zod.string().optional(),
   "nokEmail": zod.string().optional(),
+  "idType": zod.enum(['national_id', 'alien_id', 'passport', 'refugee_id', 'military_id', 'other']).optional(),
+  "nok2Name": zod.string().optional(),
+  "nok2Relationship": zod.string().optional(),
+  "nok2Phone": zod.string().optional(),
+  "nok2Email": zod.string().optional(),
+  "emergencyContactName": zod.string().optional(),
+  "emergencyContactRelationship": zod.string().optional(),
+  "emergencyContactPhone": zod.string().optional(),
   "hireDate": zod.string()
 })
 
@@ -302,6 +320,16 @@ export const CreateEmployeeResponse = zod.object({
   "nokRelationship": zod.string().nullish(),
   "nokPhone": zod.string().nullish(),
   "nokEmail": zod.string().nullish(),
+  "idType": zod.union([zod.literal('national_id'),zod.literal('alien_id'),zod.literal('passport'),zod.literal('refugee_id'),zod.literal('military_id'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "nok2Name": zod.string().nullish(),
+  "nok2Relationship": zod.string().nullish(),
+  "nok2Phone": zod.string().nullish(),
+  "nok2Email": zod.string().nullish(),
+  "emergencyContactName": zod.string().nullish(),
+  "emergencyContactRelationship": zod.string().nullish(),
+  "emergencyContactPhone": zod.string().nullish(),
+  "photoKey": zod.string().nullish(),
+  "photoMimeType": zod.string().nullish(),
   "hireDate": zod.string(),
   "terminationDate": zod.string().nullish(),
   "terminationReason": zod.string().nullish(),
@@ -366,6 +394,16 @@ export const GetEmployeeResponse = zod.object({
   "nokRelationship": zod.string().nullish(),
   "nokPhone": zod.string().nullish(),
   "nokEmail": zod.string().nullish(),
+  "idType": zod.union([zod.literal('national_id'),zod.literal('alien_id'),zod.literal('passport'),zod.literal('refugee_id'),zod.literal('military_id'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "nok2Name": zod.string().nullish(),
+  "nok2Relationship": zod.string().nullish(),
+  "nok2Phone": zod.string().nullish(),
+  "nok2Email": zod.string().nullish(),
+  "emergencyContactName": zod.string().nullish(),
+  "emergencyContactRelationship": zod.string().nullish(),
+  "emergencyContactPhone": zod.string().nullish(),
+  "photoKey": zod.string().nullish(),
+  "photoMimeType": zod.string().nullish(),
   "hireDate": zod.string(),
   "terminationDate": zod.string().nullish(),
   "terminationReason": zod.string().nullish(),
@@ -431,6 +469,14 @@ export const UpdateEmployeeBody = zod.object({
   "nokRelationship": zod.string().optional(),
   "nokPhone": zod.string().optional(),
   "nokEmail": zod.string().optional(),
+  "idType": zod.enum(['national_id', 'alien_id', 'passport', 'refugee_id', 'military_id', 'other']).optional(),
+  "nok2Name": zod.string().optional(),
+  "nok2Relationship": zod.string().optional(),
+  "nok2Phone": zod.string().optional(),
+  "nok2Email": zod.string().optional(),
+  "emergencyContactName": zod.string().optional(),
+  "emergencyContactRelationship": zod.string().optional(),
+  "emergencyContactPhone": zod.string().optional(),
   "status": zod.string().optional()
 })
 
@@ -481,6 +527,16 @@ export const UpdateEmployeeResponse = zod.object({
   "nokRelationship": zod.string().nullish(),
   "nokPhone": zod.string().nullish(),
   "nokEmail": zod.string().nullish(),
+  "idType": zod.union([zod.literal('national_id'),zod.literal('alien_id'),zod.literal('passport'),zod.literal('refugee_id'),zod.literal('military_id'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "nok2Name": zod.string().nullish(),
+  "nok2Relationship": zod.string().nullish(),
+  "nok2Phone": zod.string().nullish(),
+  "nok2Email": zod.string().nullish(),
+  "emergencyContactName": zod.string().nullish(),
+  "emergencyContactRelationship": zod.string().nullish(),
+  "emergencyContactPhone": zod.string().nullish(),
+  "photoKey": zod.string().nullish(),
+  "photoMimeType": zod.string().nullish(),
   "hireDate": zod.string(),
   "terminationDate": zod.string().nullish(),
   "terminationReason": zod.string().nullish(),
@@ -515,6 +571,137 @@ export const GrantPortalAccessBody = zod.object({
 
 export const GrantPortalAccessResponse = zod.object({
   "tempPassword": zod.string()
+})
+
+
+/**
+ * @summary Cumulative statutory deductions from paid, non-reversed runs
+ */
+export const GetEmployeeTotalsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetEmployeeTotalsResponse = zod.object({
+  "totals": zod.object({
+  "nssfEmployee": zod.number().optional(),
+  "nssfEmployer": zod.number().optional(),
+  "shif": zod.number().optional(),
+  "housingLevyEmployee": zod.number().optional(),
+  "housingLevyEmployer": zod.number().optional(),
+  "helb": zod.number().optional(),
+  "insurancePremium": zod.number().optional(),
+  "paidRunCount": zod.number().optional()
+})
+})
+
+
+/**
+ * @summary List an employee's documents
+ */
+export const ListEmployeeDocumentsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListEmployeeDocumentsResponseItem = zod.object({
+  "id": zod.number(),
+  "orgId": zod.number(),
+  "employeeId": zod.number(),
+  "category": zod.enum(['passport_photo', 'certificate', 'nssf_card', 'shif_card', 'id_card_scan', 'resume', 'contract', 'disciplinary_letter', 'leave_document', 'other']),
+  "fileName": zod.string(),
+  "storageKey": zod.string().optional(),
+  "mimeType": zod.string(),
+  "size": zod.number(),
+  "uploadedByUserId": zod.number().nullish(),
+  "uploadedAt": zod.string()
+})
+export const ListEmployeeDocumentsResponse = zod.array(ListEmployeeDocumentsResponseItem)
+
+
+/**
+ * @summary Upload a document (multipart -- called via raw fetch, not this generated client)
+ */
+export const UploadEmployeeDocumentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UploadEmployeeDocumentBody = zod.object({
+  "file": zod.string(),
+  "category": zod.enum(['passport_photo', 'certificate', 'nssf_card', 'shif_card', 'id_card_scan', 'resume', 'contract', 'disciplinary_letter', 'leave_document', 'other'])
+})
+
+export const UploadEmployeeDocumentResponse = zod.object({
+  "id": zod.number(),
+  "orgId": zod.number(),
+  "employeeId": zod.number(),
+  "category": zod.enum(['passport_photo', 'certificate', 'nssf_card', 'shif_card', 'id_card_scan', 'resume', 'contract', 'disciplinary_letter', 'leave_document', 'other']),
+  "fileName": zod.string(),
+  "storageKey": zod.string().optional(),
+  "mimeType": zod.string(),
+  "size": zod.number(),
+  "uploadedByUserId": zod.number().nullish(),
+  "uploadedAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a document
+ */
+export const DeleteEmployeeDocumentParams = zod.object({
+  "id": zod.coerce.number(),
+  "documentId": zod.coerce.number()
+})
+
+export const DeleteEmployeeDocumentResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Download a document (binary -- called via raw fetch, not this generated client)
+ */
+export const DownloadEmployeeDocumentParams = zod.object({
+  "id": zod.coerce.number(),
+  "documentId": zod.coerce.number()
+})
+
+export const DownloadEmployeeDocumentResponse = zod.unknown()
+
+
+/**
+ * @summary Upload/replace the employee's photo (multipart -- called via raw fetch)
+ */
+export const UploadEmployeePhotoParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UploadEmployeePhotoBody = zod.object({
+  "file": zod.string()
+})
+
+export const UploadEmployeePhotoResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Fetch the employee's photo (binary -- called via raw fetch)
+ */
+export const GetEmployeePhotoParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetEmployeePhotoResponse = zod.unknown()
+
+
+/**
+ * @summary Remove the employee's photo
+ */
+export const DeleteEmployeePhotoParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteEmployeePhotoResponse = zod.object({
+  "ok": zod.boolean()
 })
 
 
@@ -585,6 +772,16 @@ export const ListTimesheetsResponseItem = zod.object({
   "nokRelationship": zod.string().nullish(),
   "nokPhone": zod.string().nullish(),
   "nokEmail": zod.string().nullish(),
+  "idType": zod.union([zod.literal('national_id'),zod.literal('alien_id'),zod.literal('passport'),zod.literal('refugee_id'),zod.literal('military_id'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "nok2Name": zod.string().nullish(),
+  "nok2Relationship": zod.string().nullish(),
+  "nok2Phone": zod.string().nullish(),
+  "nok2Email": zod.string().nullish(),
+  "emergencyContactName": zod.string().nullish(),
+  "emergencyContactRelationship": zod.string().nullish(),
+  "emergencyContactPhone": zod.string().nullish(),
+  "photoKey": zod.string().nullish(),
+  "photoMimeType": zod.string().nullish(),
   "hireDate": zod.string(),
   "terminationDate": zod.string().nullish(),
   "terminationReason": zod.string().nullish(),
@@ -1044,6 +1241,16 @@ export const ListLeavesResponseItem = zod.object({
   "nokRelationship": zod.string().nullish(),
   "nokPhone": zod.string().nullish(),
   "nokEmail": zod.string().nullish(),
+  "idType": zod.union([zod.literal('national_id'),zod.literal('alien_id'),zod.literal('passport'),zod.literal('refugee_id'),zod.literal('military_id'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "nok2Name": zod.string().nullish(),
+  "nok2Relationship": zod.string().nullish(),
+  "nok2Phone": zod.string().nullish(),
+  "nok2Email": zod.string().nullish(),
+  "emergencyContactName": zod.string().nullish(),
+  "emergencyContactRelationship": zod.string().nullish(),
+  "emergencyContactPhone": zod.string().nullish(),
+  "photoKey": zod.string().nullish(),
+  "photoMimeType": zod.string().nullish(),
   "hireDate": zod.string(),
   "terminationDate": zod.string().nullish(),
   "terminationReason": zod.string().nullish(),
@@ -1174,6 +1381,16 @@ export const ListLoansResponseItem = zod.object({
   "nokRelationship": zod.string().nullish(),
   "nokPhone": zod.string().nullish(),
   "nokEmail": zod.string().nullish(),
+  "idType": zod.union([zod.literal('national_id'),zod.literal('alien_id'),zod.literal('passport'),zod.literal('refugee_id'),zod.literal('military_id'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "nok2Name": zod.string().nullish(),
+  "nok2Relationship": zod.string().nullish(),
+  "nok2Phone": zod.string().nullish(),
+  "nok2Email": zod.string().nullish(),
+  "emergencyContactName": zod.string().nullish(),
+  "emergencyContactRelationship": zod.string().nullish(),
+  "emergencyContactPhone": zod.string().nullish(),
+  "photoKey": zod.string().nullish(),
+  "photoMimeType": zod.string().nullish(),
   "hireDate": zod.string(),
   "terminationDate": zod.string().nullish(),
   "terminationReason": zod.string().nullish(),
@@ -1284,6 +1501,16 @@ export const ListLoanRequestsResponseItem = zod.object({
   "nokRelationship": zod.string().nullish(),
   "nokPhone": zod.string().nullish(),
   "nokEmail": zod.string().nullish(),
+  "idType": zod.union([zod.literal('national_id'),zod.literal('alien_id'),zod.literal('passport'),zod.literal('refugee_id'),zod.literal('military_id'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "nok2Name": zod.string().nullish(),
+  "nok2Relationship": zod.string().nullish(),
+  "nok2Phone": zod.string().nullish(),
+  "nok2Email": zod.string().nullish(),
+  "emergencyContactName": zod.string().nullish(),
+  "emergencyContactRelationship": zod.string().nullish(),
+  "emergencyContactPhone": zod.string().nullish(),
+  "photoKey": zod.string().nullish(),
+  "photoMimeType": zod.string().nullish(),
   "hireDate": zod.string(),
   "terminationDate": zod.string().nullish(),
   "terminationReason": zod.string().nullish(),
@@ -1456,6 +1683,16 @@ export const GetPortalProfileResponse = zod.object({
   "nokRelationship": zod.string().nullish(),
   "nokPhone": zod.string().nullish(),
   "nokEmail": zod.string().nullish(),
+  "idType": zod.union([zod.literal('national_id'),zod.literal('alien_id'),zod.literal('passport'),zod.literal('refugee_id'),zod.literal('military_id'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "nok2Name": zod.string().nullish(),
+  "nok2Relationship": zod.string().nullish(),
+  "nok2Phone": zod.string().nullish(),
+  "nok2Email": zod.string().nullish(),
+  "emergencyContactName": zod.string().nullish(),
+  "emergencyContactRelationship": zod.string().nullish(),
+  "emergencyContactPhone": zod.string().nullish(),
+  "photoKey": zod.string().nullish(),
+  "photoMimeType": zod.string().nullish(),
   "hireDate": zod.string(),
   "terminationDate": zod.string().nullish(),
   "terminationReason": zod.string().nullish(),
@@ -1579,6 +1816,16 @@ export const ListPortalLoansResponseItem = zod.object({
   "nokRelationship": zod.string().nullish(),
   "nokPhone": zod.string().nullish(),
   "nokEmail": zod.string().nullish(),
+  "idType": zod.union([zod.literal('national_id'),zod.literal('alien_id'),zod.literal('passport'),zod.literal('refugee_id'),zod.literal('military_id'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "nok2Name": zod.string().nullish(),
+  "nok2Relationship": zod.string().nullish(),
+  "nok2Phone": zod.string().nullish(),
+  "nok2Email": zod.string().nullish(),
+  "emergencyContactName": zod.string().nullish(),
+  "emergencyContactRelationship": zod.string().nullish(),
+  "emergencyContactPhone": zod.string().nullish(),
+  "photoKey": zod.string().nullish(),
+  "photoMimeType": zod.string().nullish(),
   "hireDate": zod.string(),
   "terminationDate": zod.string().nullish(),
   "terminationReason": zod.string().nullish(),

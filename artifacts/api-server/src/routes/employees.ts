@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { eq, and, ne, sql, type SQL } from "drizzle-orm";
+import { eq, and, ne, isNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { employees, users, payslips, payrollRuns, departments, leaveRequests } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
@@ -63,6 +63,18 @@ const employeeBaseSchema = z.object({
   nokRelationship: z.string().max(80).optional(),
   nokPhone: z.string().max(20).optional(),
   nokEmail: z.string().email().max(255).optional(),
+  idType: z.enum(["national_id","alien_id","passport","refugee_id","military_id","other"]).optional(),
+  // A second next-of-kin, entirely optional -- an employee with only NOK #1
+  // filled must remain valid.
+  nok2Name: z.string().max(120).optional(),
+  nok2Relationship: z.string().max(80).optional(),
+  nok2Phone: z.string().max(20).optional(),
+  nok2Email: z.string().email().max(255).optional(),
+  // Deliberately separate from next-of-kin: NOK is often a minor child, not
+  // necessarily who should actually be called in an emergency.
+  emergencyContactName: z.string().max(120).optional(),
+  emergencyContactRelationship: z.string().max(80).optional(),
+  emergencyContactPhone: z.string().max(20).optional(),
 });
 
 function toRow(body: z.infer<typeof employeeBaseSchema>) {
@@ -98,6 +110,14 @@ function toRow(body: z.infer<typeof employeeBaseSchema>) {
     nokRelationship: body.nokRelationship ?? null,
     nokPhone: body.nokPhone ?? null,
     nokEmail: body.nokEmail ?? null,
+    idType: body.idType ?? null,
+    nok2Name: body.nok2Name ?? null,
+    nok2Relationship: body.nok2Relationship ?? null,
+    nok2Phone: body.nok2Phone ?? null,
+    nok2Email: body.nok2Email ?? null,
+    emergencyContactName: body.emergencyContactName ?? null,
+    emergencyContactRelationship: body.emergencyContactRelationship ?? null,
+    emergencyContactPhone: body.emergencyContactPhone ?? null,
   };
 }
 
@@ -273,6 +293,14 @@ router.patch("/:id", requireAuth("employee:write"), async (req, res, next) => {
     if (b.nokRelationship !== undefined) updateData.nokRelationship = b.nokRelationship ?? null;
     if (b.nokPhone !== undefined) updateData.nokPhone = b.nokPhone ?? null;
     if (b.nokEmail !== undefined) updateData.nokEmail = b.nokEmail ?? null;
+    if (b.idType !== undefined) updateData.idType = b.idType ?? null;
+    if (b.nok2Name !== undefined) updateData.nok2Name = b.nok2Name ?? null;
+    if (b.nok2Relationship !== undefined) updateData.nok2Relationship = b.nok2Relationship ?? null;
+    if (b.nok2Phone !== undefined) updateData.nok2Phone = b.nok2Phone ?? null;
+    if (b.nok2Email !== undefined) updateData.nok2Email = b.nok2Email ?? null;
+    if (b.emergencyContactName !== undefined) updateData.emergencyContactName = b.emergencyContactName ?? null;
+    if (b.emergencyContactRelationship !== undefined) updateData.emergencyContactRelationship = b.emergencyContactRelationship ?? null;
+    if (b.emergencyContactPhone !== undefined) updateData.emergencyContactPhone = b.emergencyContactPhone ?? null;
 
     if (b.departmentId !== undefined && b.departmentId !== null) {
       const [department] = await db.select({ id: departments.id })
@@ -371,6 +399,42 @@ router.post("/:id/terminate", requireAuth("employee:write"), async (req, res, ne
     });
 
     res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// ── GET /:id/totals — cumulative statutory deductions, paid runs only ──────
+// "Paid to date" means exactly that: draft/submitted/approved runs haven't
+// actually paid anyone yet, and a reversed run's money never moved either --
+// both are excluded so this never overstates what's actually gone out.
+router.get("/:id/totals", requireAuth("employee:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+    const [existing] = await db.select({ id: employees.id }).from(employees)
+      .where(and(eq(employees.id, id), eq(employees.orgId, p.orgId)));
+    if (!existing) { res.status(404).json({ error: "Employee not found" }); return; }
+
+    const [totals] = await db
+      .select({
+        nssfEmployee: sql<number>`coalesce(sum(${payslips.nssfEmployee}), 0)`,
+        nssfEmployer: sql<number>`coalesce(sum(${payslips.nssfEmployer}), 0)`,
+        shif: sql<number>`coalesce(sum(${payslips.shif}), 0)`,
+        housingLevyEmployee: sql<number>`coalesce(sum(${payslips.housingLevyEmployee}), 0)`,
+        housingLevyEmployer: sql<number>`coalesce(sum(${payslips.housingLevyEmployer}), 0)`,
+        helb: sql<number>`coalesce(sum(${payslips.helb}), 0)`,
+        insurancePremium: sql<number>`coalesce(sum(${payslips.insurancePremium}), 0)`,
+        paidRunCount: sql<number>`count(*)`,
+      })
+      .from(payslips)
+      .innerJoin(payrollRuns, eq(payslips.runId, payrollRuns.id))
+      .where(and(
+        eq(payslips.employeeId, id),
+        eq(payslips.orgId, p.orgId),
+        eq(payrollRuns.status, "paid"),
+        isNull(payrollRuns.reversedAt),
+      ));
+
+    res.json({ totals });
   } catch (err) { next(err); }
 });
 

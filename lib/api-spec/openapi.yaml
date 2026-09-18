@@ -230,6 +230,178 @@ paths:
               schema:
                 $ref: "#/components/schemas/PortalAccessResult"
 
+  /employees/{id}/totals:
+    get:
+      operationId: getEmployeeTotals
+      tags: [employees]
+      summary: Cumulative statutory deductions from paid, non-reversed runs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Totals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeTotals"
+
+  /employees/{id}/documents:
+    get:
+      operationId: listEmployeeDocuments
+      tags: [employees]
+      summary: List an employee's documents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EmployeeDocument"
+    post:
+      operationId: uploadEmployeeDocument
+      tags: [employees]
+      summary: Upload a document (multipart -- called via raw fetch, not this generated client)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/UploadEmployeeDocumentRequest"
+      responses:
+        "201":
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeDocument"
+
+  /employees/{id}/documents/{documentId}:
+    delete:
+      operationId: deleteEmployeeDocument
+      tags: [employees]
+      summary: Delete a document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /employees/{id}/documents/{documentId}/download:
+    get:
+      operationId: downloadEmployeeDocument
+      tags: [employees]
+      summary: Download a document (binary -- called via raw fetch, not this generated client)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: File contents
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /employees/{id}/photo:
+    post:
+      operationId: uploadEmployeePhoto
+      tags: [employees]
+      summary: Upload/replace the employee's photo (multipart -- called via raw fetch)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/UploadEmployeePhotoRequest"
+      responses:
+        "200":
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+    get:
+      operationId: getEmployeePhoto
+      tags: [employees]
+      summary: Fetch the employee's photo (binary -- called via raw fetch)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Photo
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+    delete:
+      operationId: deleteEmployeePhoto
+      tags: [employees]
+      summary: Remove the employee's photo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
   /timesheets:
     get:
       operationId: listTimesheets
@@ -1150,6 +1322,27 @@ components:
           type: ["string", "null"]
         nokEmail:
           type: ["string", "null"]
+        idType:
+          type: ["string", "null"]
+          enum: [national_id, alien_id, passport, refugee_id, military_id, other, null]
+        nok2Name:
+          type: ["string", "null"]
+        nok2Relationship:
+          type: ["string", "null"]
+        nok2Phone:
+          type: ["string", "null"]
+        nok2Email:
+          type: ["string", "null"]
+        emergencyContactName:
+          type: ["string", "null"]
+        emergencyContactRelationship:
+          type: ["string", "null"]
+        emergencyContactPhone:
+          type: ["string", "null"]
+        photoKey:
+          type: ["string", "null"]
+        photoMimeType:
+          type: ["string", "null"]
         hireDate:
           type: string
         terminationDate:
@@ -1202,6 +1395,76 @@ components:
           items:
             type: object
             additionalProperties: true
+
+    EmployeeDocument:
+      type: object
+      required: [id, orgId, employeeId, category, fileName, mimeType, size, uploadedAt]
+      properties:
+        id:
+          type: integer
+        orgId:
+          type: integer
+        employeeId:
+          type: integer
+        category:
+          type: string
+          enum: [passport_photo, certificate, nssf_card, shif_card, id_card_scan, resume, contract, disciplinary_letter, leave_document, other]
+        fileName:
+          type: string
+        storageKey:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+        uploadedByUserId:
+          type: ["integer", "null"]
+        uploadedAt:
+          type: string
+
+    EmployeeTotals:
+      type: object
+      required: [totals]
+      properties:
+        totals:
+          type: object
+          properties:
+            nssfEmployee:
+              type: integer
+            nssfEmployer:
+              type: integer
+            shif:
+              type: integer
+            housingLevyEmployee:
+              type: integer
+            housingLevyEmployer:
+              type: integer
+            helb:
+              type: integer
+            insurancePremium:
+              type: integer
+            paidRunCount:
+              type: integer
+
+    # Named (rather than inline) purely so orval generates a single,
+    # unambiguous type for these -- both are only ever built as FormData and
+    # sent via raw fetch, never through the generated client.
+    UploadEmployeeDocumentRequest:
+      type: object
+      required: [file, category]
+      properties:
+        file:
+          type: string
+        category:
+          type: string
+          enum: [passport_photo, certificate, nssf_card, shif_card, id_card_scan, resume, contract, disciplinary_letter, leave_document, other]
+
+    UploadEmployeePhotoRequest:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
 
     EmployeeInput:
       type: object
@@ -1293,6 +1556,23 @@ components:
           type: string
         nokEmail:
           type: string
+        idType:
+          type: string
+          enum: [national_id, alien_id, passport, refugee_id, military_id, other]
+        nok2Name:
+          type: string
+        nok2Relationship:
+          type: string
+        nok2Phone:
+          type: string
+        nok2Email:
+          type: string
+        emergencyContactName:
+          type: string
+        emergencyContactRelationship:
+          type: string
+        emergencyContactPhone:
+          type: string
         hireDate:
           type: string
 
@@ -1381,6 +1661,23 @@ components:
         nokPhone:
           type: string
         nokEmail:
+          type: string
+        idType:
+          type: string
+          enum: [national_id, alien_id, passport, refugee_id, military_id, other]
+        nok2Name:
+          type: string
+        nok2Relationship:
+          type: string
+        nok2Phone:
+          type: string
+        nok2Email:
+          type: string
+        emergencyContactName:
+          type: string
+        emergencyContactRelationship:
+          type: string
+        emergencyContactPhone:
           type: string
         status:
           type: string

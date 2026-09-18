@@ -1,7 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRoute, Link, useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
-import { useGetEmployee, getGetEmployeeQueryKey, customFetch } from "@workspace/api-client-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useGetEmployee, getGetEmployeeQueryKey, customFetch,
+  useListEmployeeDocuments, getListEmployeeDocumentsQueryKey, useDeleteEmployeeDocument,
+  useGetEmployeeTotals,
+} from "@workspace/api-client-react";
 import { formatMoney, formatDate, fullName } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,13 +15,90 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft, User, Briefcase, Landmark, FileText, Pencil, UserX, AlertCircle, KeyRound, Loader2,
-  CalendarDays, Check, X, Copy, Heart,
+  CalendarDays, Check, X, Copy, Heart, Camera, Upload, Download, Trash2, Wallet,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EditEmployeeDialog } from "./edit-dialog";
 import { TerminateDialog } from "./terminate-dialog";
+
+// ── Employee photo ────────────────────────────────────────────────────────
+// This app authenticates with a bearer token in sessionStorage, not cookies,
+// so a plain <img src="/api/..."> cannot carry it -- fetch as a blob and
+// build an object URL instead, same technique as the payslip PDF download in
+// pages/admin/payroll/detail.tsx.
+function authHeaders(): Record<string, string> {
+  const token = sessionStorage.getItem("mavuno_session_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function EmployeeAvatar({ employeeId, name, editable }: { employeeId: number; name: string; editable: boolean }) {
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  function loadPhoto() {
+    fetch(`/api/employees/${employeeId}/photo`, { headers: authHeaders() })
+      .then((r) => (r.ok ? r.blob() : Promise.reject()))
+      .then((blob) => setPhotoUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); }))
+      .catch(() => setPhotoUrl(null));
+  }
+
+  useEffect(() => {
+    loadPhoto();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employeeId]);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setLoading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`/api/employees/${employeeId}/photo`, {
+        method: "POST", headers: authHeaders(), body: form,
+      });
+      if (!res.ok) throw new Error();
+      loadPhoto();
+    } catch {
+      toast({ variant: "destructive", title: "Photo upload failed" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const initials = name.split(" ").filter(Boolean).slice(0, 2).map((n) => n[0]).join("").toUpperCase();
+
+  return (
+    <div className="relative shrink-0">
+      <div className="h-14 w-14 rounded-full overflow-hidden bg-muted border border-border/50 flex items-center justify-center">
+        {photoUrl
+          ? <img src={photoUrl} alt={name} className="h-full w-full object-cover" />
+          : <span className="font-mono text-sm text-muted-foreground">{initials || <User className="h-5 w-5" />}</span>}
+      </div>
+      {editable && (
+        <>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={loading}
+            className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center border-2 border-background disabled:opacity-60"
+            title="Upload photo"
+          >
+            {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFile} />
+        </>
+      )}
+    </div>
+  );
+}
 
 export function EmployeeDetail() {
   const [, params] = useRoute("/admin/employees/:id");
@@ -113,6 +194,7 @@ export function EmployeeDetail() {
         <Button variant="outline" size="icon" asChild>
           <Link href="/admin/employees"><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
+        <EmployeeAvatar employeeId={id} name={fullName(employee)} editable={!isTerminated} />
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight font-mono uppercase truncate">
             {fullName(employee)}
@@ -199,10 +281,12 @@ export function EmployeeDetail() {
       )}
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6 bg-card border border-border/50 p-1">
+        <TabsList className="grid w-full grid-cols-5 mb-6 bg-card border border-border/50 p-1">
           <TabsTrigger value="overview" className="font-mono text-xs">OVERVIEW</TabsTrigger>
           <TabsTrigger value="payroll" className="font-mono text-xs">PAY STRUCTURE</TabsTrigger>
           <TabsTrigger value="history" className="font-mono text-xs">PAYSLIPS</TabsTrigger>
+          <TabsTrigger value="documents" className="font-mono text-xs">DOCUMENTS</TabsTrigger>
+          <TabsTrigger value="totals" className="font-mono text-xs">TOTALS</TabsTrigger>
         </TabsList>
 
         {/* ── Overview tab ── */}
@@ -232,8 +316,12 @@ export function EmployeeDetail() {
                     <span className="capitalize">{employee.gender || '-'}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-xs mb-0.5">National ID</span>
+                    <span className="text-muted-foreground block text-xs mb-0.5">ID Number</span>
                     <span className="font-mono">{employee.nationalId || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-xs mb-0.5">ID Type</span>
+                    <span className="capitalize">{(employee as any).idType?.replace(/_/g, ' ') || '-'}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground block text-xs mb-0.5">Date of Birth</span>
@@ -353,7 +441,7 @@ export function EmployeeDetail() {
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="pt-4">
+              <CardContent className="pt-4 space-y-5">
                 {(employee as any).nokName ? (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-4 text-sm">
                     <div>
@@ -386,6 +474,62 @@ export function EmployeeDetail() {
                     )}
                   </p>
                 )}
+
+                {(employee as any).nok2Name && (
+                  <div className="pt-4 border-t border-border/30">
+                    <span className="text-muted-foreground block text-xs mb-2 font-mono">SECOND NEXT OF KIN</span>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground block text-xs mb-0.5">Full Name</span>
+                        <span>{(employee as any).nok2Name}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-xs mb-0.5">Relationship</span>
+                        <span>{(employee as any).nok2Relationship || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-xs mb-0.5">Phone</span>
+                        <span>{(employee as any).nok2Phone || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-xs mb-0.5">Email</span>
+                        <span className="break-all">{(employee as any).nok2Email || '-'}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-4 border-t border-border/30">
+                  <span className="text-muted-foreground block text-xs mb-2 font-mono">EMERGENCY CONTACT</span>
+                  {(employee as any).emergencyContactName ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground block text-xs mb-0.5">Full Name</span>
+                        <span>{(employee as any).emergencyContactName}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-xs mb-0.5">Relationship</span>
+                        <span>{(employee as any).emergencyContactRelationship || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-xs mb-0.5">Phone</span>
+                        <span>{(employee as any).emergencyContactPhone || '-'}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground font-mono">
+                      No emergency contact recorded.{" "}
+                      {!isTerminated && (
+                        <button
+                          className="underline hover:text-foreground transition-colors"
+                          onClick={() => openEdit("nextofkin" as any)}
+                        >
+                          Add now
+                        </button>
+                      )}
+                    </p>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -570,6 +714,16 @@ export function EmployeeDetail() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ── Documents tab ── */}
+        <TabsContent value="documents" className="mt-0">
+          <EmployeeDocumentsTab employeeId={id} editable={!isTerminated} />
+        </TabsContent>
+
+        {/* ── Totals tab ── */}
+        <TabsContent value="totals" className="mt-0">
+          <EmployeeTotalsTab employeeId={id} />
+        </TabsContent>
       </Tabs>
 
       {/* Dialogs */}
@@ -640,5 +794,215 @@ export function EmployeeDetail() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// ── Documents tab ────────────────────────────────────────────────────────
+
+const DOCUMENT_CATEGORIES = [
+  { value: "passport_photo", label: "Passport Photo" },
+  { value: "certificate", label: "Certificate" },
+  { value: "nssf_card", label: "NSSF Card" },
+  { value: "shif_card", label: "SHIF Card" },
+  { value: "id_card_scan", label: "ID Card Scan" },
+  { value: "resume", label: "Resume" },
+  { value: "contract", label: "Contract" },
+  { value: "disciplinary_letter", label: "Disciplinary Letter" },
+  { value: "leave_document", label: "Leave Document" },
+  { value: "other", label: "Other" },
+] as const;
+
+function categoryLabel(value: string): string {
+  return DOCUMENT_CATEGORIES.find((c) => c.value === value)?.label ?? value;
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function EmployeeDocumentsTab({ employeeId, editable }: { employeeId: number; editable: boolean }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [category, setCategory] = useState<string>("certificate");
+  const [uploading, setUploading] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+
+  const { data: documents = [], isLoading } = useListEmployeeDocuments(employeeId);
+
+  const deleteDoc = useDeleteEmployeeDocument({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getListEmployeeDocumentsQueryKey(employeeId) });
+        toast({ title: "Document deleted" });
+      },
+      onError: () => toast({ variant: "destructive", title: "Delete failed" }),
+    },
+  });
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("category", category);
+      const res = await fetch(`/api/employees/${employeeId}/documents`, {
+        method: "POST", headers: authHeaders(), body: form,
+      });
+      if (!res.ok) throw new Error();
+      qc.invalidateQueries({ queryKey: getListEmployeeDocumentsQueryKey(employeeId) });
+      toast({ title: "Document uploaded" });
+    } catch {
+      toast({ variant: "destructive", title: "Upload failed" });
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleDownload(doc: { id: number; fileName: string }) {
+    setDownloadingId(doc.id);
+    try {
+      const res = await fetch(`/api/employees/${employeeId}/documents/${doc.id}/download`, { headers: authHeaders() });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = doc.fileName;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch {
+      toast({ variant: "destructive", title: "Download failed" });
+    } finally {
+      setDownloadingId(null);
+    }
+  }
+
+  return (
+    <Card className="border-border/50 shadow-sm bg-card/30">
+      {editable && (
+        <CardHeader className="pb-3 border-b border-border/30">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-mono text-muted-foreground">CATEGORY</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="bg-background/50 w-52"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {DOCUMENT_CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              variant="outline" size="sm" className="font-mono gap-1.5"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+              UPLOAD FILE
+            </Button>
+            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFile} />
+          </div>
+        </CardHeader>
+      )}
+      <CardContent className="p-0">
+        {isLoading ? (
+          <div className="p-12 text-center text-muted-foreground font-mono text-sm">LOADING…</div>
+        ) : documents.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground font-mono text-sm">NO DOCUMENTS ON FILE</div>
+        ) : (
+          <div className="divide-y divide-border/50">
+            {documents.map((doc) => (
+              <div key={doc.id} className="flex items-center justify-between px-6 py-4 hover:bg-muted/20 transition-colors">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">{doc.fileName}</div>
+                  <div className="text-xs text-muted-foreground font-mono mt-0.5">
+                    {categoryLabel(doc.category)} • {formatBytes(doc.size)} • {formatDate(doc.uploadedAt)}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="outline" size="icon" className="h-8 w-8"
+                    onClick={() => handleDownload(doc)}
+                    disabled={downloadingId === doc.id}
+                    title="Download"
+                  >
+                    {downloadingId === doc.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                  </Button>
+                  {editable && (
+                    <Button
+                      variant="outline" size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive border-destructive/30 hover:border-destructive/60 hover:bg-destructive/5"
+                      onClick={() => deleteDoc.mutate({ id: employeeId, documentId: doc.id })}
+                      disabled={deleteDoc.isPending}
+                      title="Delete"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Totals tab ───────────────────────────────────────────────────────────
+// Cumulative statutory deductions from paid, non-reversed payroll runs only
+// — see GET /employees/:id/totals.
+
+function EmployeeTotalsTab({ employeeId }: { employeeId: number }) {
+  const { data, isLoading } = useGetEmployeeTotals(employeeId);
+  const totals = data?.totals;
+
+  const rows: { label: string; employee?: number; employer?: number }[] = [
+    { label: "NSSF", employee: totals?.nssfEmployee, employer: totals?.nssfEmployer },
+    { label: "Housing Levy", employee: totals?.housingLevyEmployee, employer: totals?.housingLevyEmployer },
+    { label: "SHIF", employee: totals?.shif },
+    { label: "HELB", employee: totals?.helb },
+    { label: "Insurance Premium", employee: totals?.insurancePremium },
+  ];
+
+  return (
+    <Card className="border-border/50 shadow-sm bg-card/30">
+      <CardHeader className="pb-3 border-b border-border/30">
+        <CardTitle className="text-sm font-mono flex items-center text-muted-foreground">
+          <Wallet className="h-4 w-4 mr-2 text-primary" />PAID TO DATE
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-4">
+        {isLoading ? (
+          <div className="p-8 text-center text-muted-foreground font-mono text-sm">LOADING…</div>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground font-mono mb-4">
+              From {totals?.paidRunCount ?? 0} paid payroll run{totals?.paidRunCount === 1 ? "" : "s"}. Reversed runs are excluded.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {rows.map((r) => (
+                <div key={r.label} className="rounded-lg border border-border/50 p-4">
+                  <div className="text-xs text-muted-foreground font-mono mb-1">{r.label.toUpperCase()}</div>
+                  <div className="font-mono text-lg font-bold text-primary">{formatMoney(r.employee ?? 0)}</div>
+                  {r.employer !== undefined && (
+                    <div className="text-xs text-muted-foreground font-mono mt-1">
+                      + {formatMoney(r.employer ?? 0)} employer
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
