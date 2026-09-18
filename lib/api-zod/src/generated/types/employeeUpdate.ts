@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { EmployeeUpdateEducationLevel } from './employeeUpdateEducationLevel';
+import type { EmployeeUpdateIdType } from './employeeUpdateIdType';
 
 export interface EmployeeUpdate {
   firstName?: string;
@@ -49,5 +50,13 @@ export interface EmployeeUpdate {
   nokRelationship?: string;
   nokPhone?: string;
   nokEmail?: string;
+  idType?: EmployeeUpdateIdType;
+  nok2Name?: string;
+  nok2Relationship?: string;
+  nok2Phone?: string;
+  nok2Email?: string;
+  emergencyContactName?: string;
+  emergencyContactRelationship?: string;
+  emergencyContactPhone?: string;
   status?: string;
 }

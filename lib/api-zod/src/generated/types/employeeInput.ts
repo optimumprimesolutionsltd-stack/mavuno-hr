@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { EmployeeInputEducationLevel } from './employeeInputEducationLevel';
+import type { EmployeeInputIdType } from './employeeInputIdType';
 import type { EmployeeInputSalaryBasis } from './employeeInputSalaryBasis';
 
 export interface EmployeeInput {
@@ -51,5 +52,13 @@ export interface EmployeeInput {
   nokRelationship?: string;
   nokPhone?: string;
   nokEmail?: string;
+  idType?: EmployeeInputIdType;
+  nok2Name?: string;
+  nok2Relationship?: string;
+  nok2Phone?: string;
+  nok2Email?: string;
+  emergencyContactName?: string;
+  emergencyContactRelationship?: string;
+  emergencyContactPhone?: string;
   hireDate: string;
 }

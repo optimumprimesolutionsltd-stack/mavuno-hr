@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { EmployeeEducationLevel } from './employeeEducationLevel';
+import type { EmployeeIdType } from './employeeIdType';
 import type { EmployeeSalaryBasis } from './employeeSalaryBasis';
 
 export interface Employee {
@@ -75,6 +76,26 @@ export interface Employee {
   nokPhone?: string | null;
   /** @nullable */
   nokEmail?: string | null;
+  /** @nullable */
+  idType?: EmployeeIdType;
+  /** @nullable */
+  nok2Name?: string | null;
+  /** @nullable */
+  nok2Relationship?: string | null;
+  /** @nullable */
+  nok2Phone?: string | null;
+  /** @nullable */
+  nok2Email?: string | null;
+  /** @nullable */
+  emergencyContactName?: string | null;
+  /** @nullable */
+  emergencyContactRelationship?: string | null;
+  /** @nullable */
+  emergencyContactPhone?: string | null;
+  /** @nullable */
+  photoKey?: string | null;
+  /** @nullable */
+  photoMimeType?: string | null;
   hireDate: string;
   /** @nullable */
   terminationDate?: string | null;

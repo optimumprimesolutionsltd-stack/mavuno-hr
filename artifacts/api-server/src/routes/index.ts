@@ -3,6 +3,7 @@ import healthRouter from "./health.js";
 import authRouter from "./auth.js";
 import dashboardRouter from "./dashboard.js";
 import employeesRouter from "./employees.js";
+import employeeDocumentsRouter from "./employee-documents.js";
 import payrollRouter from "./payroll.js";
 import leavesRouter from "./leaves.js";
 import timesheetsRouter from "./timesheets.js";
@@ -34,6 +35,7 @@ router.use("/dashboard", dashboardRouter);
 // has passed. See docs/design/super-admin-org-lifecycle.md §2 for what is and
 // isn't gated — billing, settings reads, and auth stay open on purpose.
 router.use("/employees", requireActiveAccess(), employeesRouter);
+router.use("/employees", requireActiveAccess(), employeeDocumentsRouter);
 router.use("/payroll", requireActiveAccess(), payrollRouter);
 router.use("/leaves", requireActiveAccess(), leavesRouter);
 router.use("/timesheets", requireActiveAccess(), timesheetsRouter);

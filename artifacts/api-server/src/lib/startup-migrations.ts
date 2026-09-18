@@ -802,6 +802,62 @@ async function addEmployeeBankBranchName(): Promise<void> {
   await db.execute(sql`ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_branch_name TEXT`);
 }
 
+async function addEmployeeNok2AndEmergencyContact(): Promise<void> {
+  // A second next-of-kin (optional -- filling in only the first stays valid),
+  // an ID type alongside the existing untyped national_id, and a genuinely
+  // separate emergency contact: next of kin is often a minor child, not
+  // necessarily who should actually be called in an emergency.
+  await db.execute(sql`
+    ALTER TABLE employees
+      ADD COLUMN IF NOT EXISTS id_type TEXT,
+      ADD COLUMN IF NOT EXISTS nok2_name TEXT,
+      ADD COLUMN IF NOT EXISTS nok2_relationship TEXT,
+      ADD COLUMN IF NOT EXISTS nok2_phone TEXT,
+      ADD COLUMN IF NOT EXISTS nok2_email TEXT,
+      ADD COLUMN IF NOT EXISTS emergency_contact_name TEXT,
+      ADD COLUMN IF NOT EXISTS emergency_contact_relationship TEXT,
+      ADD COLUMN IF NOT EXISTS emergency_contact_phone TEXT;
+  `);
+}
+
+async function addEmployeePhoto(): Promise<void> {
+  await db.execute(sql`
+    ALTER TABLE employees
+      ADD COLUMN IF NOT EXISTS photo_key TEXT,
+      ADD COLUMN IF NOT EXISTS photo_mime_type TEXT;
+  `);
+}
+
+async function addPayslipInsurancePremium(): Promise<void> {
+  // Every other deduction is captured per-period on the payslip row;
+  // insurance premium previously only lived inside `breakdown` jsonb, which
+  // can't be summed in SQL. This is what makes a per-employee lifetime total
+  // possible.
+  await db.execute(sql`ALTER TABLE payslips ADD COLUMN IF NOT EXISTS insurance_premium BIGINT NOT NULL DEFAULT 0`);
+}
+
+async function createEmployeeDocumentsTable(): Promise<void> {
+  // Certificates, ID scans, resumes, contracts, disciplinary letters, leave
+  // documents -- any supporting file other than the employee's photo (which
+  // lives on the employees row itself so it can render without a join).
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS employee_documents (
+      id                  SERIAL PRIMARY KEY,
+      org_id              INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      employee_id         INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      category            TEXT NOT NULL,
+      file_name           TEXT NOT NULL,
+      storage_key         TEXT NOT NULL,
+      mime_type           TEXT NOT NULL,
+      size                INTEGER NOT NULL,
+      uploaded_by_user_id INTEGER REFERENCES users(id),
+      uploaded_at         TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS emp_docs_org_emp_idx ON employee_documents(org_id, employee_id);
+    CREATE INDEX IF NOT EXISTS emp_docs_org_emp_cat_idx ON employee_documents(org_id, employee_id, category);
+  `);
+}
+
 async function addEmployeeSalaryBasis(): Promise<void> {
   await db.execute(sql`ALTER TABLE employees ADD COLUMN IF NOT EXISTS salary_basis TEXT NOT NULL DEFAULT 'gross'`);
 }
@@ -931,6 +987,10 @@ export async function runStartupMigrations(): Promise<void> {
     ["createBillingChargesTable", createBillingChargesTable],
     ["createMpesaUnallocatedPaymentsTable", createMpesaUnallocatedPaymentsTable],
     ["createNewsletterSubscribersTable", createNewsletterSubscribersTable],
+    ["addEmployeeNok2AndEmergencyContact", addEmployeeNok2AndEmergencyContact],
+    ["addEmployeePhoto", addEmployeePhoto],
+    ["addPayslipInsurancePremium", addPayslipInsurancePremium],
+    ["createEmployeeDocumentsTable", createEmployeeDocumentsTable],
   ];
 
   for (const [name, run] of steps) {

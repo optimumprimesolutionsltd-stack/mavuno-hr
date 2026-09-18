@@ -58,6 +58,14 @@ interface Employee {
   nokRelationship?: string | null;
   nokPhone?: string | null;
   nokEmail?: string | null;
+  idType?: string | null;
+  nok2Name?: string | null;
+  nok2Relationship?: string | null;
+  nok2Phone?: string | null;
+  nok2Email?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactRelationship?: string | null;
+  emergencyContactPhone?: string | null;
 }
 
 interface Props {
@@ -84,6 +92,15 @@ const EDUCATION_OPTIONS = [
   { value: "other", label: "Other" },
 ];
 
+const ID_TYPE_OPTIONS = [
+  { value: "national_id", label: "National ID" },
+  { value: "alien_id", label: "Alien ID" },
+  { value: "passport", label: "Passport" },
+  { value: "refugee_id", label: "Refugee ID" },
+  { value: "military_id", label: "Military ID" },
+  { value: "other", label: "Other" },
+];
+
 export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = "personal" }: Props) {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -97,8 +114,10 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
     payMethod: "bank", bankName: "", bankAccount: "", bankBranchCode: "", bankBranchName: "", mpesaPhone: "",
     kraPin: "", nssfNo: "", shifNo: "",
     workDaysPerWeek: "5", worksOnHolidays: "no",
-    dateOfBirth: "", region: "", educationLevel: "",
+    dateOfBirth: "", region: "", educationLevel: "", idType: "",
     nokName: "", nokRelationship: "", nokPhone: "", nokEmail: "",
+    nok2Name: "", nok2Relationship: "", nok2Phone: "", nok2Email: "",
+    emergencyContactName: "", emergencyContactRelationship: "", emergencyContactPhone: "",
   });
   const { data: departments = [] } = useQuery<any[]>({
     queryKey: ["/api/departments"],
@@ -147,10 +166,18 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
       dateOfBirth: employee.dateOfBirth ?? "",
       region: employee.region ?? "",
       educationLevel: employee.educationLevel ?? "",
+      idType: employee.idType ?? "",
       nokName: employee.nokName ?? "",
       nokRelationship: employee.nokRelationship ?? "",
       nokPhone: employee.nokPhone ?? "",
       nokEmail: employee.nokEmail ?? "",
+      nok2Name: employee.nok2Name ?? "",
+      nok2Relationship: employee.nok2Relationship ?? "",
+      nok2Phone: employee.nok2Phone ?? "",
+      nok2Email: employee.nok2Email ?? "",
+      emergencyContactName: employee.emergencyContactName ?? "",
+      emergencyContactRelationship: employee.emergencyContactRelationship ?? "",
+      emergencyContactPhone: employee.emergencyContactPhone ?? "",
     });
   }, [employee]);
 
@@ -201,6 +228,14 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
       if (form.nokRelationship) payload.nokRelationship = form.nokRelationship;
       if (form.nokPhone) payload.nokPhone = form.nokPhone;
       if (form.nokEmail) payload.nokEmail = form.nokEmail;
+      if (form.idType) payload.idType = form.idType;
+      if (form.nok2Name) payload.nok2Name = form.nok2Name;
+      if (form.nok2Relationship) payload.nok2Relationship = form.nok2Relationship;
+      if (form.nok2Phone) payload.nok2Phone = form.nok2Phone;
+      if (form.nok2Email) payload.nok2Email = form.nok2Email;
+      if (form.emergencyContactName) payload.emergencyContactName = form.emergencyContactName;
+      if (form.emergencyContactRelationship) payload.emergencyContactRelationship = form.emergencyContactRelationship;
+      if (form.emergencyContactPhone) payload.emergencyContactPhone = form.emergencyContactPhone;
 
       return customFetch(`/api/employees/${employee.id}`, {
         method: "PATCH",
@@ -320,8 +355,9 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
               {textField("EMAIL", "email", "email")}
               <div className="grid grid-cols-2 gap-4">
                 {textField("PHONE", "phone", "text", "+254 7xx xxx xxx")}
-                {textField("NATIONAL ID", "nationalId")}
+                {textField("ID NUMBER", "nationalId")}
               </div>
+              {selectField("ID TYPE", "idType", ID_TYPE_OPTIONS)}
               {selectField("GENDER", "gender", [
                 { value: "male", label: "Male" },
                 { value: "female", label: "Female" },
@@ -482,17 +518,44 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
             </TabsContent>
 
             {/* ── Next of Kin ── */}
-            <TabsContent value="nextofkin" className="mt-0 space-y-4">
-              <p className="text-xs text-muted-foreground font-mono">
-                Emergency contact for insurance and HR records. All fields are optional.
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                {textField("FULL NAME", "nokName", "text", "Jane Doe")}
-                {textField("RELATIONSHIP", "nokRelationship", "text", "Spouse, Parent, Sibling…")}
+            <TabsContent value="nextofkin" className="mt-0 space-y-6">
+              <div className="space-y-4">
+                <p className="text-xs text-muted-foreground font-mono">
+                  NEXT OF KIN — for insurance and HR records. All fields are optional.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  {textField("FULL NAME", "nokName", "text", "Jane Doe")}
+                  {textField("RELATIONSHIP", "nokRelationship", "text", "Spouse, Parent, Sibling…")}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {textField("PHONE", "nokPhone", "text", "+254 7xx xxx xxx")}
+                  {textField("EMAIL", "nokEmail", "email", "contact@example.com")}
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                {textField("PHONE", "nokPhone", "text", "+254 7xx xxx xxx")}
-                {textField("EMAIL", "nokEmail", "email", "contact@example.com")}
+
+              <div className="space-y-4 pt-4 border-t border-border/50">
+                <p className="text-xs text-muted-foreground font-mono">
+                  SECOND NEXT OF KIN — optional. Leave blank if there is only one.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  {textField("FULL NAME", "nok2Name", "text", "Jane Doe")}
+                  {textField("RELATIONSHIP", "nok2Relationship", "text", "Spouse, Parent, Sibling…")}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {textField("PHONE", "nok2Phone", "text", "+254 7xx xxx xxx")}
+                  {textField("EMAIL", "nok2Email", "email", "contact@example.com")}
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-border/50">
+                <p className="text-xs text-muted-foreground font-mono">
+                  EMERGENCY CONTACT — who to actually call, if different from the next of kin above (e.g. the next of kin is a child).
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  {textField("FULL NAME", "emergencyContactName", "text", "Jane Doe")}
+                  {textField("RELATIONSHIP", "emergencyContactRelationship", "text", "Spouse, Parent, Sibling…")}
+                </div>
+                {textField("PHONE", "emergencyContactPhone", "text", "+254 7xx xxx xxx")}
               </div>
             </TabsContent>
 
