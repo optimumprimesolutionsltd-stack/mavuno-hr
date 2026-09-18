@@ -22,6 +22,7 @@ interface FormData {
   phone: string;
   gender: string;
   nationalId: string;
+  idType: string;
   dateOfBirth: string;
   educationLevel: string;
   // Step 1 — Employment
@@ -53,10 +54,17 @@ interface FormData {
   nokRelationship: string;
   nokPhone: string;
   nokEmail: string;
+  nok2Name: string;
+  nok2Relationship: string;
+  nok2Phone: string;
+  nok2Email: string;
+  emergencyContactName: string;
+  emergencyContactRelationship: string;
+  emergencyContactPhone: string;
 }
 
 const DEFAULTS: FormData = {
-  firstName: "", middleName: "", lastName: "", email: "", phone: "", gender: "male", nationalId: "",
+  firstName: "", middleName: "", lastName: "", email: "", phone: "", gender: "male", nationalId: "", idType: "",
   dateOfBirth: "", educationLevel: "",
   position: "", departmentId: "", hireDate: new Date().toISOString().slice(0, 10), employmentType: "permanent",
    residentStatus: "resident", salaryBasis: "gross", region: "", basicSalary: "", houseAllowance: "0", transportAllowance: "0",
@@ -64,6 +72,8 @@ const DEFAULTS: FormData = {
   payMethod: "bank", bankName: "", bankAccount: "", bankBranchCode: "", bankBranchName: "", mpesaPhone: "",
   kraPin: "", nssfNo: "", shifNo: "",
   nokName: "", nokRelationship: "", nokPhone: "", nokEmail: "",
+  nok2Name: "", nok2Relationship: "", nok2Phone: "", nok2Email: "",
+  emergencyContactName: "", emergencyContactRelationship: "", emergencyContactPhone: "",
 };
 
 const STEPS = [
@@ -83,6 +93,15 @@ const EDUCATION_OPTIONS = [
   { value: "bachelor", label: "Bachelor's" },
   { value: "master", label: "Master's" },
   { value: "phd", label: "PhD" },
+  { value: "other", label: "Other" },
+];
+
+const ID_TYPE_OPTIONS = [
+  { value: "national_id", label: "National ID" },
+  { value: "alien_id", label: "Alien ID" },
+  { value: "passport", label: "Passport" },
+  { value: "refugee_id", label: "Refugee ID" },
+  { value: "military_id", label: "Military ID" },
   { value: "other", label: "Other" },
 ];
 
@@ -147,6 +166,7 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
         phone: form.phone || undefined,
         gender: form.gender,
         nationalId: form.nationalId || undefined,
+        idType: (form.idType || undefined) as any,
         dateOfBirth: form.dateOfBirth || undefined,
         educationLevel: (form.educationLevel || undefined) as any,
         kraPin: form.kraPin || undefined,
@@ -176,6 +196,13 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
         nokRelationship: form.nokRelationship || undefined,
         nokPhone: form.nokPhone || undefined,
         nokEmail: form.nokEmail || undefined,
+        nok2Name: form.nok2Name || undefined,
+        nok2Relationship: form.nok2Relationship || undefined,
+        nok2Phone: form.nok2Phone || undefined,
+        nok2Email: form.nok2Email || undefined,
+        emergencyContactName: form.emergencyContactName || undefined,
+        emergencyContactRelationship: form.emergencyContactRelationship || undefined,
+        emergencyContactPhone: form.emergencyContactPhone || undefined,
       } as any,
     }, {
       onSuccess: (emp) => {
@@ -251,8 +278,17 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs font-mono text-muted-foreground">NATIONAL ID</Label>
-              <Input value={form.nationalId} onChange={set("nationalId")} placeholder="National ID number" className="bg-background/50" />
+              <Label className="text-xs font-mono text-muted-foreground">ID NUMBER</Label>
+              <Input value={form.nationalId} onChange={set("nationalId")} placeholder="ID number" className="bg-background/50" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-mono text-muted-foreground">ID TYPE</Label>
+              <Select value={form.idType} onValueChange={setVal("idType")}>
+                <SelectTrigger className="bg-background/50"><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectContent>
+                  {ID_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <Label className="text-xs font-mono text-muted-foreground">DATE OF BIRTH</Label>
@@ -455,25 +491,73 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
 
         {/* Step 4 — Next of Kin */}
         {step === 4 && (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2 p-3 rounded-lg bg-muted/30 border border-border/30 text-xs text-muted-foreground font-mono">
-              Emergency contact for insurance and HR records. All fields are optional.
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <p className="p-3 rounded-lg bg-muted/30 border border-border/30 text-xs text-muted-foreground font-mono">
+                NEXT OF KIN — for insurance and HR records. All fields are optional.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-mono text-muted-foreground">FULL NAME</Label>
+                  <Input value={form.nokName} onChange={set("nokName")} placeholder="Jane Doe" className="bg-background/50" autoFocus />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-mono text-muted-foreground">RELATIONSHIP</Label>
+                  <Input value={form.nokRelationship} onChange={set("nokRelationship")} placeholder="Spouse, Parent, Sibling…" className="bg-background/50" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-mono text-muted-foreground">PHONE</Label>
+                  <Input value={form.nokPhone} onChange={set("nokPhone")} placeholder="+254 7XX XXX XXX" className="bg-background/50" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-mono text-muted-foreground">EMAIL</Label>
+                  <Input type="email" value={form.nokEmail} onChange={set("nokEmail")} placeholder="contact@example.com" className="bg-background/50" />
+                </div>
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs font-mono text-muted-foreground">FULL NAME</Label>
-              <Input value={form.nokName} onChange={set("nokName")} placeholder="Jane Doe" className="bg-background/50" autoFocus />
+
+            <div className="space-y-4 pt-4 border-t border-border/30">
+              <p className="text-xs text-muted-foreground font-mono">
+                SECOND NEXT OF KIN — optional. Leave blank if there is only one.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-mono text-muted-foreground">FULL NAME</Label>
+                  <Input value={form.nok2Name} onChange={set("nok2Name")} placeholder="Jane Doe" className="bg-background/50" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-mono text-muted-foreground">RELATIONSHIP</Label>
+                  <Input value={form.nok2Relationship} onChange={set("nok2Relationship")} placeholder="Spouse, Parent, Sibling…" className="bg-background/50" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-mono text-muted-foreground">PHONE</Label>
+                  <Input value={form.nok2Phone} onChange={set("nok2Phone")} placeholder="+254 7XX XXX XXX" className="bg-background/50" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-mono text-muted-foreground">EMAIL</Label>
+                  <Input type="email" value={form.nok2Email} onChange={set("nok2Email")} placeholder="contact@example.com" className="bg-background/50" />
+                </div>
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs font-mono text-muted-foreground">RELATIONSHIP</Label>
-              <Input value={form.nokRelationship} onChange={set("nokRelationship")} placeholder="Spouse, Parent, Sibling…" className="bg-background/50" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs font-mono text-muted-foreground">PHONE</Label>
-              <Input value={form.nokPhone} onChange={set("nokPhone")} placeholder="+254 7XX XXX XXX" className="bg-background/50" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs font-mono text-muted-foreground">EMAIL</Label>
-              <Input type="email" value={form.nokEmail} onChange={set("nokEmail")} placeholder="contact@example.com" className="bg-background/50" />
+
+            <div className="space-y-4 pt-4 border-t border-border/30">
+              <p className="text-xs text-muted-foreground font-mono">
+                EMERGENCY CONTACT — who to actually call, if different from the next of kin above (e.g. the next of kin is a child).
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-mono text-muted-foreground">FULL NAME</Label>
+                  <Input value={form.emergencyContactName} onChange={set("emergencyContactName")} placeholder="Jane Doe" className="bg-background/50" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-mono text-muted-foreground">RELATIONSHIP</Label>
+                  <Input value={form.emergencyContactRelationship} onChange={set("emergencyContactRelationship")} placeholder="Spouse, Parent, Sibling…" className="bg-background/50" />
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-xs font-mono text-muted-foreground">PHONE</Label>
+                  <Input value={form.emergencyContactPhone} onChange={set("emergencyContactPhone")} placeholder="+254 7XX XXX XXX" className="bg-background/50" />
+                </div>
+              </div>
             </div>
           </div>
         )}

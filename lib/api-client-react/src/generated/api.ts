@@ -25,8 +25,10 @@ import type {
   DashboardData,
   Employee,
   EmployeeDetail,
+  EmployeeDocument,
   EmployeeInput,
   EmployeeRow,
+  EmployeeTotals,
   EmployeeUpdate,
   FilingGenerateInput,
   GetFilings200,
@@ -65,7 +67,9 @@ import type {
   Timesheet,
   TimesheetApprovalInput,
   TimesheetInput,
-  TimesheetRow
+  TimesheetRow,
+  UploadEmployeeDocumentRequest,
+  UploadEmployeePhotoRequest
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -977,6 +981,612 @@ export const useGrantPortalAccess = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getGrantPortalAccessMutationOptions(options));
+    }
+
+export const getGetEmployeeTotalsUrl = (id: number,) => {
+
+
+
+
+  return `/api/employees/${id}/totals`
+}
+
+/**
+ * @summary Cumulative statutory deductions from paid, non-reversed runs
+ */
+export const getEmployeeTotals = async (id: number, options?: RequestInit): Promise<EmployeeTotals> => {
+
+  return customFetch<EmployeeTotals>(getGetEmployeeTotalsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmployeeTotalsQueryKey = (id: number,) => {
+    return [
+    `/api/employees/${id}/totals`
+    ] as const;
+    }
+
+
+export const getGetEmployeeTotalsQueryOptions = <TData = Awaited<ReturnType<typeof getEmployeeTotals>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployeeTotals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmployeeTotalsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmployeeTotals>>> = ({ signal }) => getEmployeeTotals(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmployeeTotals>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEmployeeTotalsQueryResult = NonNullable<Awaited<ReturnType<typeof getEmployeeTotals>>>
+export type GetEmployeeTotalsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Cumulative statutory deductions from paid, non-reversed runs
+ */
+
+export function useGetEmployeeTotals<TData = Awaited<ReturnType<typeof getEmployeeTotals>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployeeTotals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEmployeeTotalsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListEmployeeDocumentsUrl = (id: number,) => {
+
+
+
+
+  return `/api/employees/${id}/documents`
+}
+
+/**
+ * @summary List an employee's documents
+ */
+export const listEmployeeDocuments = async (id: number, options?: RequestInit): Promise<EmployeeDocument[]> => {
+
+  return customFetch<EmployeeDocument[]>(getListEmployeeDocumentsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEmployeeDocumentsQueryKey = (id: number,) => {
+    return [
+    `/api/employees/${id}/documents`
+    ] as const;
+    }
+
+
+export const getListEmployeeDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof listEmployeeDocuments>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmployeeDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEmployeeDocumentsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEmployeeDocuments>>> = ({ signal }) => listEmployeeDocuments(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEmployeeDocuments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListEmployeeDocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof listEmployeeDocuments>>>
+export type ListEmployeeDocumentsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List an employee's documents
+ */
+
+export function useListEmployeeDocuments<TData = Awaited<ReturnType<typeof listEmployeeDocuments>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmployeeDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListEmployeeDocumentsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUploadEmployeeDocumentUrl = (id: number,) => {
+
+
+
+
+  return `/api/employees/${id}/documents`
+}
+
+/**
+ * @summary Upload a document (multipart -- called via raw fetch, not this generated client)
+ */
+export const uploadEmployeeDocument = async (id: number,
+    uploadEmployeeDocumentRequest: UploadEmployeeDocumentRequest, options?: RequestInit): Promise<EmployeeDocument> => {
+    const formData = new FormData();
+formData.append(`file`, uploadEmployeeDocumentRequest.file);
+formData.append(`category`, uploadEmployeeDocumentRequest.category);
+
+  return customFetch<EmployeeDocument>(getUploadEmployeeDocumentUrl(id),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadEmployeeDocumentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadEmployeeDocument>>, TError,{id: number;data: BodyType<UploadEmployeeDocumentRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadEmployeeDocument>>, TError,{id: number;data: BodyType<UploadEmployeeDocumentRequest>}, TContext> => {
+
+const mutationKey = ['uploadEmployeeDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadEmployeeDocument>>, {id: number;data: BodyType<UploadEmployeeDocumentRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  uploadEmployeeDocument(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadEmployeeDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof uploadEmployeeDocument>>>
+    export type UploadEmployeeDocumentMutationBody = BodyType<UploadEmployeeDocumentRequest>
+    export type UploadEmployeeDocumentMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Upload a document (multipart -- called via raw fetch, not this generated client)
+ */
+export const useUploadEmployeeDocument = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadEmployeeDocument>>, TError,{id: number;data: BodyType<UploadEmployeeDocumentRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadEmployeeDocument>>,
+        TError,
+        {id: number;data: BodyType<UploadEmployeeDocumentRequest>},
+        TContext
+      > => {
+      return useMutation(getUploadEmployeeDocumentMutationOptions(options));
+    }
+
+export const getDeleteEmployeeDocumentUrl = (id: number,
+    documentId: number,) => {
+
+
+
+
+  return `/api/employees/${id}/documents/${documentId}`
+}
+
+/**
+ * @summary Delete a document
+ */
+export const deleteEmployeeDocument = async (id: number,
+    documentId: number, options?: RequestInit): Promise<OkResult> => {
+
+  return customFetch<OkResult>(getDeleteEmployeeDocumentUrl(id,documentId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteEmployeeDocumentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEmployeeDocument>>, TError,{id: number;documentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteEmployeeDocument>>, TError,{id: number;documentId: number}, TContext> => {
+
+const mutationKey = ['deleteEmployeeDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteEmployeeDocument>>, {id: number;documentId: number}> = (props) => {
+          const {id,documentId} = props ?? {};
+
+          return  deleteEmployeeDocument(id,documentId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteEmployeeDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof deleteEmployeeDocument>>>
+
+    export type DeleteEmployeeDocumentMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a document
+ */
+export const useDeleteEmployeeDocument = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEmployeeDocument>>, TError,{id: number;documentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteEmployeeDocument>>,
+        TError,
+        {id: number;documentId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteEmployeeDocumentMutationOptions(options));
+    }
+
+export const getDownloadEmployeeDocumentUrl = (id: number,
+    documentId: number,) => {
+
+
+
+
+  return `/api/employees/${id}/documents/${documentId}/download`
+}
+
+/**
+ * @summary Download a document (binary -- called via raw fetch, not this generated client)
+ */
+export const downloadEmployeeDocument = async (id: number,
+    documentId: number, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadEmployeeDocumentUrl(id,documentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadEmployeeDocumentQueryKey = (id: number,
+    documentId: number,) => {
+    return [
+    `/api/employees/${id}/documents/${documentId}/download`
+    ] as const;
+    }
+
+
+export const getDownloadEmployeeDocumentQueryOptions = <TData = Awaited<ReturnType<typeof downloadEmployeeDocument>>, TError = ErrorType<unknown>>(id: number,
+    documentId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadEmployeeDocument>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadEmployeeDocumentQueryKey(id,documentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadEmployeeDocument>>> = ({ signal }) => downloadEmployeeDocument(id,documentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && documentId !== null && documentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadEmployeeDocument>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadEmployeeDocumentQueryResult = NonNullable<Awaited<ReturnType<typeof downloadEmployeeDocument>>>
+export type DownloadEmployeeDocumentQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download a document (binary -- called via raw fetch, not this generated client)
+ */
+
+export function useDownloadEmployeeDocument<TData = Awaited<ReturnType<typeof downloadEmployeeDocument>>, TError = ErrorType<unknown>>(
+ id: number,
+    documentId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadEmployeeDocument>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadEmployeeDocumentQueryOptions(id,documentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUploadEmployeePhotoUrl = (id: number,) => {
+
+
+
+
+  return `/api/employees/${id}/photo`
+}
+
+/**
+ * @summary Upload/replace the employee's photo (multipart -- called via raw fetch)
+ */
+export const uploadEmployeePhoto = async (id: number,
+    uploadEmployeePhotoRequest: UploadEmployeePhotoRequest, options?: RequestInit): Promise<OkResult> => {
+    const formData = new FormData();
+formData.append(`file`, uploadEmployeePhotoRequest.file);
+
+  return customFetch<OkResult>(getUploadEmployeePhotoUrl(id),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadEmployeePhotoMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadEmployeePhoto>>, TError,{id: number;data: BodyType<UploadEmployeePhotoRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadEmployeePhoto>>, TError,{id: number;data: BodyType<UploadEmployeePhotoRequest>}, TContext> => {
+
+const mutationKey = ['uploadEmployeePhoto'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadEmployeePhoto>>, {id: number;data: BodyType<UploadEmployeePhotoRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  uploadEmployeePhoto(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadEmployeePhotoMutationResult = NonNullable<Awaited<ReturnType<typeof uploadEmployeePhoto>>>
+    export type UploadEmployeePhotoMutationBody = BodyType<UploadEmployeePhotoRequest>
+    export type UploadEmployeePhotoMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Upload/replace the employee's photo (multipart -- called via raw fetch)
+ */
+export const useUploadEmployeePhoto = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadEmployeePhoto>>, TError,{id: number;data: BodyType<UploadEmployeePhotoRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadEmployeePhoto>>,
+        TError,
+        {id: number;data: BodyType<UploadEmployeePhotoRequest>},
+        TContext
+      > => {
+      return useMutation(getUploadEmployeePhotoMutationOptions(options));
+    }
+
+export const getGetEmployeePhotoUrl = (id: number,) => {
+
+
+
+
+  return `/api/employees/${id}/photo`
+}
+
+/**
+ * @summary Fetch the employee's photo (binary -- called via raw fetch)
+ */
+export const getEmployeePhoto = async (id: number, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetEmployeePhotoUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmployeePhotoQueryKey = (id: number,) => {
+    return [
+    `/api/employees/${id}/photo`
+    ] as const;
+    }
+
+
+export const getGetEmployeePhotoQueryOptions = <TData = Awaited<ReturnType<typeof getEmployeePhoto>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployeePhoto>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmployeePhotoQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmployeePhoto>>> = ({ signal }) => getEmployeePhoto(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmployeePhoto>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEmployeePhotoQueryResult = NonNullable<Awaited<ReturnType<typeof getEmployeePhoto>>>
+export type GetEmployeePhotoQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Fetch the employee's photo (binary -- called via raw fetch)
+ */
+
+export function useGetEmployeePhoto<TData = Awaited<ReturnType<typeof getEmployeePhoto>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployeePhoto>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEmployeePhotoQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteEmployeePhotoUrl = (id: number,) => {
+
+
+
+
+  return `/api/employees/${id}/photo`
+}
+
+/**
+ * @summary Remove the employee's photo
+ */
+export const deleteEmployeePhoto = async (id: number, options?: RequestInit): Promise<OkResult> => {
+
+  return customFetch<OkResult>(getDeleteEmployeePhotoUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteEmployeePhotoMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEmployeePhoto>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteEmployeePhoto>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteEmployeePhoto'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteEmployeePhoto>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteEmployeePhoto(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteEmployeePhotoMutationResult = NonNullable<Awaited<ReturnType<typeof deleteEmployeePhoto>>>
+
+    export type DeleteEmployeePhotoMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Remove the employee's photo
+ */
+export const useDeleteEmployeePhoto = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEmployeePhoto>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteEmployeePhoto>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteEmployeePhotoMutationOptions(options));
     }
 
 export const getListTimesheetsUrl = (params?: ListTimesheetsParams,) => {

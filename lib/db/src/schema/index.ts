@@ -157,6 +157,22 @@ export const employees = pgTable("employees", {
   nokRelationship: text("nok_relationship"),
   nokPhone: text("nok_phone"),
   nokEmail: text("nok_email"),
+  // A second next-of-kin, entirely optional -- filling in only the first
+  // above must stay valid. Emergency contact is deliberately a separate set
+  // of fields: next of kin is often a minor child, not who to actually call.
+  idType: text("id_type"),
+  nok2Name: text("nok2_name"),
+  nok2Relationship: text("nok2_relationship"),
+  nok2Phone: text("nok2_phone"),
+  nok2Email: text("nok2_email"),
+  emergencyContactName: text("emergency_contact_name"),
+  emergencyContactRelationship: text("emergency_contact_relationship"),
+  emergencyContactPhone: text("emergency_contact_phone"),
+  // The employee's current photo, stored in R2 -- replacing it overwrites
+  // these two columns and deletes the old object, so there is never more
+  // than one live photo per employee.
+  photoKey: text("photo_key"),
+  photoMimeType: text("photo_mime_type"),
   hireDate: date("hire_date").notNull(),
   terminationDate: date("termination_date"),
   // Added by startup-migrations.ts's idempotent ALTER TABLE, not declared
@@ -172,6 +188,27 @@ export const employees = pgTable("employees", {
   uniqueIndex("emp_org_empno_uq").on(t.orgId, t.empNo),
   index("emp_org_idx").on(t.orgId),
   index("emp_org_status_idx").on(t.orgId, t.status),
+]);
+
+// Certificates, ID scans, resumes, contracts, disciplinary letters, leave
+// documents -- any supporting file attached to an employee, other than their
+// photo (which lives on the employee row itself as photoKey/photoMimeType,
+// so it can render as an avatar without a join). Files themselves live in
+// Cloudflare R2; storageKey is the object key, never a public URL.
+export const employeeDocuments = pgTable("employee_documents", {
+  id: serial("id").primaryKey(),
+  orgId: integer("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  employeeId: integer("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
+  category: text("category").notNull(),
+  fileName: text("file_name").notNull(),
+  storageKey: text("storage_key").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(),
+  uploadedByUserId: integer("uploaded_by_user_id").references(() => users.id),
+  uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
+}, (t) => [
+  index("emp_docs_org_emp_idx").on(t.orgId, t.employeeId),
+  index("emp_docs_org_emp_cat_idx").on(t.orgId, t.employeeId, t.category),
 ]);
 
 export const timesheets = pgTable("timesheets", {
@@ -258,6 +295,10 @@ export const payslips = pgTable("payslips", {
   payeBeforeRelief: money("paye_before_relief").notNull(),
   personalRelief: money("personal_relief").notNull(),
   insuranceRelief: money("insurance_relief").notNull(),
+  // The raw premium actually deducted this period -- insuranceRelief above is
+  // the PAYE tax relief it produces, not the premium itself, so it can't be
+  // summed into a "total insurance paid" figure. This can.
+  insurancePremium: money("insurance_premium").notNull().default(0),
   paye: money("paye").notNull(),
   helb: money("helb").notNull(),
   sacco: money("sacco").notNull().default(0),
