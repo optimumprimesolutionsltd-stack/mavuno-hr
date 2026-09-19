@@ -66,6 +66,11 @@ export async function pushLeadToOptimumCrm(lead: DemoLeadForCrm): Promise<void> 
     // Tally-shaped fields this collection expects — left blank/marked rather
     // than omitted, and businessType doubles as the product tag so a human
     // scanning the Tally pipeline can immediately tell this lead apart.
+    // The product this lead is about, as its own field. The CRM shows it as a
+    // badge on the lead and a warning above the contact buttons, so whoever
+    // picks it up knows before they dial. It used to rely on the businessType
+    // line below, which reads as an industry and is easy to scroll past.
+    product: "Mavuno HR",
     businessType: "Mavuno HR (SaaS) — not a Tally lead",
     currentSoftware: "",
     // The slot the visitor asked for, in the shapes the CRM's own booking
