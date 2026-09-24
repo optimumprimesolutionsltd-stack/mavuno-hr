@@ -28,6 +28,7 @@ interface OrgSettings {
     plan: string;
     status: string;
     payrollStartPeriod: string | null;
+    overtimeEnabled?: boolean;
   };
   activeConfig: {
     name: string;
@@ -106,6 +107,22 @@ export function AdminSettings() {
       }),
     onSuccess: () => {
       toast({ title: "Saved", description: "Organisation profile updated." });
+      qc.invalidateQueries({ queryKey: ["admin-settings"] });
+    },
+    onError: (e: any) => {
+      toast({ variant: "destructive", title: "Save failed", description: e?.data?.error ?? e?.message });
+    },
+  });
+
+  const toggleOvertime = useMutation({
+    mutationFn: (overtimeEnabled: boolean) =>
+      customFetch("/api/settings/org", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ overtimeEnabled }),
+      }),
+    onSuccess: () => {
+      toast({ title: "Saved", description: "Overtime setting updated." });
       qc.invalidateQueries({ queryKey: ["admin-settings"] });
     },
     onError: (e: any) => {
@@ -276,6 +293,29 @@ export function AdminSettings() {
               SAVE PROFILE
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Overtime ── */}
+      <Card className="border-border/50 shadow-sm bg-card/30">
+        <CardHeader className="pb-4">
+          <CardTitle className="font-mono text-base">OVERTIME</CardTitle>
+          <CardDescription>
+            Turn this off if your company does not pay overtime. The overtime field disappears from employee
+            timesheets and payroll ignores any overtime hours.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={data.org.overtimeEnabled !== false}
+              disabled={toggleOvertime.isPending}
+              onChange={(e) => toggleOvertime.mutate(e.target.checked)}
+            />
+            <span className="text-sm">We pay overtime</span>
+          </label>
         </CardContent>
       </Card>
 

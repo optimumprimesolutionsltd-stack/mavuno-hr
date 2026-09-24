@@ -417,6 +417,14 @@ router.get("/timesheets", requireAuth("self:read"), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.get("/features", requireAuth("self:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const [org] = await db.select({ ot: organizations.overtimeEnabled }).from(organizations).where(eq(organizations.id, p.orgId));
+    res.json({ overtimeEnabled: org?.ot ?? true });
+  } catch (err) { next(err); }
+});
+
 const portalTimesheetSchema = z.object({
   period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
   daysWorked: z.number().int().min(0).max(31).default(0),
@@ -434,6 +442,8 @@ router.post("/timesheets", requireAuth("self:request"), async (req, res, next) =
     if (!parsed.success) { res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return; }
 
     const { timesheets } = await import("@workspace/db/schema");
+    const [org] = await db.select({ ot: organizations.overtimeEnabled }).from(organizations).where(eq(organizations.id, p.orgId));
+    if (!org?.ot) parsed.data.overtimeHours = 0;
     const [existing] = await db.select().from(timesheets).where(and(
       eq(timesheets.orgId, p.orgId),
       eq(timesheets.employeeId, empId),
@@ -453,6 +463,8 @@ router.post("/timesheets", requireAuth("self:request"), async (req, res, next) =
         holidayHours: parsed.data.holidayHours,
         approvedAt: null,
         approvedBy: null,
+        rejectedAt: null,
+        rejectionNote: null,
       }).where(and(
         eq(timesheets.id, existing.id),
         eq(timesheets.orgId, p.orgId),

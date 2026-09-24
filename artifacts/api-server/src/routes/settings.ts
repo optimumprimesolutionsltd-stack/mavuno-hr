@@ -82,6 +82,7 @@ router.get("/", requireAuth("org:admin"), async (req, res, next) => {
         payrollStartPeriod: org.payrollStartPeriod,
         autoGeneratePayoutOnPay: org.autoGeneratePayoutOnPay,
         autoEmailPayslipsOnPay: org.autoEmailPayslipsOnPay,
+        overtimeEnabled: org.overtimeEnabled,
       },
       activeConfig: cfg,
       tier2Provider: cfg?.socialSecurity?.tier2Provider ?? "nssf",
@@ -102,6 +103,7 @@ const updateOrgSchema = z.object({
   payrollStartPeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).nullable().optional(),
   autoGeneratePayoutOnPay: z.boolean().optional(),
   autoEmailPayslipsOnPay: z.boolean().optional(),
+  overtimeEnabled: z.boolean().optional(),
 });
 
 router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
@@ -127,6 +129,7 @@ router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
     if (body.requiresPayrollApproval !== undefined) updates.requiresPayrollApproval = body.requiresPayrollApproval;
     if (body.autoGeneratePayoutOnPay !== undefined) updates.autoGeneratePayoutOnPay = body.autoGeneratePayoutOnPay;
     if (body.autoEmailPayslipsOnPay !== undefined) updates.autoEmailPayslipsOnPay = body.autoEmailPayslipsOnPay;
+    if (body.overtimeEnabled !== undefined) updates.overtimeEnabled = body.overtimeEnabled;
 
     if (body.payrollStartPeriod !== undefined) {
       const next = body.payrollStartPeriod ?? null;

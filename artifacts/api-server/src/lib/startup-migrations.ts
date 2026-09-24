@@ -836,6 +836,13 @@ async function addPayslipInsurancePremium(): Promise<void> {
   await db.execute(sql`ALTER TABLE payslips ADD COLUMN IF NOT EXISTS insurance_premium BIGINT NOT NULL DEFAULT 0`);
 }
 
+async function addTimesheetRejectionAndOvertimeSetting(): Promise<void> {
+  await db.execute(sql`ALTER TABLE timesheets ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE timesheets ADD COLUMN IF NOT EXISTS rejection_note TEXT`);
+  // Existing companies keep overtime on; new ones choose at signup.
+  await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS overtime_enabled BOOLEAN NOT NULL DEFAULT TRUE`);
+}
+
 async function createEmployeeSuspensionsTable(): Promise<void> {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS employee_suspensions (
@@ -1009,6 +1016,7 @@ export async function runStartupMigrations(): Promise<void> {
     ["addPayslipInsurancePremium", addPayslipInsurancePremium],
     ["createEmployeeDocumentsTable", createEmployeeDocumentsTable],
     ["createEmployeeSuspensionsTable", createEmployeeSuspensionsTable],
+    ["addTimesheetRejectionAndOvertimeSetting", addTimesheetRejectionAndOvertimeSetting],
   ];
 
   for (const [name, run] of steps) {
