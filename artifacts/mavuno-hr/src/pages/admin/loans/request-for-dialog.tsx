@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLoanTypes, useEnsureOfferedType } from "@/lib/loan-config";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useListEmployees, customFetch, getListLoanRequestsQueryKey, LoanRequestInputType } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
@@ -29,6 +30,8 @@ export function RequestLoanForDialog({ open, onOpenChange }: Props) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [form, setForm] = useState(DEFAULTS);
+  const offered = useLoanTypes("admin");
+  useEnsureOfferedType(form.type, offered.types, (v) => setForm((f) => ({ ...f, type: v as any })));
   const { data: employees } = useListEmployees();
 
   function set(k: keyof typeof DEFAULTS, v: string) {
@@ -108,10 +111,9 @@ export function RequestLoanForDialog({ open, onOpenChange }: Props) {
             <Select value={form.type} onValueChange={(v) => set("type", v as any)}>
               <SelectTrigger className="bg-background/50"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="company">Company Loan</SelectItem>
-                <SelectItem value="sacco">SACCO Loan</SelectItem>
-                <SelectItem value="advance">Salary Advance</SelectItem>
-                <SelectItem value="emergency">Emergency Advance</SelectItem>
+                {offered.types.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

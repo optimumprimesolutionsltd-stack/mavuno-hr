@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLoanTypes, useEnsureOfferedType } from "@/lib/loan-config";
 import { useListEmployees, useCreateLoan, getListLoansQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -29,6 +30,8 @@ const DEFAULTS = {
 
 export function IssueLoanDialog({ open, onOpenChange }: Props) {
   const [form, setForm] = useState(DEFAULTS);
+  const offered = useLoanTypes("admin");
+  useEnsureOfferedType(form.type, offered.types, (v) => setForm((f) => ({ ...f, type: v as any })));
   const { data: employees } = useListEmployees();
   const createLoan = useCreateLoan();
   const { toast } = useToast();
@@ -114,10 +117,9 @@ export function IssueLoanDialog({ open, onOpenChange }: Props) {
             <Select value={form.type} onValueChange={setVal("type")}>
               <SelectTrigger className="bg-background/50"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="company">Company Loan</SelectItem>
-                <SelectItem value="sacco">SACCO Loan</SelectItem>
-                <SelectItem value="advance">Salary Advance</SelectItem>
-                <SelectItem value="emergency">Emergency Advance</SelectItem>
+                {offered.types.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

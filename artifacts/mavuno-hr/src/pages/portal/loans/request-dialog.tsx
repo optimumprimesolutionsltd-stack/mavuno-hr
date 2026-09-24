@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLoanTypes, useEnsureOfferedType } from "@/lib/loan-config";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { customFetch, useGetPortalProfile } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
@@ -27,12 +28,6 @@ const DEFAULTS = {
   reason: "",
 };
 
-const LOAN_TYPES = [
-  { value: "company",   label: "Company Loan" },
-  { value: "sacco",     label: "SACCO Loan" },
-  { value: "advance",   label: "Salary Advance" },
-  { value: "emergency", label: "Emergency Advance" },
-];
 
 const ADVANCE_TYPES = new Set(["advance", "emergency"]);
 
@@ -63,6 +58,8 @@ export function LoanRequestDialog({ open, onOpenChange, onSuccess }: Props) {
   const qc = useQueryClient();
   const [form, setForm] = useState(DEFAULTS);
   const [control, setControl] = useState<Control>("months");
+  const offered = useLoanTypes("portal");
+  useEnsureOfferedType(form.type, offered.types, (v) => setForm((f) => ({ ...f, type: v })));
   const { data: profile } = useGetPortalProfile();
 
   const emp = (profile as any)?.employee;
@@ -221,7 +218,7 @@ export function LoanRequestDialog({ open, onOpenChange, onSuccess }: Props) {
             <Select value={form.type} onValueChange={(v) => { set("type", v); setControl("months"); set("monthlyPayment", ""); }}>
               <SelectTrigger className="bg-background/50"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {LOAN_TYPES.map((t) => (
+                {offered.types.map((t) => (
                   <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -302,7 +299,7 @@ export function LoanRequestDialog({ open, onOpenChange, onSuccess }: Props) {
                   )}
                 </Label>
                 <Input
-                  type="number" min={1} max={60}
+                  type="number" min={1} max={offered.maxMonths(form.type)}
                   value={control === "monthly" && derivedMonths != null ? String(derivedMonths) : form.months}
                   onChange={(e) => handleMonthsChange(e.target.value)}
                   placeholder="12"

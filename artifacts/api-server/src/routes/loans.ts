@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { getLoanConfig, assertLoanAllowed } from "../lib/loan-config.js";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import { db } from "@workspace/db";
@@ -63,6 +64,13 @@ function calcInstallment(principal: number, bps: number, months: number): number
 }
 
 // GET /api/loans — list all active loans with FBT computation for company loans
+// GET /api/loans/config -- which types the company offers and the longest term
+router.get("/config", requireAuth("loan:review"), async (req, res, next) => {
+  try {
+    res.json(await getLoanConfig((req as AuthRequest).principal.orgId));
+  } catch (err) { next(err); }
+});
+
 router.get("/", requireAuth("loan:review"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
@@ -117,6 +125,7 @@ router.post("/", requireAuth("loan:review"), async (req, res, next) => {
     if (!emp) { res.status(404).json({ error: "Employee not found" }); return; }
 
     const principal = toCents(parsed.data.amount);
+    await assertLoanAllowed(p.orgId, parsed.data.type, parsed.data.months);
     const { months, interestRateBps: bps, startDate } = parsed.data;
     const installment = calcInstallment(principal, bps, months);
 
@@ -207,6 +216,7 @@ router.post("/requests/for-employee", requireAuth("loan:review"), async (req, re
     const [emp] = await db.select().from(employees)
       .where(and(eq(employees.id, parsed.data.employeeId), eq(employees.orgId, p.orgId)));
     if (!emp) { res.status(404).json({ error: "Employee not found" }); return; }
+    await assertLoanAllowed(p.orgId, parsed.data.type, parsed.data.months);
 
     const [request] = await db.insert(loanRequests).values({
       orgId: p.orgId,

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { loanConfigSchema } from "../lib/loan-config.js";
 import { z } from "zod";
 import { eq, and, lt } from "drizzle-orm";
 import crypto from "crypto";
@@ -356,6 +357,7 @@ const registerSchema = z.object({
   adminEmail:   z.string().email().max(255),
   password:     z.string().min(7).max(200),
   overtimeEnabled: z.boolean().default(true),
+  loanConfig: loanConfigSchema.optional(),
 });
 
 router.post("/register", async (req, res, next) => {
@@ -365,7 +367,7 @@ router.post("/register", async (req, res, next) => {
       res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() });
       return;
     }
-    const { companyName, slug, countryCode, currencyCode, kraPin, adminName, adminEmail, password, overtimeEnabled } = parsed.data;
+    const { companyName, slug, countryCode, currencyCode, kraPin, adminName, adminEmail, password, overtimeEnabled, loanConfig } = parsed.data;
 
     // Slug uniqueness
     const [existing] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.slug, slug));
@@ -394,6 +396,7 @@ router.post("/register", async (req, res, next) => {
         seatLimit: 25,
         status: "active",
         overtimeEnabled,
+        ...(loanConfig ? { loanConfig } : {}),
         // Mavuno is this company's payroll system of record from signup. The
         // onboarding step can move it earlier if they migrated mid-year.
         payrollStartPeriod: new Date().toISOString().slice(0, 7),

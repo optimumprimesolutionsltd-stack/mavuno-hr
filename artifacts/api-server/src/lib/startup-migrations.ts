@@ -860,6 +860,10 @@ async function createAttendanceDaysTable(): Promise<void> {
   `);
 }
 
+async function addOrgLoanConfig(): Promise<void> {
+  await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS loan_config JSONB`);
+}
+
 async function createEmployeeSuspensionsTable(): Promise<void> {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS employee_suspensions (
@@ -1035,6 +1039,7 @@ export async function runStartupMigrations(): Promise<void> {
     ["createEmployeeSuspensionsTable", createEmployeeSuspensionsTable],
     ["addTimesheetRejectionAndOvertimeSetting", addTimesheetRejectionAndOvertimeSetting],
     ["createAttendanceDaysTable", createAttendanceDaysTable],
+    ["addOrgLoanConfig", addOrgLoanConfig],
   ];
 
   for (const [name, run] of steps) {

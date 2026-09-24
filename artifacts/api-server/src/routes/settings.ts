@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { loanConfigSchema, normalizeLoanConfig } from "../lib/loan-config.js";
 import { z } from "zod";
 import { eq, ne, and, gte, desc, isNull, lte } from "drizzle-orm";
 import { db } from "@workspace/db";
@@ -83,6 +84,7 @@ router.get("/", requireAuth("org:admin"), async (req, res, next) => {
         autoGeneratePayoutOnPay: org.autoGeneratePayoutOnPay,
         autoEmailPayslipsOnPay: org.autoEmailPayslipsOnPay,
         overtimeEnabled: org.overtimeEnabled,
+        loanConfig: normalizeLoanConfig(org.loanConfig),
       },
       activeConfig: cfg,
       tier2Provider: cfg?.socialSecurity?.tier2Provider ?? "nssf",
@@ -104,6 +106,7 @@ const updateOrgSchema = z.object({
   autoGeneratePayoutOnPay: z.boolean().optional(),
   autoEmailPayslipsOnPay: z.boolean().optional(),
   overtimeEnabled: z.boolean().optional(),
+  loanConfig: loanConfigSchema.optional(),
 });
 
 router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
@@ -130,6 +133,7 @@ router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
     if (body.autoGeneratePayoutOnPay !== undefined) updates.autoGeneratePayoutOnPay = body.autoGeneratePayoutOnPay;
     if (body.autoEmailPayslipsOnPay !== undefined) updates.autoEmailPayslipsOnPay = body.autoEmailPayslipsOnPay;
     if (body.overtimeEnabled !== undefined) updates.overtimeEnabled = body.overtimeEnabled;
+    if (body.loanConfig !== undefined) updates.loanConfig = body.loanConfig;
 
     if (body.payrollStartPeriod !== undefined) {
       const next = body.payrollStartPeriod ?? null;
