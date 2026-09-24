@@ -10,6 +10,8 @@ import { PayrollList } from "@/pages/admin/payroll/list";
 import { PayrollDetail } from "@/pages/admin/payroll/detail";
 import { LeaveAdmin } from "@/pages/admin/leave";
 import { TimesheetAdmin } from "@/pages/admin/timesheets";
+import { AttendanceAdmin } from "@/pages/admin/attendance";
+import { PortalAttendance } from "@/pages/portal/attendance";
 import { LoansAdmin } from "@/pages/admin/loans";
 import { Reports } from "@/pages/admin/reports";
 import { FilingsPage } from "@/pages/admin/filings";
@@ -79,6 +81,7 @@ export function Router() {
               <Route path="/admin/payroll/:id" component={PayrollDetail} />
               <Route path="/admin/leave" component={LeaveAdmin} />
               <Route path="/admin/timesheets" component={TimesheetAdmin} />
+              <Route path="/admin/attendance" component={AttendanceAdmin} />
               <Route path="/admin/loans" component={LoansAdmin} />
               <Route path="/admin/reports" component={Reports} />
               <Route path="/admin/filings" component={FilingsPage} />
@@ -133,6 +136,7 @@ export function Router() {
             <Switch>
               <Route path="/portal/leave" component={PortalLeave} />
               <Route path="/portal/timesheet" component={PortalTimesheet} />
+              <Route path="/portal/attendance" component={PortalAttendance} />
               <Route path="/portal/approvals" component={PortalApprovals} />
               <Route path="/portal/loans" component={PortalLoans} />
               <Route><Redirect to="/portal" /></Route>
