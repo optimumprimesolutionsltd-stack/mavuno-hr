@@ -836,6 +836,23 @@ async function addPayslipInsurancePremium(): Promise<void> {
   await db.execute(sql`ALTER TABLE payslips ADD COLUMN IF NOT EXISTS insurance_premium BIGINT NOT NULL DEFAULT 0`);
 }
 
+async function createEmployeeSuspensionsTable(): Promise<void> {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS employee_suspensions (
+      id                 SERIAL PRIMARY KEY,
+      org_id             INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      employee_id        INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      start_date         DATE NOT NULL,
+      end_date           DATE,
+      paid               BOOLEAN NOT NULL DEFAULT TRUE,
+      reason             TEXT,
+      created_by_user_id INTEGER REFERENCES users(id),
+      created_at         TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS emp_susp_org_emp_idx ON employee_suspensions(org_id, employee_id);
+  `);
+}
+
 async function createEmployeeDocumentsTable(): Promise<void> {
   // Certificates, ID scans, resumes, contracts, disciplinary letters, leave
   // documents -- any supporting file other than the employee's photo (which
@@ -991,6 +1008,7 @@ export async function runStartupMigrations(): Promise<void> {
     ["addEmployeePhoto", addEmployeePhoto],
     ["addPayslipInsurancePremium", addPayslipInsurancePremium],
     ["createEmployeeDocumentsTable", createEmployeeDocumentsTable],
+    ["createEmployeeSuspensionsTable", createEmployeeSuspensionsTable],
   ];
 
   for (const [name, run] of steps) {

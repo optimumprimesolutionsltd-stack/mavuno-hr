@@ -28,6 +28,7 @@ import type {
   EmployeeDocument,
   EmployeeInput,
   EmployeeRow,
+  EmployeeSuspension,
   EmployeeTotals,
   EmployeeUpdate,
   FilingGenerateInput,
@@ -39,6 +40,7 @@ import type {
   LeaveRequest,
   LeaveRow,
   ListAuditLogsParams,
+  ListEmployeesParams,
   ListTimesheetsParams,
   Loan,
   LoanDecisionInput,
@@ -64,6 +66,7 @@ import type {
   PortalProfile,
   Principal,
   StatutoryFiling,
+  SuspendEmployeeRequest,
   Timesheet,
   TimesheetApprovalInput,
   TimesheetInput,
@@ -544,20 +547,27 @@ export function useGetDashboard<TData = Awaited<ReturnType<typeof getDashboard>>
 
 
 
-export const getListEmployeesUrl = () => {
+export const getListEmployeesUrl = (params?: ListEmployeesParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/employees`
+  return stringifiedParams.length > 0 ? `/api/employees?${stringifiedParams}` : `/api/employees`
 }
 
 /**
  * @summary List employees
  */
-export const listEmployees = async ( options?: RequestInit): Promise<EmployeeRow[]> => {
+export const listEmployees = async (params?: ListEmployeesParams, options?: RequestInit): Promise<EmployeeRow[]> => {
 
-  return customFetch<EmployeeRow[]>(getListEmployeesUrl(),
+  return customFetch<EmployeeRow[]>(getListEmployeesUrl(params),
   {
     ...options,
     method: 'GET'
@@ -570,23 +580,23 @@ export const listEmployees = async ( options?: RequestInit): Promise<EmployeeRow
 
 
 
-export const getListEmployeesQueryKey = () => {
+export const getListEmployeesQueryKey = (params?: ListEmployeesParams,) => {
     return [
-    `/api/employees`
+    `/api/employees`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListEmployeesQueryOptions = <TData = Awaited<ReturnType<typeof listEmployees>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmployees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListEmployeesQueryOptions = <TData = Awaited<ReturnType<typeof listEmployees>>, TError = ErrorType<unknown>>(params?: ListEmployeesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmployees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListEmployeesQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListEmployeesQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEmployees>>> = ({ signal }) => listEmployees({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEmployees>>> = ({ signal }) => listEmployees(params, { signal, ...requestOptions });
 
 
 
@@ -604,11 +614,11 @@ export type ListEmployeesQueryError = ErrorType<unknown>
  */
 
 export function useListEmployees<TData = Awaited<ReturnType<typeof listEmployees>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmployees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: ListEmployeesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmployees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListEmployeesQueryOptions(options)
+  const queryOptions = getListEmployeesQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -1070,7 +1080,7 @@ export const getReinstateEmployeeUrl = (id: number,) => {
 }
 
 /**
- * @summary Bring a terminated employee back to active
+ * @summary Restore a terminated or suspended employee to active
  */
 export const reinstateEmployee = async (id: number, options?: RequestInit): Promise<Employee> => {
 
@@ -1119,7 +1129,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ReinstateEmployeeMutationError = ErrorType<unknown>
 
     /**
- * @summary Bring a terminated employee back to active
+ * @summary Restore a terminated or suspended employee to active
  */
 export const useReinstateEmployee = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reinstateEmployee>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -1131,6 +1141,155 @@ export const useReinstateEmployee = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getReinstateEmployeeMutationOptions(options));
     }
+
+export const getSuspendEmployeeUrl = (id: number,) => {
+
+
+
+
+  return `/api/employees/${id}/suspend`
+}
+
+/**
+ * @summary Suspend an employee, with or without pay
+ */
+export const suspendEmployee = async (id: number,
+    suspendEmployeeRequest: SuspendEmployeeRequest, options?: RequestInit): Promise<Employee> => {
+
+  return customFetch<Employee>(getSuspendEmployeeUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(suspendEmployeeRequest)
+  }
+);}
+
+
+
+
+
+export const getSuspendEmployeeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suspendEmployee>>, TError,{id: number;data: BodyType<SuspendEmployeeRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof suspendEmployee>>, TError,{id: number;data: BodyType<SuspendEmployeeRequest>}, TContext> => {
+
+const mutationKey = ['suspendEmployee'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof suspendEmployee>>, {id: number;data: BodyType<SuspendEmployeeRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  suspendEmployee(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SuspendEmployeeMutationResult = NonNullable<Awaited<ReturnType<typeof suspendEmployee>>>
+    export type SuspendEmployeeMutationBody = BodyType<SuspendEmployeeRequest>
+    export type SuspendEmployeeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Suspend an employee, with or without pay
+ */
+export const useSuspendEmployee = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suspendEmployee>>, TError,{id: number;data: BodyType<SuspendEmployeeRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof suspendEmployee>>,
+        TError,
+        {id: number;data: BodyType<SuspendEmployeeRequest>},
+        TContext
+      > => {
+      return useMutation(getSuspendEmployeeMutationOptions(options));
+    }
+
+export const getListEmployeeSuspensionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/employees/${id}/suspensions`
+}
+
+/**
+ * @summary Suspension history for an employee
+ */
+export const listEmployeeSuspensions = async (id: number, options?: RequestInit): Promise<EmployeeSuspension[]> => {
+
+  return customFetch<EmployeeSuspension[]>(getListEmployeeSuspensionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEmployeeSuspensionsQueryKey = (id: number,) => {
+    return [
+    `/api/employees/${id}/suspensions`
+    ] as const;
+    }
+
+
+export const getListEmployeeSuspensionsQueryOptions = <TData = Awaited<ReturnType<typeof listEmployeeSuspensions>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmployeeSuspensions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEmployeeSuspensionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEmployeeSuspensions>>> = ({ signal }) => listEmployeeSuspensions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEmployeeSuspensions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListEmployeeSuspensionsQueryResult = NonNullable<Awaited<ReturnType<typeof listEmployeeSuspensions>>>
+export type ListEmployeeSuspensionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Suspension history for an employee
+ */
+
+export function useListEmployeeSuspensions<TData = Awaited<ReturnType<typeof listEmployeeSuspensions>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmployeeSuspensions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListEmployeeSuspensionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListEmployeeDocumentsUrl = (id: number,) => {
 

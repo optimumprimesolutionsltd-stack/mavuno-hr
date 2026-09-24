@@ -6,6 +6,7 @@ import { leaveRequests, employees } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { can } from "../lib/rbac.js";
+import { countLeaveDays } from "../lib/leave-days.js";
 import { HttpError } from "../lib/http-error.js";
 import { fullName } from "../lib/employee-name.js";
 
@@ -24,18 +25,6 @@ const decideSchema = z.object({
   action: z.enum(["approve","reject"]),
   note: z.string().max(500).optional(),
 });
-
-function businessDays(start: string, end: string): number {
-  const s = new Date(start), e = new Date(end);
-  let days = 0;
-  const cur = new Date(s);
-  while (cur <= e) {
-    const dow = cur.getDay();
-    if (dow !== 0 && dow !== 6) days++;
-    cur.setDate(cur.getDate() + 1);
-  }
-  return days;
-}
 
 router.get("/", requireAuth("leave:admin"), async (req, res, next) => {
   try {
@@ -177,7 +166,7 @@ router.post("/", requireAuth("leave:admin"), async (req, res, next) => {
       .where(and(eq(employees.id, empId), eq(employees.orgId, p.orgId)));
     if (!emp) { res.status(404).json({ error: "Employee not found" }); return; }
 
-    const days = businessDays(parsed.data.startDate, parsed.data.endDate) * 10;
+    const days = countLeaveDays(parsed.data.startDate, parsed.data.endDate, emp.workDaysPerWeek ?? 5, emp.worksOnHolidays ?? false) * 10;
 
     // Annual leave balance check
     if (parsed.data.type === "annual") {
@@ -239,6 +228,40 @@ router.patch("/:id/cancel", requireAuth("leave:admin"), async (req, res, next) =
       });
     });
 
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// ── PATCH /:id/edit — correct dates of a still-pending request ─────────────
+router.patch("/:id/edit", requireAuth("leave:admin"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+    const parsed = leaveSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return; }
+
+    const [leave] = await db.select().from(leaveRequests)
+      .where(and(eq(leaveRequests.id, id), eq(leaveRequests.orgId, p.orgId)));
+    if (!leave) { res.status(404).json({ error: "Leave request not found" }); return; }
+    if (leave.status !== "pending") throw new HttpError(409, "Only pending requests can be edited");
+
+    const [emp] = await db.select().from(employees)
+      .where(and(eq(employees.id, leave.employeeId), eq(employees.orgId, p.orgId)));
+    const days = countLeaveDays(parsed.data.startDate, parsed.data.endDate, emp?.workDaysPerWeek ?? 5, emp?.worksOnHolidays ?? false) * 10;
+
+    const [updated] = await db.update(leaveRequests).set({
+      type: parsed.data.type, startDate: parsed.data.startDate, endDate: parsed.data.endDate,
+      days, reason: parsed.data.reason ?? leave.reason,
+    }).where(and(eq(leaveRequests.id, id), eq(leaveRequests.orgId, p.orgId))).returning();
+
+    await db.transaction(async (tx) => {
+      await writeAudit(tx as any, {
+        orgId: p.orgId, action: "LEAVE_EDITED", entity: "leave_requests", entityId: id,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        before: { startDate: leave.startDate, endDate: leave.endDate, type: leave.type },
+        after: { startDate: parsed.data.startDate, endDate: parsed.data.endDate, type: parsed.data.type },
+      });
+    });
     res.json(updated);
   } catch (err) { next(err); }
 });

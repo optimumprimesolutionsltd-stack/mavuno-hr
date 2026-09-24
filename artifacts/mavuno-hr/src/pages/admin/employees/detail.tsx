@@ -4,7 +4,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   useGetEmployee, getGetEmployeeQueryKey, customFetch,
   useListEmployeeDocuments, getListEmployeeDocumentsQueryKey, useDeleteEmployeeDocument,
-  useGetEmployeeTotals, useReinstateEmployee,
+  useGetEmployeeTotals, useReinstateEmployee, useSuspendEmployee, useListEmployeeSuspensions,
+  getListEmployeeSuspensionsQueryKey,
 } from "@workspace/api-client-react";
 import { formatMoney, formatDate, fullName } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,10 +17,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft, User, Briefcase, Landmark, FileText, Pencil, UserX, AlertCircle, KeyRound, Loader2,
-  CalendarDays, Check, X, Copy, Heart, Camera, Upload, Download, Trash2, Wallet, RotateCcw,
+  CalendarDays, Check, X, Copy, Heart, Camera, Upload, Download, Trash2, Wallet, RotateCcw, PauseCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EditEmployeeDialog } from "./edit-dialog";
@@ -109,6 +111,10 @@ export function EmployeeDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [editTab, setEditTab] = useState<"personal" | "employment" | "payment" | "compliance">("personal");
   const [terminateOpen, setTerminateOpen] = useState(false);
+  const [suspendOpen, setSuspendOpen] = useState(false);
+  const [suspendPaid, setSuspendPaid] = useState<"paid" | "unpaid">("unpaid");
+  const [suspendStart, setSuspendStart] = useState(() => new Date().toISOString().slice(0, 10));
+  const [suspendReason, setSuspendReason] = useState("");
   const [portalResult, setPortalResult] = useState<{ tempPassword?: string; message: string } | null>(null);
 
   function openEdit(tab: "personal" | "employment" | "payment" | "compliance" = "personal") {
@@ -116,11 +122,28 @@ export function EmployeeDetail() {
     setEditOpen(true);
   }
 
+  const suspend = useSuspendEmployee({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getGetEmployeeQueryKey(id) });
+        qc.invalidateQueries({ queryKey: getListEmployeeSuspensionsQueryKey(id) });
+        setSuspendOpen(false);
+        setSuspendReason("");
+        toast({ title: "Employee suspended" });
+      },
+      onError: (e: any) => {
+        toast({ variant: "destructive", title: "Suspend failed", description: (e?.data as any)?.error ?? e?.message });
+      },
+    },
+  });
+  const { data: suspensions } = useListEmployeeSuspensions(id);
+
   const reinstate = useReinstateEmployee({
     mutation: {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getGetEmployeeQueryKey(id) });
-        toast({ title: "Employee reinstated", description: "Status is now active." });
+        qc.invalidateQueries({ queryKey: getListEmployeeSuspensionsQueryKey(id) });
+        toast({ title: "Employee restored", description: "Status is now active." });
       },
       onError: (e: any) => {
         toast({ variant: "destructive", title: "Reinstate failed", description: (e?.data as any)?.error ?? e?.message });
@@ -199,6 +222,8 @@ export function EmployeeDetail() {
 
   const { employee, department } = data;
   const isTerminated = employee.status === "terminated";
+  const isSuspended = employee.status === "suspended";
+  const openSuspension = (suspensions ?? []).find((x: any) => !x.endDate);
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-10">
@@ -218,7 +243,7 @@ export function EmployeeDetail() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Badge
-            variant={isTerminated ? "destructive" : "default"}
+            variant={isTerminated ? "destructive" : isSuspended ? "secondary" : "default"}
             className="font-mono text-xs"
           >
             {employee.status.toUpperCase()}
@@ -247,6 +272,17 @@ export function EmployeeDetail() {
                   : <KeyRound className="h-3.5 w-3.5" />}
                 PORTAL ACCESS
               </Button>
+              {!isSuspended && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="font-mono gap-1.5"
+                  onClick={() => setSuspendOpen(true)}
+                >
+                  <PauseCircle className="h-3.5 w-3.5" />
+                  SUSPEND
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -272,6 +308,35 @@ export function EmployeeDetail() {
           )}
         </div>
       </div>
+
+      {/* Suspended banner */}
+      {isSuspended && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <PauseCircle className="h-4 w-4 text-amber-600 shrink-0" />
+            <div className="text-sm">
+              <span className="font-medium">Employee suspended</span>
+              {openSuspension && (
+                <span className="text-muted-foreground ml-2">
+                  since {formatDate(openSuspension.startDate)} — {openSuspension.paid ? "with pay" : "without pay"}
+                  {openSuspension.reason ? ` — ${openSuspension.reason}` : ""}
+                </span>
+              )}
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="font-mono gap-1.5 shrink-0"
+            onClick={() => reinstate.mutate({ id })}
+            disabled={reinstate.isPending}
+            title="Lift the suspension and return this employee to active"
+          >
+            {reinstate.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+            RESTORE
+          </Button>
+        </div>
+      )}
 
       {/* Terminated banner */}
       {isTerminated && (
@@ -301,7 +366,7 @@ export function EmployeeDetail() {
             title="Bring this employee back to active status"
           >
             {reinstate.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
-            REINSTATE
+            RESTORE
           </Button>
         </div>
       )}
@@ -759,6 +824,47 @@ export function EmployeeDetail() {
         onOpenChange={setEditOpen}
         defaultTab={editTab}
       />
+      <Dialog open={suspendOpen} onOpenChange={setSuspendOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Suspend {fullName(employee)}</DialogTitle>
+            <DialogDescription>
+              The employee stays on file with all documents and can be restored at any time. Choose whether pay continues, as decided by the disciplinary process.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Pay during suspension</Label>
+              <Select value={suspendPaid} onValueChange={(v) => setSuspendPaid(v as "paid" | "unpaid")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="paid">With pay: salary continues in full</SelectItem>
+                  <SelectItem value="unpaid">Without pay: suspended days are deducted in payroll</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Start date</Label>
+              <Input type="date" value={suspendStart} onChange={(e) => setSuspendStart(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Reason (optional)</Label>
+              <Textarea value={suspendReason} onChange={(e) => setSuspendReason(e.target.value)} maxLength={500} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setSuspendOpen(false)}>Cancel</Button>
+              <Button
+                disabled={suspend.isPending || !suspendStart}
+                onClick={() => suspend.mutate({ id, data: { paid: suspendPaid === "paid", startDate: suspendStart, reason: suspendReason || undefined } })}
+              >
+                {suspend.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
+                Suspend
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <TerminateDialog
         employeeId={employee.id}
         employeeName={fullName(employee)}

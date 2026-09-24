@@ -8,6 +8,7 @@ import { HttpError } from "../lib/http-error.js";
 import { computeLoanFringeBenefitTax } from "../lib/payroll.js";
 import { resolveConfig } from "../lib/statutory-resolve.js";
 import { fullName } from "../lib/employee-name.js";
+import { countLeaveDays } from "../lib/leave-days.js";
 
 const router = Router();
 
@@ -120,60 +121,6 @@ const leaveSchema = z.object({
   reason: z.string().max(500).optional(),
 }).refine((l) => l.endDate >= l.startDate, { message: "End date must be on or after start date", path: ["endDate"] });
 
-// Kenya public holidays (fixed + Easter 2024-2030)
-function kenyaHolidays(year: number): Set<string> {
-  const fixed = [
-    `${year}-01-01`, // New Year's Day
-    `${year}-05-01`, // Labour Day
-    `${year}-06-01`, // Madaraka Day
-    `${year}-10-20`, // Mashujaa Day
-    `${year}-12-12`, // Jamhuri Day
-    `${year}-12-25`, // Christmas Day
-    `${year}-12-26`, // Boxing Day
-  ];
-  // Easter Good Friday + Easter Monday (pre-computed 2024-2030)
-  const easter: Record<number, [string, string]> = {
-    2024: ["2024-03-29", "2024-04-01"],
-    2025: ["2025-04-18", "2025-04-21"],
-    2026: ["2026-04-03", "2026-04-06"],
-    2027: ["2027-03-26", "2027-03-29"],
-    2028: ["2028-04-14", "2028-04-17"],
-    2029: ["2029-03-30", "2029-04-02"],
-    2030: ["2030-04-19", "2030-04-22"],
-  };
-  return new Set([...fixed, ...(easter[year] ?? [])]);
-}
-
-function countLeaveDays(
-  startDate: string, endDate: string,
-  workDaysPerWeek: number, worksOnHolidays: boolean
-): number {
-  const s = new Date(startDate), e = new Date(endDate);
-  let days = 0;
-  const cur = new Date(s);
-  // Pre-build holiday sets for the years spanned
-  const holidaySets: Record<number, Set<string>> = {};
-  while (cur <= e) {
-    const yr = cur.getFullYear();
-    const dow = cur.getDay();
-    const dateStr = cur.toISOString().slice(0, 10);
-    const isSunday = dow === 0;
-    const isSaturday = dow === 6;
-    if (!holidaySets[yr]) holidaySets[yr] = kenyaHolidays(yr);
-    const isHoliday = holidaySets[yr].has(dateStr);
-
-    // A day counts as leave only if it is a scheduled working day
-    const isWorkDay =
-      !isSunday &&
-      !(workDaysPerWeek === 5 && isSaturday) &&
-      (worksOnHolidays || !isHoliday);
-
-    if (isWorkDay) days++;
-    cur.setDate(cur.getDate() + 1);
-  }
-  return days;
-}
-
 router.post("/leave", requireAuth("self:request"), async (req, res, next) => {
   try {
     const empId = requireEmployee(req);
@@ -226,6 +173,66 @@ router.post("/leave", requireAuth("self:request"), async (req, res, next) => {
     }).returning();
 
     res.status(201).json(leave);
+  } catch (err) { next(err); }
+});
+
+// ── PATCH /leave/:id — change dates/type/reason of a still-pending request ──
+// A wrong date used to be unfixable: the only option was to wait for a
+// rejection. Editing recounts the days against the employee's schedule.
+const leaveEditSchema = z.object({
+  type: z.enum(["annual","sick","maternity","paternity","compassionate","study","unpaid"]).optional(),
+  startDate: isoDate,
+  endDate: isoDate,
+  reason: z.string().max(500).optional(),
+}).refine((l) => l.endDate >= l.startDate, { message: "End date must be on or after start date", path: ["endDate"] });
+
+router.patch("/leave/:id", requireAuth("self:request"), async (req, res, next) => {
+  try {
+    const empId = requireEmployee(req);
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+    const parsed = leaveEditSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return; }
+
+    const [leave] = await db.select().from(leaveRequests)
+      .where(and(eq(leaveRequests.id, id), eq(leaveRequests.employeeId, empId), eq(leaveRequests.orgId, p.orgId)));
+    if (!leave) { res.status(404).json({ error: "Leave request not found" }); return; }
+    if (leave.status !== "pending") throw new HttpError(409, "Only pending requests can be edited");
+
+    const [emp] = await db.select({
+      workDaysPerWeek: employees.workDaysPerWeek,
+      worksOnHolidays: employees.worksOnHolidays,
+      leaveBalance: employees.leaveBalance,
+    }).from(employees).where(and(eq(employees.id, empId), eq(employees.orgId, p.orgId)));
+
+    const days = countLeaveDays(parsed.data.startDate, parsed.data.endDate, emp?.workDaysPerWeek ?? 5, emp?.worksOnHolidays ?? false);
+    const type = parsed.data.type ?? leave.type;
+
+    if (type === "annual") {
+      const thisYear = parsed.data.startDate.slice(0, 4);
+      const takenRows = await db.select({ days: leaveRequests.days, startDate: leaveRequests.startDate })
+        .from(leaveRequests)
+        .where(and(
+          eq(leaveRequests.employeeId, empId), eq(leaveRequests.orgId, p.orgId),
+          eq(leaveRequests.status, "approved"), eq(leaveRequests.type, "annual"),
+        ));
+      const takenDays = takenRows.filter(l => l.startDate?.startsWith(thisYear))
+        .reduce((acc, l) => acc + Math.round((l.days ?? 0) / 10), 0);
+      const entitlement = Math.round((emp?.leaveBalance ?? 210) / 10);
+      if (takenDays + days > entitlement) {
+        res.status(422).json({
+          error: `Insufficient annual leave balance. You have ${entitlement - takenDays} day(s) remaining but this request requires ${days} day(s).`,
+          code: "INSUFFICIENT_LEAVE_BALANCE",
+        });
+        return;
+      }
+    }
+
+    const [updated] = await db.update(leaveRequests).set({
+      type, startDate: parsed.data.startDate, endDate: parsed.data.endDate,
+      days: days * 10, reason: parsed.data.reason ?? leave.reason,
+    }).where(and(eq(leaveRequests.id, id), eq(leaveRequests.orgId, p.orgId))).returning();
+    res.json(updated);
   } catch (err) { next(err); }
 });
 
