@@ -46,4 +46,17 @@ router.post("/", requireAuth("employee:write"), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// PATCH /api/departments/:id -- set how many people may be off at once (null clears)
+router.patch("/:id", requireAuth("employee:write"), async (req, res, next) => {
+  try {
+    const { orgId } = (req as AuthRequest).principal;
+    const parsed = z.object({ maxOffAtOnce: z.number().int().min(1).max(500).nullable() }).safeParse(req.body);
+    if (!parsed.success) { res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return; }
+    const [row] = await db.update(departments).set({ maxOffAtOnce: parsed.data.maxOffAtOnce })
+      .where(and(eq(departments.id, Number(req.params.id)), eq(departments.orgId, orgId))).returning();
+    if (!row) { res.status(404).json({ error: "Department not found" }); return; }
+    res.json(row);
+  } catch (err) { next(err); }
+});
+
 export default router;

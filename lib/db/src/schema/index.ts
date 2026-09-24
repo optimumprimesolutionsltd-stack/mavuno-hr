@@ -112,6 +112,8 @@ export const departments = pgTable("departments", {
   code: text("code").notNull(),
   costCenter: text("cost_center"),
   managerId: integer("manager_id"),
+  /* Most people from this department who should be off on the same day; null = no limit. */
+  maxOffAtOnce: integer("max_off_at_once"),
 }, (t) => [
   uniqueIndex("depts_org_code_uq").on(t.orgId, t.code),
   index("depts_org_idx").on(t.orgId),

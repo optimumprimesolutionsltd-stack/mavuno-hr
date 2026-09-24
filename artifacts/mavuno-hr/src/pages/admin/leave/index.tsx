@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useListLeaves, useDecideLeave, getListLeavesQueryKey, customFetch } from "@workspace/api-client-react";
 import { formatDate, fullName } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { Check, X, Search, RotateCcw, Loader2, ChevronLeft, ChevronRight, CalendarPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -32,7 +33,22 @@ function toYMD(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-function WhosOffCalendar({ leaves }: { leaves: any[] }) {
+function WhosOffCalendar({ leaves, departments }: { leaves: any[]; departments: any[] }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [deptId, setDeptId] = useState<string>("all");
+  const dept = departments.find((d) => String(d.id) === deptId) ?? null;
+  const [limitDraft, setLimitDraft] = useState("");
+  useEffect(() => { setLimitDraft(dept?.maxOffAtOnce ? String(dept.maxOffAtOnce) : ""); }, [deptId, dept?.maxOffAtOnce]);
+  const saveLimit = useMutation({
+    mutationFn: () => customFetch(`/api/departments/${dept.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ maxOffAtOnce: limitDraft ? Number(limitDraft) : null }),
+    }),
+    onSuccess: () => { toast({ title: "Limit saved" }); qc.invalidateQueries({ queryKey: ["/api/departments"] }); },
+    onError: (e: any) => toast({ variant: "destructive", title: "Could not save", description: e?.data?.error ?? e?.message }),
+  });
+
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth()); // 0-indexed
@@ -40,7 +56,8 @@ function WhosOffCalendar({ leaves }: { leaves: any[] }) {
   const todayYMD = toYMD(today);
 
   // Approved leaves only
-  const approved = leaves.filter((r) => r.leave.status === "approved");
+  const approved = leaves.filter((r) => r.leave.status === "approved")
+    .filter((r) => deptId === "all" || String(r.employee?.departmentId) === deptId);
 
   // Build a stable color map keyed by employeeId
   const employeeColorMap: Record<number, string> = {};
@@ -116,6 +133,24 @@ function WhosOffCalendar({ leaves }: { leaves: any[] }) {
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <Select value={deptId} onValueChange={setDeptId}>
+          <SelectTrigger className="w-[220px] font-mono text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All departments</SelectItem>
+            {departments.map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        {dept && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Max off at once</span>
+            <Input type="number" min={1} className="h-8 w-16" value={limitDraft} placeholder="none" onChange={(e) => setLimitDraft(e.target.value)} />
+            <Button size="sm" variant="outline" className="h-8" onClick={() => saveLimit.mutate()} disabled={saveLimit.isPending}>SAVE</Button>
+          </div>
+        )}
+        <span className="text-xs text-muted-foreground">Days over a department's limit are shown in red.</span>
+      </div>
+
       {/* Month navigation */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="icon" onClick={prevMonth} className="h-8 w-8">
@@ -143,6 +178,10 @@ function WhosOffCalendar({ leaves }: { leaves: any[] }) {
           const dayLeaves = getLeavesForDay(cell.ymd);
           const isToday = cell.ymd === todayYMD;
           const count = dayLeaves.length;
+          // Over the limit: the chosen department, or (in All view) any department with a limit.
+          const perDept = new Map<number, number>();
+          dayLeaves.forEach((r) => perDept.set(r.employee?.departmentId, (perDept.get(r.employee?.departmentId) ?? 0) + 1));
+          const over = departments.some((d) => d.maxOffAtOnce && (perDept.get(d.id) ?? 0) > d.maxOffAtOnce);
 
           return (
             <div
@@ -151,6 +190,7 @@ function WhosOffCalendar({ leaves }: { leaves: any[] }) {
                 "min-h-[80px] rounded-md border p-1.5 flex flex-col gap-0.5 transition-colors",
                 cell.inMonth ? "bg-card/40 border-border/40" : "bg-transparent border-border/20 opacity-40",
                 isToday ? "border-primary border-2" : "",
+                over && cell.inMonth ? "border-destructive bg-destructive/10" : "",
               ].join(" ")}
             >
               <span className={[
@@ -174,8 +214,8 @@ function WhosOffCalendar({ leaves }: { leaves: any[] }) {
                 );
               })}
               {count > 0 && (
-                <span className="text-[9px] text-muted-foreground font-mono mt-auto leading-tight">
-                  {count} off
+                <span className={`text-[9px] font-mono mt-auto leading-tight ${over ? "text-destructive font-bold" : "text-muted-foreground"}`}>
+                  {count} off{over ? " — over limit" : ""}
                 </span>
               )}
             </div>
@@ -195,6 +235,10 @@ function WhosOffCalendar({ leaves }: { leaves: any[] }) {
 export function LeaveAdmin() {
   const { data: leaves, isLoading } = useListLeaves();
   const decideLeave = useDecideLeave();
+  const { data: departments = [] } = useQuery<any[]>({
+    queryKey: ["/api/departments"],
+    queryFn: () => customFetch("/api/departments") as Promise<any[]>,
+  });
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -202,7 +246,30 @@ export function LeaveAdmin() {
   const [requestLeaveOpen, setRequestLeaveOpen] = useState(false);
   const [editLeave, setEditLeave] = useState<any | null>(null);
 
+  // Before approving, check whether it would put a department over its
+  // "max off at once" limit on any day, and ask HR to confirm if so.
+  function clashWarning(id: number): string | null {
+    const target = (leaves ?? []).find((r: any) => r.leave.id === id);
+    const dept = departments.find((d: any) => d.id === target?.employee?.departmentId);
+    if (!target || !dept?.maxOffAtOnce) return null;
+    const start = target.leave.startDate.slice(0, 10), end = target.leave.endDate.slice(0, 10);
+    const others = (leaves ?? []).filter((r: any) =>
+      r.leave.status === "approved" && r.leave.id !== id && r.employee?.departmentId === dept.id);
+    for (let d = new Date(start); d.toISOString().slice(0, 10) <= end; d.setDate(d.getDate() + 1)) {
+      const ymd = d.toISOString().slice(0, 10);
+      const off = others.filter((r: any) => r.leave.startDate.slice(0, 10) <= ymd && r.leave.endDate.slice(0, 10) >= ymd).length + 1;
+      if (off > dept.maxOffAtOnce) {
+        return `Approving this puts ${off} people from ${dept.name} off on ${ymd}, over the limit of ${dept.maxOffAtOnce}. Approve anyway?`;
+      }
+    }
+    return null;
+  }
+
   const handleDecision = (id: number, action: 'approve' | 'reject') => {
+    if (action === "approve") {
+      const warning = clashWarning(id);
+      if (warning && !window.confirm(warning)) return;
+    }
     decideLeave.mutate(
       { id, data: { action } },
       {
@@ -406,7 +473,7 @@ export function LeaveAdmin() {
                 LOADING...
               </div>
             ) : (
-              <WhosOffCalendar leaves={leaves ?? []} />
+              <WhosOffCalendar leaves={leaves ?? []} departments={departments} />
             )}
           </div>
         </TabsContent>
