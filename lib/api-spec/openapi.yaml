@@ -249,6 +249,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/EmployeeTotals"
 
+  /employees/{id}/reinstate:
+    post:
+      operationId: reinstateEmployee
+      tags: [employees]
+      summary: Bring a terminated employee back to active
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reinstated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+
   /employees/{id}/documents:
     get:
       operationId: listEmployeeDocuments
@@ -838,6 +857,31 @@ paths:
       responses:
         "201":
           description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Loan"
+
+  /loans/{id}/type:
+    patch:
+      operationId: updateLoanType
+      tags: [loans]
+      summary: Correct a posted loan's category (amount/months/interest untouched)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLoanTypeRequest"
+      responses:
+        "200":
+          description: Updated
           content:
             application/json:
               schema:
@@ -1465,6 +1509,14 @@ components:
       properties:
         file:
           type: string
+
+    UpdateLoanTypeRequest:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [company, sacco, advance, emergency]
 
     EmployeeInput:
       type: object

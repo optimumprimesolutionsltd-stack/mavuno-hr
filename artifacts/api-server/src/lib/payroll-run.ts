@@ -1,4 +1,4 @@
-import { and, eq, ne, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, ne, or, gte, inArray, isNull, sql } from "drizzle-orm";
 import {
   employees, payrollRuns, payslips, loans, loanRepayments, timesheets,
   payAdjustments, organizations, leaveRequests,
@@ -13,6 +13,29 @@ import type { Principal } from "./session.js";
 import type { Cents } from "./money.js";
 
 type Tx = NodePgDatabase<typeof schema>;
+
+// An employee terminated partway through the period being run is still owed
+// pay for the days they worked -- payableDays() below already prorates
+// correctly against terminationDate, but that never ran for them because the
+// staff query excluded every terminated employee outright, regardless of
+// when they left. Someone terminated effective 5 Feb, paid up to 5 Feb, was
+// simply omitted from the February run instead of paid for those 5 days.
+// Only exclude a terminated employee whose termination falls BEFORE this
+// period even starts -- someone who left in an earlier month has genuinely
+// nothing to be paid here, and payableDays() would return 0 for them anyway,
+// but leaving that filtering to the query keeps old leavers out of every
+// run's employee list forever rather than reappearing with a Ksh 0 payslip.
+function staffEligibleForPeriod(orgId: number, period: string, employeeIds?: number[]) {
+  const periodStart = `${period}-01`;
+  return and(
+    eq(employees.orgId, orgId),
+    or(
+      ne(employees.status, "terminated"),
+      gte(employees.terminationDate, periodStart),
+    ),
+    ...(employeeIds?.length ? [inArray(employees.id, employeeIds)] : []),
+  );
+}
 
 function daysInMonth(period: string): number {
   const [y, m] = period.split("-").map(Number);
@@ -94,11 +117,8 @@ export async function calculateRun(
     }
   }
 
-  const staff = await tx.select().from(employees).where(and(
-    eq(employees.orgId, orgId),
-    ne(employees.status, "terminated"),
-    ...(input.employeeIds?.length ? [inArray(employees.id, input.employeeIds)] : []),
-  ));
+  const staff = await tx.select().from(employees)
+    .where(staffEligibleForPeriod(orgId, input.period, input.employeeIds));
   if (staff.length === 0) throw new HttpError(400, "No employees in scope for this run");
 
   if (staff.length > org.seatLimit) {
@@ -281,10 +301,8 @@ export async function recalculateRun(
 
   const { id: configId, config } = await resolveConfig(tx, orgId, org.countryCode, run.period);
 
-  const staff = await tx.select().from(employees).where(and(
-    eq(employees.orgId, orgId),
-    ne(employees.status, "terminated"),
-  ));
+  const staff = await tx.select().from(employees)
+    .where(staffEligibleForPeriod(orgId, run.period));
   if (staff.length === 0) throw new HttpError(400, "No employees in scope");
 
   const empIds = staff.map((e) => e.id);

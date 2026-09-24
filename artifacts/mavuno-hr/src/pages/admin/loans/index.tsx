@@ -1,9 +1,10 @@
 import { Fragment, useState } from "react";
-import { useListLoans, useListLoanRequests, getListLoansQueryKey, getListLoanRequestsQueryKey } from "@workspace/api-client-react";
+import { useListLoans, useListLoanRequests, getListLoansQueryKey, getListLoanRequestsQueryKey, useUpdateLoanType } from "@workspace/api-client-react";
 import { formatMoney, formatDate, formatPercent, fullName } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -26,6 +27,21 @@ export function LoansAdmin() {
   const { data: requests, isLoading: isLoadingRequests } = useListLoanRequests();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Correcting the category a loan was posted under (e.g. "company" instead
+  // of "advance") -- amount, months and interest are untouched, this only
+  // fixes the label.
+  const updateLoanType = useUpdateLoanType({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListLoansQueryKey() });
+        toast({ title: "Loan type updated" });
+      },
+      onError: (e: any) => {
+        toast({ variant: "destructive", title: "Could not update loan type", description: (e?.data as any)?.error ?? e?.message });
+      },
+    },
+  });
 
   const pendingRequests = requests?.filter(r => r.request.status === "pending") || [];
 
@@ -111,7 +127,23 @@ export function LoansAdmin() {
                               <div className="text-xs text-muted-foreground font-mono">{row.employee.empNo}</div>
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline" className="font-mono text-[10px] capitalize">{row.loan.type}</Badge>
+                              <Select
+                                value={row.loan.type}
+                                onValueChange={(type) => updateLoanType.mutate({ id: row.loan.id, data: { type: type as any } })}
+                              >
+                                <SelectTrigger
+                                  className="h-6 w-auto min-w-0 gap-1 border-none bg-transparent p-0 font-mono text-[10px] capitalize [&>svg]:h-3 [&>svg]:w-3 hover:bg-muted/40 rounded px-1.5"
+                                  title="Correct the loan type — amount, months and interest are unaffected"
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="company">Company</SelectItem>
+                                  <SelectItem value="sacco">Sacco</SelectItem>
+                                  <SelectItem value="advance">Advance</SelectItem>
+                                  <SelectItem value="emergency">Emergency</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </TableCell>
                             <TableCell className="text-right font-mono text-sm">{formatMoney(row.loan.principal)}</TableCell>
                             <TableCell className="text-right font-mono text-sm text-primary font-bold">{formatMoney(row.loan.balance)}</TableCell>

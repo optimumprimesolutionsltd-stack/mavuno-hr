@@ -68,6 +68,7 @@ import type {
   TimesheetApprovalInput,
   TimesheetInput,
   TimesheetRow,
+  UpdateLoanTypeRequest,
   UploadEmployeeDocumentRequest,
   UploadEmployeePhotoRequest
 } from './api.schemas';
@@ -1059,6 +1060,77 @@ export function useGetEmployeeTotals<TData = Awaited<ReturnType<typeof getEmploy
 
 
 
+
+export const getReinstateEmployeeUrl = (id: number,) => {
+
+
+
+
+  return `/api/employees/${id}/reinstate`
+}
+
+/**
+ * @summary Bring a terminated employee back to active
+ */
+export const reinstateEmployee = async (id: number, options?: RequestInit): Promise<Employee> => {
+
+  return customFetch<Employee>(getReinstateEmployeeUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getReinstateEmployeeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reinstateEmployee>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reinstateEmployee>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['reinstateEmployee'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reinstateEmployee>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  reinstateEmployee(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReinstateEmployeeMutationResult = NonNullable<Awaited<ReturnType<typeof reinstateEmployee>>>
+
+    export type ReinstateEmployeeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Bring a terminated employee back to active
+ */
+export const useReinstateEmployee = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reinstateEmployee>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reinstateEmployee>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getReinstateEmployeeMutationOptions(options));
+    }
 
 export const getListEmployeeDocumentsUrl = (id: number,) => {
 
@@ -3308,6 +3380,78 @@ export const useCreateLoan = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateLoanMutationOptions(options));
+    }
+
+export const getUpdateLoanTypeUrl = (id: number,) => {
+
+
+
+
+  return `/api/loans/${id}/type`
+}
+
+/**
+ * @summary Correct a posted loan's category (amount/months/interest untouched)
+ */
+export const updateLoanType = async (id: number,
+    updateLoanTypeRequest: UpdateLoanTypeRequest, options?: RequestInit): Promise<Loan> => {
+
+  return customFetch<Loan>(getUpdateLoanTypeUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateLoanTypeRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateLoanTypeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLoanType>>, TError,{id: number;data: BodyType<UpdateLoanTypeRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateLoanType>>, TError,{id: number;data: BodyType<UpdateLoanTypeRequest>}, TContext> => {
+
+const mutationKey = ['updateLoanType'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateLoanType>>, {id: number;data: BodyType<UpdateLoanTypeRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateLoanType(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateLoanTypeMutationResult = NonNullable<Awaited<ReturnType<typeof updateLoanType>>>
+    export type UpdateLoanTypeMutationBody = BodyType<UpdateLoanTypeRequest>
+    export type UpdateLoanTypeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Correct a posted loan's category (amount/months/interest untouched)
+ */
+export const useUpdateLoanType = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLoanType>>, TError,{id: number;data: BodyType<UpdateLoanTypeRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateLoanType>>,
+        TError,
+        {id: number;data: BodyType<UpdateLoanTypeRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateLoanTypeMutationOptions(options));
     }
 
 export const getListLoanRequestsUrl = () => {

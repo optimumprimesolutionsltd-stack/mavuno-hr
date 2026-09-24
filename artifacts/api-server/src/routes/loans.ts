@@ -145,6 +145,42 @@ router.post("/", requireAuth("loan:review"), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// PATCH /api/loans/:id/type — correct a loan's category after it's posted.
+// The only thing this touches is the label: amount, months, interest and
+// balance stay exactly as they are, so a loan with repayments already
+// deducted against it is untouched. There was no way to fix a loan posted
+// under the wrong type (e.g. "company" instead of "advance") short of
+// deleting and recreating it, which would have lost its repayment history.
+const loanTypeSchema = z.object({ type: z.enum(["company","sacco","advance","emergency"]) });
+router.patch("/:id/type", requireAuth("loan:review"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+    const parsed = loanTypeSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return; }
+
+    const [existing] = await db.select().from(loans)
+      .where(and(eq(loans.id, id), eq(loans.orgId, p.orgId)));
+    if (!existing) { res.status(404).json({ error: "Loan not found" }); return; }
+    if (existing.type === parsed.data.type) { res.json(existing); return; }
+
+    const [updated] = await db.update(loans)
+      .set({ type: parsed.data.type })
+      .where(and(eq(loans.id, id), eq(loans.orgId, p.orgId)))
+      .returning();
+
+    await db.transaction(async (tx) => {
+      await writeAudit(tx as any, {
+        orgId: p.orgId, action: "LOAN_TYPE_CORRECTED", entity: "loans", entityId: id,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        before: { type: existing.type }, after: { type: parsed.data.type },
+      });
+    });
+
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
 // GET /api/loans/requests — list all loan requests (all statuses)
 router.get("/requests", requireAuth("loan:review"), async (req, res, next) => {
   try {

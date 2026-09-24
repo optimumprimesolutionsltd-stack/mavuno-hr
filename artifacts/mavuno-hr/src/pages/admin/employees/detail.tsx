@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   useGetEmployee, getGetEmployeeQueryKey, customFetch,
   useListEmployeeDocuments, getListEmployeeDocumentsQueryKey, useDeleteEmployeeDocument,
-  useGetEmployeeTotals,
+  useGetEmployeeTotals, useReinstateEmployee,
 } from "@workspace/api-client-react";
 import { formatMoney, formatDate, fullName } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft, User, Briefcase, Landmark, FileText, Pencil, UserX, AlertCircle, KeyRound, Loader2,
-  CalendarDays, Check, X, Copy, Heart, Camera, Upload, Download, Trash2, Wallet,
+  CalendarDays, Check, X, Copy, Heart, Camera, Upload, Download, Trash2, Wallet, RotateCcw,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EditEmployeeDialog } from "./edit-dialog";
@@ -105,6 +105,7 @@ export function EmployeeDetail() {
   const id = parseInt(params?.id || "0", 10);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [editTab, setEditTab] = useState<"personal" | "employment" | "payment" | "compliance">("personal");
   const [terminateOpen, setTerminateOpen] = useState(false);
@@ -114,6 +115,18 @@ export function EmployeeDetail() {
     setEditTab(tab);
     setEditOpen(true);
   }
+
+  const reinstate = useReinstateEmployee({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getGetEmployeeQueryKey(id) });
+        toast({ title: "Employee reinstated", description: "Status is now active." });
+      },
+      onError: (e: any) => {
+        toast({ variant: "destructive", title: "Reinstate failed", description: (e?.data as any)?.error ?? e?.message });
+      },
+    },
+  });
 
   const grantPortal = useMutation({
     mutationFn: () =>
@@ -262,21 +275,34 @@ export function EmployeeDetail() {
 
       {/* Terminated banner */}
       {isTerminated && (
-        <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
-          <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-          <div className="text-sm">
-            <span className="font-medium text-destructive">Employee terminated</span>
-            {employee.terminationDate && (
-              <span className="text-muted-foreground ml-2">
-                effective {formatDate(employee.terminationDate)}
-              </span>
-            )}
-            {employee.terminationReason && (
-              <span className="text-muted-foreground ml-2">
-                — {employee.terminationReason}
-              </span>
-            )}
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+            <div className="text-sm">
+              <span className="font-medium text-destructive">Employee terminated</span>
+              {employee.terminationDate && (
+                <span className="text-muted-foreground ml-2">
+                  effective {formatDate(employee.terminationDate)}
+                </span>
+              )}
+              {employee.terminationReason && (
+                <span className="text-muted-foreground ml-2">
+                  — {employee.terminationReason}
+                </span>
+              )}
+            </div>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="font-mono gap-1.5 shrink-0"
+            onClick={() => reinstate.mutate({ id })}
+            disabled={reinstate.isPending}
+            title="Bring this employee back to active status"
+          >
+            {reinstate.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+            REINSTATE
+          </Button>
         </div>
       )}
 
