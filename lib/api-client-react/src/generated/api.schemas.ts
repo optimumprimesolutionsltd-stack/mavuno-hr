@@ -376,6 +376,20 @@ export interface UploadEmployeePhotoRequest {
   file: string;
 }
 
+export type UpdateLoanTypeRequestType = typeof UpdateLoanTypeRequestType[keyof typeof UpdateLoanTypeRequestType];
+
+
+export const UpdateLoanTypeRequestType = {
+  company: 'company',
+  sacco: 'sacco',
+  advance: 'advance',
+  emergency: 'emergency',
+} as const;
+
+export interface UpdateLoanTypeRequest {
+  type: UpdateLoanTypeRequestType;
+}
+
 export type EmployeeInputSalaryBasis = typeof EmployeeInputSalaryBasis[keyof typeof EmployeeInputSalaryBasis];
 
 

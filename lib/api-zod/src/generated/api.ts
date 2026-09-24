@@ -596,6 +596,79 @@ export const GetEmployeeTotalsResponse = zod.object({
 
 
 /**
+ * @summary Bring a terminated employee back to active
+ */
+export const ReinstateEmployeeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ReinstateEmployeeResponse = zod.object({
+  "id": zod.number(),
+  "orgId": zod.number(),
+  "empNo": zod.string(),
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "middleName": zod.string().nullish(),
+  "email": zod.string(),
+  "phone": zod.string().nullish(),
+  "gender": zod.string().optional(),
+  "nationalId": zod.string().nullish(),
+  "kraPin": zod.string().nullish(),
+  "nssfNo": zod.string().nullish(),
+  "shifNo": zod.string().nullish(),
+  "payMethod": zod.string().optional(),
+  "bankName": zod.string().nullish(),
+  "bankCode": zod.string().nullish(),
+  "bankBranchCode": zod.string().nullish(),
+  "bankBranchName": zod.string().nullish(),
+  "bankAccount": zod.string().nullish(),
+  "mpesaPhone": zod.string().nullish(),
+  "departmentId": zod.number().nullish(),
+  "position": zod.string(),
+  "employmentType": zod.string(),
+  "residentStatus": zod.string().optional(),
+  "salaryBasis": zod.enum(['gross', 'net']).optional(),
+  "disabilityExemption": zod.boolean().optional(),
+  "basicSalary": zod.number(),
+  "houseAllowance": zod.number().optional(),
+  "transportAllowance": zod.number().optional(),
+  "otherAllowance": zod.number().optional(),
+  "nonCashBenefit": zod.number().optional(),
+  "insurancePremium": zod.number().optional(),
+  "pensionEmployee": zod.number().optional(),
+  "pensionEmployer": zod.number().optional(),
+  "mortgageInterest": zod.number().optional(),
+  "helbMonthly": zod.number().optional(),
+  "saccoMonthly": zod.number().optional(),
+  "workDaysPerWeek": zod.number().optional(),
+  "worksOnHolidays": zod.boolean().optional(),
+  "dateOfBirth": zod.string().nullish(),
+  "region": zod.string().nullish(),
+  "educationLevel": zod.union([zod.literal('none'),zod.literal('primary'),zod.literal('secondary'),zod.literal('certificate'),zod.literal('diploma'),zod.literal('bachelor'),zod.literal('master'),zod.literal('phd'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "nokName": zod.string().nullish(),
+  "nokRelationship": zod.string().nullish(),
+  "nokPhone": zod.string().nullish(),
+  "nokEmail": zod.string().nullish(),
+  "idType": zod.union([zod.literal('national_id'),zod.literal('alien_id'),zod.literal('passport'),zod.literal('refugee_id'),zod.literal('military_id'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "nok2Name": zod.string().nullish(),
+  "nok2Relationship": zod.string().nullish(),
+  "nok2Phone": zod.string().nullish(),
+  "nok2Email": zod.string().nullish(),
+  "emergencyContactName": zod.string().nullish(),
+  "emergencyContactRelationship": zod.string().nullish(),
+  "emergencyContactPhone": zod.string().nullish(),
+  "photoKey": zod.string().nullish(),
+  "photoMimeType": zod.string().nullish(),
+  "hireDate": zod.string(),
+  "terminationDate": zod.string().nullish(),
+  "terminationReason": zod.string().nullish(),
+  "status": zod.string(),
+  "leaveBalance": zod.number().optional(),
+  "createdAt": zod.string().optional()
+})
+
+
+/**
  * @summary List an employee's documents
  */
 export const ListEmployeeDocumentsParams = zod.object({
@@ -1420,6 +1493,32 @@ export const CreateLoanBody = zod.object({
 })
 
 export const CreateLoanResponse = zod.object({
+  "id": zod.number(),
+  "orgId": zod.number(),
+  "employeeId": zod.number(),
+  "type": zod.string(),
+  "principal": zod.number(),
+  "balance": zod.number(),
+  "monthlyInstallment": zod.number(),
+  "interestRateBps": zod.number(),
+  "status": zod.string(),
+  "startDate": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Correct a posted loan's category (amount/months/interest untouched)
+ */
+export const UpdateLoanTypeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateLoanTypeBody = zod.object({
+  "type": zod.enum(['company', 'sacco', 'advance', 'emergency'])
+})
+
+export const UpdateLoanTypeResponse = zod.object({
   "id": zod.number(),
   "orgId": zod.number(),
   "employeeId": zod.number(),

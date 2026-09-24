@@ -402,6 +402,43 @@ router.post("/:id/terminate", requireAuth("employee:write"), async (req, res, ne
   } catch (err) { next(err); }
 });
 
+// ── POST /:id/reinstate — bring a terminated employee back to active ───────
+// There was no way to undo a termination at all -- an employee let go and
+// then rehired (or terminated in error) had to be re-onboarded as a brand
+// new record, losing their employee number, history and every setting on
+// file. Clears the termination fields so the payroll-eligibility query
+// (staffEligibleForPeriod in payroll-run.ts) picks them back up from
+// whichever period they're reinstated in onward.
+router.post("/:id/reinstate", requireAuth("employee:write"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+    const [existing] = await db.select().from(employees)
+      .where(and(eq(employees.id, id), eq(employees.orgId, p.orgId)));
+    if (!existing) { res.status(404).json({ error: "Employee not found" }); return; }
+    if (existing.status !== "terminated") {
+      res.status(409).json({ error: "Employee is not terminated" });
+      return;
+    }
+
+    const [updated] = await db.update(employees)
+      .set({ status: "active", terminationDate: null, terminationReason: null })
+      .where(and(eq(employees.id, id), eq(employees.orgId, p.orgId)))
+      .returning();
+
+    await db.transaction(async (tx) => {
+      await writeAudit(tx as any, {
+        orgId: p.orgId, action: "EMPLOYEE_REINSTATED", entity: "employees", entityId: id,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        before: { status: existing.status, terminationDate: existing.terminationDate ?? null, terminationReason: existing.terminationReason ?? null },
+        after: { status: "active" },
+      });
+    });
+
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
 // ── GET /:id/totals — cumulative statutory deductions, paid runs only ──────
 // "Paid to date" means exactly that: draft/submitted/approved runs haven't
 // actually paid anyone yet, and a reversed run's money never moved either --

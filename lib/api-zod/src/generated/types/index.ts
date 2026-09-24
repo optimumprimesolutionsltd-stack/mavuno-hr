@@ -91,6 +91,8 @@ export * from './timesheet';
 export * from './timesheetApprovalInput';
 export * from './timesheetInput';
 export * from './timesheetRow';
+export * from './updateLoanTypeRequest';
+export * from './updateLoanTypeRequestType';
 export * from './uploadEmployeeDocumentRequest';
 export * from './uploadEmployeeDocumentRequestCategory';
 export * from './uploadEmployeePhotoRequest';
