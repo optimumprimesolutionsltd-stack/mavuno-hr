@@ -843,6 +843,23 @@ async function addTimesheetRejectionAndOvertimeSetting(): Promise<void> {
   await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS overtime_enabled BOOLEAN NOT NULL DEFAULT TRUE`);
 }
 
+async function createAttendanceDaysTable(): Promise<void> {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS attendance_days (
+      id             SERIAL PRIMARY KEY,
+      org_id         INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      employee_id    INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      date           DATE NOT NULL,
+      status         TEXT NOT NULL DEFAULT 'present',
+      hours          INTEGER NOT NULL DEFAULT 0,
+      overtime_hours INTEGER NOT NULL DEFAULT 0,
+      note           TEXT,
+      updated_at     TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS att_org_emp_date_uq ON attendance_days(org_id, employee_id, date);
+  `);
+}
+
 async function createEmployeeSuspensionsTable(): Promise<void> {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS employee_suspensions (
@@ -1017,6 +1034,7 @@ export async function runStartupMigrations(): Promise<void> {
     ["createEmployeeDocumentsTable", createEmployeeDocumentsTable],
     ["createEmployeeSuspensionsTable", createEmployeeSuspensionsTable],
     ["addTimesheetRejectionAndOvertimeSetting", addTimesheetRejectionAndOvertimeSetting],
+    ["createAttendanceDaysTable", createAttendanceDaysTable],
   ];
 
   for (const [name, run] of steps) {

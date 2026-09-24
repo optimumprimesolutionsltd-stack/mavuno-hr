@@ -231,6 +231,22 @@ export const employeeSuspensions = pgTable("employee_suspensions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [index("emp_susp_org_emp_idx").on(t.orgId, t.employeeId)]);
 
+// One row per employee per day actually recorded. Days with no row are simply
+// unrecorded; approved leave is overlaid at read time rather than stored, so
+// cancelling a leave never leaves stale attendance behind.
+export const attendanceDays = pgTable("attendance_days", {
+  id: serial("id").primaryKey(),
+  orgId: integer("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  employeeId: integer("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
+  date: date("date").notNull(),
+  /* present | absent | half | off */
+  status: text("status").notNull().default("present"),
+  hours: integer("hours").notNull().default(0),
+  overtimeHours: integer("overtime_hours").notNull().default(0),
+  note: text("note"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (t) => [uniqueIndex("att_org_emp_date_uq").on(t.orgId, t.employeeId, t.date)]);
+
 export const timesheets = pgTable("timesheets", {
   id: serial("id").primaryKey(),
   orgId: integer("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),

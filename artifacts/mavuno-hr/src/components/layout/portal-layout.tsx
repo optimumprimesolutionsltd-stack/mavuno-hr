@@ -28,6 +28,7 @@ const APPROVER_ROLES = new Set(["manager", "hr", "admin", "approver"]);
 const BASE_NAV_ITEMS = [
   { href: "/portal", label: "My Profile", icon: User, exact: true, roles: null },
   { href: "/portal/leave", label: "Leave", icon: Calendar, roles: null },
+  { href: "/portal/attendance", label: "Attendance", icon: Calendar, roles: null },
   { href: "/portal/timesheet", label: "Timesheet", icon: Clock, roles: null },
   { href: "/portal/loans", label: "Loans", icon: Coins, roles: null },
   { href: "/portal/approvals", label: "Approvals", icon: ClipboardCheck, roles: APPROVER_ROLES },

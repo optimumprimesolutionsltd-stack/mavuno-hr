@@ -36,6 +36,7 @@ const NAV_ITEMS = [
   { href: "/admin/employees", label: "Employees", icon: Users },
   { href: "/admin/payroll", label: "Payroll Runs", icon: Wallet },
   { href: "/admin/leave", label: "Leave", icon: Calendar },
+  { href: "/admin/attendance", label: "Attendance", icon: Calendar },
   { href: "/admin/timesheets", label: "Timesheets", icon: Clock },
   { href: "/admin/loans", label: "Loans", icon: Coins },
   { href: "/admin/reports", label: "Reports", icon: FileText },
