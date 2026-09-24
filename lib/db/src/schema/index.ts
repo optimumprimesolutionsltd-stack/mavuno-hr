@@ -40,6 +40,10 @@ export const organizations = pgTable("organizations", {
   /* Whether the company pays overtime at all. false hides the overtime field
      from timesheets and payroll ignores any overtime hours. */
   overtimeEnabled: boolean("overtime_enabled").notNull().default(true),
+  /* Which loan types the company offers and the longest repayment period for
+     each: { company: { enabled, maxMonths }, ... }. null = all four offered,
+     up to 60 months (how every company behaved before this setting). */
+  loanConfig: jsonb("loan_config"),
   trialEndsAt: timestamp("trial_ends_at"),
   /* Hard access cut-off. NULL = unlimited (no expiry) — every org created
      before this column existed stays unlimited until someone sets a date.

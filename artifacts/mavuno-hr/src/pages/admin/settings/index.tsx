@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { LoanConfigEditor } from "@/components/loan-config-editor";
+import { DEFAULT_LOAN_CONFIG, type LoanConfig } from "@/lib/loan-config";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 import { formatMoney } from "@/lib/utils";
@@ -29,6 +31,7 @@ interface OrgSettings {
     status: string;
     payrollStartPeriod: string | null;
     overtimeEnabled?: boolean;
+    loanConfig?: LoanConfig;
   };
   activeConfig: {
     name: string;
@@ -108,6 +111,27 @@ export function AdminSettings() {
     onSuccess: () => {
       toast({ title: "Saved", description: "Organisation profile updated." });
       qc.invalidateQueries({ queryKey: ["admin-settings"] });
+    },
+    onError: (e: any) => {
+      toast({ variant: "destructive", title: "Save failed", description: e?.data?.error ?? e?.message });
+    },
+  });
+
+  const [loanCfg, setLoanCfg] = useState<LoanConfig>(DEFAULT_LOAN_CONFIG);
+  useEffect(() => {
+    if (data?.org?.loanConfig) setLoanCfg(data.org.loanConfig);
+  }, [data?.org?.loanConfig]);
+  const saveLoanCfg = useMutation({
+    mutationFn: () =>
+      customFetch("/api/settings/org", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ loanConfig: loanCfg }),
+      }),
+    onSuccess: () => {
+      toast({ title: "Saved", description: "Loan settings updated." });
+      qc.invalidateQueries({ queryKey: ["admin-settings"] });
+      qc.invalidateQueries({ queryKey: ["loan-config"] });
     },
     onError: (e: any) => {
       toast({ variant: "destructive", title: "Save failed", description: e?.data?.error ?? e?.message });
@@ -291,6 +315,26 @@ export function AdminSettings() {
                 ? <Loader2 className="h-4 w-4 animate-spin" />
                 : <Save className="h-4 w-4" />}
               SAVE PROFILE
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Loans ── */}
+      <Card className="border-border/50 shadow-sm bg-card/30">
+        <CardHeader className="pb-4">
+          <CardTitle className="font-mono text-base">LOANS &amp; ADVANCES</CardTitle>
+          <CardDescription>
+            Choose which loan types your company offers and the longest repayment period for each. Types you
+            switch off are hidden from employees and can no longer be issued; existing loans are unaffected.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <LoanConfigEditor value={loanCfg} onChange={setLoanCfg} />
+          <div className="flex justify-end">
+            <Button onClick={() => saveLoanCfg.mutate()} disabled={saveLoanCfg.isPending} className="font-mono gap-1.5">
+              {saveLoanCfg.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              SAVE LOAN SETTINGS
             </Button>
           </div>
         </CardContent>

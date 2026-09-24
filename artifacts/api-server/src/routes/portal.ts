@@ -9,6 +9,7 @@ import { computeLoanFringeBenefitTax } from "../lib/payroll.js";
 import { resolveConfig } from "../lib/statutory-resolve.js";
 import { fullName } from "../lib/employee-name.js";
 import { countLeaveDays } from "../lib/leave-days.js";
+import { getLoanConfig, assertLoanAllowed } from "../lib/loan-config.js";
 
 const router = Router();
 
@@ -311,6 +312,7 @@ router.post("/loan-requests", requireAuth("self:request"), async (req, res, next
     }
 
     const { type, amount, months, reason, interestRateBps } = parsed.data;
+    await assertLoanAllowed(p.orgId, type, months);
     const amountCents = toCentsPortal(amount);
 
     // Kenya Employment Act: salary/emergency advances capped at one month's gross salary
@@ -421,7 +423,7 @@ router.get("/features", requireAuth("self:read"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
     const [org] = await db.select({ ot: organizations.overtimeEnabled }).from(organizations).where(eq(organizations.id, p.orgId));
-    res.json({ overtimeEnabled: org?.ot ?? true });
+    res.json({ overtimeEnabled: org?.ot ?? true, loanConfig: await getLoanConfig(p.orgId) });
   } catch (err) { next(err); }
 });
 

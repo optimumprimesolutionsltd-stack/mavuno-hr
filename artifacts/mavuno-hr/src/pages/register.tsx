@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { LoanConfigEditor } from "@/components/loan-config-editor";
+import { DEFAULT_LOAN_CONFIG, type LoanConfig } from "@/lib/loan-config";
 import { Link, useLocation } from "wouter";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -81,6 +83,7 @@ export function Register() {
   const { toast } = useToast();
   const [step, setStep] = useState<1 | 2>(1);
   const [overtimeEnabled, setOvertimeEnabled] = useState(true);
+  const [loanConfig, setLoanConfig] = useState<LoanConfig>(DEFAULT_LOAN_CONFIG);
   const [step1Data, setStep1Data] = useState<Step1 | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -133,6 +136,7 @@ export function Register() {
           adminEmail:   values.adminEmail,
           password:     values.password,
           overtimeEnabled,
+          loanConfig,
         }),
       });
       const data = await res.json();
@@ -378,6 +382,14 @@ export function Register() {
                       </span>
                     </span>
                   </label>
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Loans and advances you offer</p>
+                    <p className="text-xs text-muted-foreground">
+                      Untick a type to hide it from employees, and set the longest repayment period. You can add or change these later in Settings.
+                    </p>
+                    <LoanConfigEditor value={loanConfig} onChange={setLoanConfig} />
+                  </div>
 
                   <div className="flex gap-2 mt-2">
                     <Button
