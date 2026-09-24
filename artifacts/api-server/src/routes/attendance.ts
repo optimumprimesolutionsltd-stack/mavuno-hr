@@ -4,7 +4,7 @@ import { and, eq, gte, lte, ne, asc } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { attendanceDays, employees, departments } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest } from "../middlewares/require-auth.js";
-import { periodBounds, leaveInPeriod, overtimeEnabled, upsertDay, clearDay, syncTimesheet, STATUSES } from "../lib/attendance.js";
+import { periodBounds, leaveInPeriod, overtimeEnabled, upsertDay, clearDay, syncTimesheet, holidaysInPeriod, bulkFill, STATUSES } from "../lib/attendance.js";
 
 const router = Router();
 
@@ -22,7 +22,7 @@ router.get("/", requireAuth("employee:read"), async (req, res, next) => {
     const staff = await db.select({
       id: employees.id, empNo: employees.empNo, firstName: employees.firstName,
       middleName: employees.middleName, lastName: employees.lastName,
-      workDaysPerWeek: employees.workDaysPerWeek, departmentName: departments.name,
+      workDaysPerWeek: employees.workDaysPerWeek, departmentId: employees.departmentId, departmentName: departments.name,
     }).from(employees)
       .leftJoin(departments, eq(employees.departmentId, departments.id))
       .where(and(eq(employees.orgId, p.orgId), ne(employees.status, "terminated")))
@@ -35,6 +35,7 @@ router.get("/", requireAuth("employee:read"), async (req, res, next) => {
       staff, days,
       leave: await leaveInPeriod(p.orgId, per.data),
       overtimeEnabled: await overtimeEnabled(p.orgId),
+      holidays: holidaysInPeriod(per.data),
     });
   } catch (err) { next(err); }
 });
@@ -61,6 +62,37 @@ router.put("/", requireAuth("employee:write"), async (req, res, next) => {
     if (e.status === "clear") await clearDay(p.orgId, e.employeeId, e.date);
     else await upsertDay(p.orgId, { ...e, status: e.status });
     res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+const bulkSchema = z.object({
+  // Empty/omitted employeeIds = everyone who is not terminated
+  employeeIds: z.array(z.number().int().positive()).optional(),
+  departmentId: z.number().int().positive().optional(),
+  from: isoDate,
+  to: isoDate,
+  status: z.enum(STATUSES),
+  hours: z.number().int().min(0).max(24).default(8),
+  overtimeHours: z.number().int().min(0).max(24).default(0),
+  overwrite: z.boolean().default(false),
+}).refine((b) => b.to >= b.from, { message: "End date must be on or after start date", path: ["to"] });
+
+// POST /api/attendance/bulk -- same status for many employees over a date range
+router.post("/bulk", requireAuth("employee:write"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const parsed = bulkSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return; }
+    const b = parsed.data;
+    let ids = b.employeeIds;
+    if (!ids?.length) {
+      const rows = await db.select({ id: employees.id }).from(employees).where(and(
+        eq(employees.orgId, p.orgId), ne(employees.status, "terminated"),
+        ...(b.departmentId ? [eq(employees.departmentId, b.departmentId)] : []),
+      ));
+      ids = rows.map((r) => r.id);
+    }
+    res.json(await bulkFill(p.orgId, { ...b, employeeIds: ids }));
   } catch (err) { next(err); }
 });
 

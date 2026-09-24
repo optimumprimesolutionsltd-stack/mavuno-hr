@@ -39,6 +39,7 @@ export function PortalAttendance() {
   const leave: any[] = (data?.leave ?? []).map((l: any) => ({ ...l, employeeId: 0 }));
   const byDate = new Map(days.map((d) => [d.date.slice(0, 10), d]));
   const locked = !!data?.locked;
+  const holidays = new Set<string>(data?.holidays ?? []);
   const overtimeOn = data?.overtimeEnabled !== false;
 
   const fail = (e: any) => toast({ variant: "destructive", title: "Error", description: e?.data?.error ?? e?.message });
@@ -110,7 +111,8 @@ export function PortalAttendance() {
                   key={date}
                   disabled={locked || isLeave}
                   onClick={() => open(date)}
-                  className={`aspect-square rounded-md border text-xs flex flex-col items-center justify-center transition-colors ${meta ? meta.cls : "border-border/40 hover:border-primary/50"} ${weekday(period, day) === 0 ? "opacity-60" : ""}`}
+                  className={`aspect-square rounded-md border text-xs flex flex-col items-center justify-center transition-colors ${meta ? meta.cls : "border-border/40 hover:border-primary/50"} ${weekday(period, day) === 0 ? "opacity-60" : ""} ${holidays.has(date) && !meta ? "bg-amber-500/10 border-amber-500/30" : ""}`}
+                  title={holidays.has(date) ? "Public holiday" : undefined}
                 >
                   <span className="font-mono">{day}</span>
                   {meta && <span className="font-bold">{meta.letter}</span>}

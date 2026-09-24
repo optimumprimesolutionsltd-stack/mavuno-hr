@@ -23,17 +23,27 @@ export function AttendanceAdmin() {
   const [hours, setHours] = useState("8");
   const [overtime, setOvertime] = useState("0");
 
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulk, setBulk] = useState({
+    from: "", to: "", dept: "all", status: "present", hours: "8", overtime: "0", overwrite: false,
+  });
+
   const key = ["attendance", period];
   const { data, isLoading } = useQuery({
     queryKey: key,
     queryFn: () => customFetch<any>(`/api/attendance?period=${period}`),
   });
   const overtimeOn = data?.overtimeEnabled !== false;
+  const { data: departments = [] } = useQuery<any[]>({
+    queryKey: ["/api/departments"],
+    queryFn: () => customFetch("/api/departments") as Promise<any[]>,
+  });
   const days = useMemo(() => {
     const m = new Map<string, any>();
     (data?.days ?? []).forEach((d: any) => m.set(`${d.employeeId}|${d.date.slice(0, 10)}`, d));
     return m;
   }, [data]);
+  const holidays = new Set<string>(data?.holidays ?? []);
   const staff: any[] = (data?.staff ?? []).filter((e: any) => !search || fullName(e).toLowerCase().includes(search.toLowerCase()) || e.empNo.toLowerCase().includes(search.toLowerCase()));
 
   const fail = (e: any) => toast({ variant: "destructive", title: "Error", description: e?.data?.error ?? e?.message });
@@ -42,6 +52,24 @@ export function AttendanceAdmin() {
     onSuccess: () => { setCell(null); qc.invalidateQueries({ queryKey: key }); },
     onError: fail,
   });
+  const bulkSave = useMutation({
+    mutationFn: () => customFetch<{ written: number; skipped: number }>("/api/attendance/bulk", {
+      method: "POST", headers: json,
+      body: JSON.stringify({
+        from: bulk.from, to: bulk.to, status: bulk.status,
+        hours: Number(bulk.hours) || 0, overtimeHours: Number(bulk.overtime) || 0,
+        overwrite: bulk.overwrite,
+        ...(bulk.dept !== "all" ? { departmentId: Number(bulk.dept) } : {}),
+      }),
+    }),
+    onSuccess: (r) => {
+      toast({ title: "Attendance recorded", description: `${r.written} day(s) recorded; ${r.skipped} skipped (weekends, holidays or approved leave).` });
+      setBulkOpen(false);
+      qc.invalidateQueries({ queryKey: key });
+    },
+    onError: fail,
+  });
+
   const sync = useMutation({
     mutationFn: () => customFetch<{ updated: number }>("/api/attendance/sync", { method: "POST", headers: json, body: JSON.stringify({ period }) }),
     onSuccess: (r) => {
@@ -75,6 +103,12 @@ export function AttendanceAdmin() {
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <input type="month" value={period} onChange={(e) => e.target.value && setPeriod(e.target.value)}
             className="h-10 rounded-md border border-input bg-background px-3 text-sm font-mono" />
+          <Button className="font-mono" variant="outline" onClick={() => {
+            setBulk((b) => ({ ...b, from: b.from || `${period}-01`, to: b.to || `${period}-01` }));
+            setBulkOpen(true);
+          }}>
+            BULK ENTRY
+          </Button>
           <Button className="font-mono" variant="outline" onClick={() => sync.mutate()} disabled={sync.isPending}>
             {sync.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
             FILL TIMESHEETS
@@ -86,6 +120,7 @@ export function AttendanceAdmin() {
         {(Object.keys(STATUS_META) as DayStatus[]).map((k) => (
           <span key={k} className={`px-2 py-0.5 rounded border ${STATUS_META[k].cls}`}>{STATUS_META[k].letter} {STATUS_META[k].label}</span>
         ))}
+        <span className="px-2 py-0.5 rounded border bg-amber-500/20 text-amber-600 border-amber-500/30">Public holiday (column shaded)</span>
       </div>
 
       <div className="border border-border/50 rounded-lg overflow-auto bg-card/30 max-h-[70vh]">
@@ -94,7 +129,8 @@ export function AttendanceAdmin() {
             <tr>
               <th className="sticky left-0 z-30 bg-muted text-left px-3 py-2 font-mono min-w-[180px]">EMPLOYEE</th>
               {dayNums.map((d) => (
-                <th key={d} className={`px-1 py-1 font-mono min-w-[28px] ${weekday(period, d) === 0 ? "text-muted-foreground" : ""}`}>
+                <th key={d} title={holidays.has(dateOf(period, d)) ? "Public holiday" : undefined}
+                  className={`px-1 py-1 font-mono min-w-[28px] ${weekday(period, d) === 0 ? "text-muted-foreground" : ""} ${holidays.has(dateOf(period, d)) ? "bg-amber-500/20 text-amber-600" : ""}`}>
                   <div>{d}</div>
                   <div className="text-[9px] font-normal">{"SMTWTFS"[weekday(period, d)]}</div>
                 </th>
@@ -127,7 +163,7 @@ export function AttendanceAdmin() {
                         <button
                           onClick={() => open(e, date)}
                           title={meta ? `${meta.label}${rec ? ` · ${rec.hours}h` : ""}` : "Not recorded"}
-                          className={`w-6 h-6 rounded border font-bold ${meta ? meta.cls : "border-border/30 text-transparent hover:border-primary/50"} ${weekday(period, d) === 0 && !meta ? "bg-muted/40" : ""}`}
+                          className={`w-6 h-6 rounded border font-bold ${meta ? meta.cls : "border-border/30 text-transparent hover:border-primary/50"} ${(weekday(period, d) === 0 || holidays.has(date)) && !meta ? "bg-muted/40" : ""}`}
                         >
                           {meta ? meta.letter : "·"}
                         </button>
@@ -143,6 +179,58 @@ export function AttendanceAdmin() {
           </tbody>
         </table>
       </div>
+
+      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bulk attendance entry</DialogTitle>
+            <DialogDescription>
+              Record the same status for many people over a date range. Weekends, public holidays and days someone is on approved leave are skipped automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>From</Label><Input type="date" value={bulk.from} onChange={(e) => setBulk({ ...bulk, from: e.target.value, to: bulk.to < e.target.value ? e.target.value : bulk.to })} /></div>
+              <div className="space-y-2"><Label>To</Label><Input type="date" value={bulk.to} min={bulk.from} onChange={(e) => setBulk({ ...bulk, to: e.target.value })} /></div>
+            </div>
+            <div className="space-y-2">
+              <Label>Who</Label>
+              <Select value={bulk.dept} onValueChange={(v) => setBulk({ ...bulk, dept: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Everyone</SelectItem>
+                  {departments.map((d: any) => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={bulk.status} onValueChange={(v) => setBulk({ ...bulk, status: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(["present", "half", "absent", "off"] as DayStatus[]).map((k) => (
+                    <SelectItem key={k} value={k}>{STATUS_META[k].label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {(bulk.status === "present" || bulk.status === "half") && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Hours</Label><Input type="number" min="0" max="24" value={bulk.hours} onChange={(e) => setBulk({ ...bulk, hours: e.target.value })} /></div>
+                {overtimeOn && <div className="space-y-2"><Label>Overtime hours</Label><Input type="number" min="0" max="24" value={bulk.overtime} onChange={(e) => setBulk({ ...bulk, overtime: e.target.value })} /></div>}
+              </div>
+            )}
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" className="h-4 w-4" checked={bulk.overwrite} onChange={(e) => setBulk({ ...bulk, overwrite: e.target.checked })} />
+              Overwrite days that are already recorded
+            </label>
+            <Button className="w-full" disabled={bulkSave.isPending || !bulk.from || !bulk.to} onClick={() => bulkSave.mutate()}>
+              {bulkSave.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Record attendance
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!cell} onOpenChange={(o) => !o && setCell(null)}>
         <DialogContent>
