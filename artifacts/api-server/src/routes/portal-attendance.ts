@@ -5,7 +5,7 @@ import { db } from "@workspace/db";
 import { attendanceDays, timesheets } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
-import { periodBounds, leaveInPeriod, overtimeEnabled, upsertDay, clearDay, syncTimesheet, STATUSES } from "../lib/attendance.js";
+import { periodBounds, leaveInPeriod, overtimeEnabled, upsertDay, clearDay, syncTimesheet, holidaysInPeriod, STATUSES } from "../lib/attendance.js";
 
 const router = Router();
 
@@ -43,6 +43,7 @@ router.get("/", requireAuth("self:read"), async (req, res, next) => {
       leave: await leaveInPeriod(orgId, per.data, empId),
       overtimeEnabled: await overtimeEnabled(orgId),
       locked: !!ts?.approvedAt,
+      holidays: holidaysInPeriod(per.data),
     });
   } catch (err) { next(err); }
 });
