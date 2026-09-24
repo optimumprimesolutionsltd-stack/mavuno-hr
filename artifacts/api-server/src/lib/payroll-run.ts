@@ -1,7 +1,7 @@
 import { and, eq, ne, or, gte, inArray, isNull, sql } from "drizzle-orm";
 import {
   employees, payrollRuns, payslips, loans, loanRepayments, timesheets,
-  payAdjustments, organizations, leaveRequests,
+  payAdjustments, organizations, leaveRequests, employeeSuspensions,
 } from "@workspace/db/schema";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "@workspace/db/schema";
@@ -66,6 +66,34 @@ function payableDays(
     daysInPeriod: total,
     daysPayable: Math.max(0, Math.min(total, served) - unpaidLeaveDays),
   };
+}
+
+/**
+ * Fold unpaid-suspension days into the per-employee unpaid-day counts. Only
+ * suspensions marked unpaid count; a paid suspension (the hearing decided the
+ * employee keeps their pay) leaves the month untouched. Days are calendar
+ * days clamped to the period, matching how payableDays() counts service.
+ */
+async function addUnpaidSuspensionDays(
+  tx: Tx, orgId: number, period: string, empIds: number[], unpaidBy: Map<number, number>,
+) {
+  if (!empIds.length) return;
+  const total = daysInMonth(period);
+  const first = `${period}-01`;
+  const last = `${period}-${String(total).padStart(2, "0")}`;
+  const rows = await tx.select().from(employeeSuspensions).where(and(
+    eq(employeeSuspensions.orgId, orgId),
+    eq(employeeSuspensions.paid, false),
+    inArray(employeeSuspensions.employeeId, empIds),
+    sql`${employeeSuspensions.startDate} <= ${last}`,
+    sql`(${employeeSuspensions.endDate} IS NULL OR ${employeeSuspensions.endDate} >= ${first})`,
+  ));
+  for (const r of rows) {
+    const from = r.startDate > first ? r.startDate : first;
+    const to = r.endDate && r.endDate < last ? r.endDate : last;
+    const days = Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86_400_000) + 1;
+    if (days > 0) unpaidBy.set(r.employeeId, (unpaidBy.get(r.employeeId) ?? 0) + days);
+  }
 }
 
 export async function calculateRun(
@@ -163,6 +191,7 @@ export async function calculateRun(
   for (const l of unpaid) {
     unpaidBy.set(l.employeeId, (unpaidBy.get(l.employeeId) ?? 0) + Math.round(l.days / 10));
   }
+  await addUnpaidSuspensionDays(tx, orgId, input.period, empIds, unpaidBy);
 
   const activeLoans = await tx.select().from(loans).where(and(
     eq(loans.orgId, orgId),
@@ -343,6 +372,7 @@ export async function recalculateRun(
   for (const l of unpaid) {
     unpaidBy.set(l.employeeId, (unpaidBy.get(l.employeeId) ?? 0) + Math.round(l.days / 10));
   }
+  await addUnpaidSuspensionDays(tx, orgId, run.period, empIds, unpaidBy);
 
   const activeLoans = await tx.select().from(loans).where(and(
     eq(loans.orgId, orgId),

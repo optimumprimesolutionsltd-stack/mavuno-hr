@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { eq, and, ne, isNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { employees, users, payslips, payrollRuns, departments, leaveRequests } from "@workspace/db/schema";
+import { employees, users, payslips, payrollRuns, departments, leaveRequests, employeeSuspensions } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { HttpError } from "../lib/http-error.js";
@@ -379,6 +379,9 @@ router.post("/:id/terminate", requireAuth("employee:write"), async (req, res, ne
       .set({ status: "terminated", terminationDate, terminationReason: terminationReason ?? null })
       .where(and(eq(employees.id, id), eq(employees.orgId, p.orgId)))
       .returning();
+    // Termination supersedes a suspension: close it at the termination date.
+    await db.update(employeeSuspensions).set({ endDate: terminationDate })
+      .where(and(eq(employeeSuspensions.employeeId, id), eq(employeeSuspensions.orgId, p.orgId), isNull(employeeSuspensions.endDate)));
 
     // A repeat call on an already-terminated employee corrects the termination
     // date/reason (e.g. the exact date wasn't known at the time) rather than
@@ -416,10 +419,16 @@ router.post("/:id/reinstate", requireAuth("employee:write"), async (req, res, ne
     const [existing] = await db.select().from(employees)
       .where(and(eq(employees.id, id), eq(employees.orgId, p.orgId)));
     if (!existing) { res.status(404).json({ error: "Employee not found" }); return; }
-    if (existing.status !== "terminated") {
-      res.status(409).json({ error: "Employee is not terminated" });
+    if (existing.status !== "terminated" && existing.status !== "suspended") {
+      res.status(409).json({ error: "Employee is not terminated or suspended" });
       return;
     }
+
+    // Lifting a suspension ends it today; the record is kept so payroll for
+    // the days it covered still reflects whether they were paid.
+    const today = new Date().toISOString().slice(0, 10);
+    await db.update(employeeSuspensions).set({ endDate: today })
+      .where(and(eq(employeeSuspensions.employeeId, id), eq(employeeSuspensions.orgId, p.orgId), isNull(employeeSuspensions.endDate)));
 
     const [updated] = await db.update(employees)
       .set({ status: "active", terminationDate: null, terminationReason: null })
@@ -428,7 +437,7 @@ router.post("/:id/reinstate", requireAuth("employee:write"), async (req, res, ne
 
     await db.transaction(async (tx) => {
       await writeAudit(tx as any, {
-        orgId: p.orgId, action: "EMPLOYEE_REINSTATED", entity: "employees", entityId: id,
+        orgId: p.orgId, action: existing.status === "suspended" ? "EMPLOYEE_SUSPENSION_LIFTED" : "EMPLOYEE_REINSTATED", entity: "employees", entityId: id,
         actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
         before: { status: existing.status, terminationDate: existing.terminationDate ?? null, terminationReason: existing.terminationReason ?? null },
         after: { status: "active" },
@@ -436,6 +445,64 @@ router.post("/:id/reinstate", requireAuth("employee:write"), async (req, res, ne
     });
 
     res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// ── POST /:id/suspend — suspend with or without pay ────────────────────────
+// Whether pay continues depends on the company and on what a disciplinary
+// hearing decided, so the admin chooses per suspension. Unpaid days are
+// deducted in payroll (addUnpaidSuspensionDays); documents and history are
+// untouched. Lift it with POST /:id/reinstate.
+const suspendSchema = z.object({
+  startDate: isoDate.optional(),
+  paid: z.boolean(),
+  reason: z.string().max(500).optional(),
+});
+
+router.post("/:id/suspend", requireAuth("employee:write"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+    const parsed = suspendSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return;
+    }
+    const [existing] = await db.select().from(employees)
+      .where(and(eq(employees.id, id), eq(employees.orgId, p.orgId)));
+    if (!existing) { res.status(404).json({ error: "Employee not found" }); return; }
+    if (existing.status === "terminated") { res.status(409).json({ error: "Employee is terminated" }); return; }
+    if (existing.status === "suspended") { res.status(409).json({ error: "Employee is already suspended" }); return; }
+
+    const { paid, reason } = parsed.data;
+    const startDate = parsed.data.startDate ?? new Date().toISOString().slice(0, 10);
+
+    const updated = await db.transaction(async (tx) => {
+      await tx.insert(employeeSuspensions).values({
+        orgId: p.orgId, employeeId: id, startDate, paid, reason: reason ?? null, createdByUserId: p.userId,
+      });
+      const [row] = await tx.update(employees).set({ status: "suspended" })
+        .where(and(eq(employees.id, id), eq(employees.orgId, p.orgId))).returning();
+      await writeAudit(tx as any, {
+        orgId: p.orgId, action: "EMPLOYEE_SUSPENDED", entity: "employees", entityId: id,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        before: { status: existing.status },
+        after: { status: "suspended", startDate, paid, reason: reason ?? null },
+      });
+      return row;
+    });
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// ── GET /:id/suspensions — suspension history ──────────────────────────────
+router.get("/:id/suspensions", requireAuth("employee:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+    const rows = await db.select().from(employeeSuspensions)
+      .where(and(eq(employeeSuspensions.employeeId, id), eq(employeeSuspensions.orgId, p.orgId)))
+      .orderBy(sql`${employeeSuspensions.startDate} DESC, ${employeeSuspensions.id} DESC`);
+    res.json(rows);
   } catch (err) { next(err); }
 });
 

@@ -29,7 +29,7 @@ const EDUCATION_LEVELS: { value: string; label: string }[] = [
 ];
 
 export function EmployeeList() {
-  const { data: employees, isLoading } = useListEmployees();
+  const { data: employees, isLoading } = useListEmployees({ includeTerminated: true });
   const queryClient = useQueryClient();
   const { data: departments = [] } = useQuery<any[]>({ queryKey: ["/api/departments"], queryFn: () => customFetch("/api/departments") as Promise<any[]> });
   const [showDepartments, setShowDepartments] = useState(false);
@@ -40,6 +40,9 @@ export function EmployeeList() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/departments"] }); setDepartmentName(""); setDepartmentCode(""); },
   });
   const [search, setSearch] = useState("");
+  // Terminated and suspended people stay on file (documents included) but sit
+  // on their own tabs so the default view is the current workforce.
+  const [statusTab, setStatusTab] = useState<"active" | "suspended" | "terminated" | "all">("active");
   const [filterRegion, setFilterRegion] = useState<string>("");
   const [filterEducation, setFilterEducation] = useState<string>("");
   const [onboarding, setOnboarding] = useState(false);
@@ -54,7 +57,22 @@ export function EmployeeList() {
     return Array.from(seen).sort();
   }, [employees]);
 
+  const statusCounts = useMemo(() => {
+    const c = { active: 0, suspended: 0, terminated: 0, all: 0 };
+    (employees ?? []).forEach(r => {
+      c.all++;
+      if (r.employee.status === "terminated") c.terminated++;
+      else if (r.employee.status === "suspended") c.suspended++;
+      else c.active++;
+    });
+    return c;
+  }, [employees]);
+
   const filtered = useMemo(() => (employees ?? []).filter(r => {
+    const st = r.employee.status;
+    if (statusTab === "active" && (st === "terminated" || st === "suspended")) return false;
+    if (statusTab === "suspended" && st !== "suspended") return false;
+    if (statusTab === "terminated" && st !== "terminated") return false;
     const q = search.toLowerCase();
     if (q && !(
       fullName(r.employee).toLowerCase().includes(q) ||
@@ -65,7 +83,7 @@ export function EmployeeList() {
     if (filterRegion && r.employee.region !== filterRegion) return false;
     if (filterEducation && r.employee.educationLevel !== filterEducation) return false;
     return true;
-  }), [employees, search, filterRegion, filterEducation]);
+  }), [employees, search, filterRegion, filterEducation, statusTab]);
 
   const hasActiveFilters = !!filterRegion || !!filterEducation;
 
@@ -107,7 +125,7 @@ export function EmployeeList() {
                 onSelect={() => {
                   if (!employees) return;
                   const today = new Date().toISOString().slice(0, 10);
-                  downloadEmployeesXlsx(employees as any[], `employees_active_${today}.xlsx`);
+                  downloadEmployeesXlsx((employees as any[]).filter(r => r.employee.status !== "terminated"), `employees_active_${today}.xlsx`);
                 }}
               >
                 Export Active
@@ -139,6 +157,22 @@ export function EmployeeList() {
             ONBOARD EMPLOYEE
           </Button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {([
+          ["active", "Active"], ["suspended", "Suspended"], ["terminated", "Terminated"], ["all", "All"],
+        ] as const).map(([key, label]) => (
+          <Button
+            key={key}
+            size="sm"
+            variant={statusTab === key ? "default" : "outline"}
+            className="font-mono text-xs"
+            onClick={() => setStatusTab(key)}
+          >
+            {label.toUpperCase()} ({statusCounts[key]})
+          </Button>
+        ))}
       </div>
 
       <div className="flex flex-col gap-3 bg-card/50 p-4 rounded-lg border border-border/50">
@@ -283,7 +317,7 @@ export function EmployeeList() {
                     <div className="text-xs text-muted-foreground">{row.department?.name || 'No Dept'}</div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={row.employee.status === 'active' ? 'default' : 'secondary'} className="font-mono text-[10px] py-0">
+                    <Badge variant={row.employee.status === 'active' ? 'default' : row.employee.status === 'terminated' ? 'destructive' : 'secondary'} className="font-mono text-[10px] py-0">
                       {row.employee.status.toUpperCase()}
                     </Badge>
                   </TableCell>

@@ -336,6 +336,21 @@ export interface EmployeeDocument {
   uploadedAt: string;
 }
 
+export interface SuspendEmployeeRequest {
+  startDate?: string;
+  paid: boolean;
+  reason?: string;
+}
+
+export interface EmployeeSuspension {
+  id: number;
+  employeeId: number;
+  startDate: string;
+  endDate?: string | null;
+  paid: boolean;
+  reason?: string | null;
+}
+
 export type EmployeeTotalsTotals = {
   nssfEmployee?: number;
   nssfEmployer?: number;
@@ -970,6 +985,10 @@ export interface PortalProfile {
   payslips?: PortalProfilePayslipsItem[];
   leaveBalance?: number;
 }
+
+export type ListEmployeesParams = {
+includeTerminated?: boolean;
+};
 
 export type ListTimesheetsParams = {
 /**

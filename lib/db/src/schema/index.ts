@@ -211,6 +211,23 @@ export const employeeDocuments = pgTable("employee_documents", {
   index("emp_docs_org_emp_cat_idx").on(t.orgId, t.employeeId, t.category),
 ]);
 
+// A suspension is a period, not just a status: it has a start, an end once
+// lifted, and whether the employee is paid through it -- which depends on the
+// company and on what a disciplinary hearing decided, so the admin chooses per
+// suspension. Kept as history so payroll for a past month can still see that
+// part of it was unpaid after the employee has been restored.
+export const employeeSuspensions = pgTable("employee_suspensions", {
+  id: serial("id").primaryKey(),
+  orgId: integer("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  employeeId: integer("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date"),
+  paid: boolean("paid").notNull().default(true),
+  reason: text("reason"),
+  createdByUserId: integer("created_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [index("emp_susp_org_emp_idx").on(t.orgId, t.employeeId)]);
+
 export const timesheets = pgTable("timesheets", {
   id: serial("id").primaryKey(),
   orgId: integer("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),

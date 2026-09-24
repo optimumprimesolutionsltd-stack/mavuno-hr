@@ -119,6 +119,12 @@ paths:
       operationId: listEmployees
       tags: [employees]
       summary: List employees
+      parameters:
+        - name: includeTerminated
+          in: query
+          required: false
+          schema:
+            type: boolean
       responses:
         "200":
           description: Employee list
@@ -253,7 +259,7 @@ paths:
     post:
       operationId: reinstateEmployee
       tags: [employees]
-      summary: Bring a terminated employee back to active
+      summary: Restore a terminated or suspended employee to active
       parameters:
         - name: id
           in: path
@@ -267,6 +273,52 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Employee"
+
+  /employees/{id}/suspend:
+    post:
+      operationId: suspendEmployee
+      tags: [employees]
+      summary: Suspend an employee, with or without pay
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuspendEmployeeRequest"
+      responses:
+        "200":
+          description: Suspended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+
+  /employees/{id}/suspensions:
+    get:
+      operationId: listEmployeeSuspensions
+      tags: [employees]
+      summary: Suspension history for an employee
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Suspensions, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EmployeeSuspension"
 
   /employees/{id}/documents:
     get:
@@ -1465,6 +1517,36 @@ components:
           type: ["integer", "null"]
         uploadedAt:
           type: string
+
+    SuspendEmployeeRequest:
+      type: object
+      required: [paid]
+      properties:
+        startDate:
+          type: string
+        paid:
+          type: boolean
+        reason:
+          type: string
+
+    EmployeeSuspension:
+      type: object
+      required: [id, employeeId, startDate, paid]
+      properties:
+        id:
+          type: integer
+        employeeId:
+          type: integer
+        startDate:
+          type: string
+        endDate:
+          type: string
+          nullable: true
+        paid:
+          type: boolean
+        reason:
+          type: string
+          nullable: true
 
     EmployeeTotals:
       type: object
