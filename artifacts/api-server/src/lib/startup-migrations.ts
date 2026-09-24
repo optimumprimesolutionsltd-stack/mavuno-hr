@@ -864,6 +864,10 @@ async function addOrgLoanConfig(): Promise<void> {
   await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS loan_config JSONB`);
 }
 
+async function addDepartmentMaxOffAtOnce(): Promise<void> {
+  await db.execute(sql`ALTER TABLE departments ADD COLUMN IF NOT EXISTS max_off_at_once INTEGER`);
+}
+
 async function createEmployeeSuspensionsTable(): Promise<void> {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS employee_suspensions (
@@ -1040,6 +1044,7 @@ export async function runStartupMigrations(): Promise<void> {
     ["addTimesheetRejectionAndOvertimeSetting", addTimesheetRejectionAndOvertimeSetting],
     ["createAttendanceDaysTable", createAttendanceDaysTable],
     ["addOrgLoanConfig", addOrgLoanConfig],
+    ["addDepartmentMaxOffAtOnce", addDepartmentMaxOffAtOnce],
   ];
 
   for (const [name, run] of steps) {
