@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Loader2, CalendarDays, CalendarCheck, CalendarX } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { EditLeaveDialog } from "../../admin/leave/edit-leave-dialog";
 
 const ALL_LEAVE_TYPES = [
   { value: "annual",        label: "ANNUAL LEAVE" },
@@ -40,6 +41,7 @@ export function PortalLeave() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editLeave, setEditLeave] = useState<any | null>(null);
 
   const [type, setType] = useState<any>("annual");
   const [startDate, setStartDate] = useState("");
@@ -72,6 +74,12 @@ export function PortalLeave() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
+      <EditLeaveDialog
+        leave={editLeave}
+        url={editLeave ? `/api/portal/leave/${editLeave.id}` : null}
+        onClose={() => setEditLeave(null)}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: getListPortalLeaveQueryKey() })}
+      />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight font-mono">MY LEAVE</h1>
@@ -197,6 +205,11 @@ export function PortalLeave() {
                     <Badge variant={row.status === 'pending' ? 'outline' : row.status === 'approved' ? 'default' : 'destructive'} className="font-mono text-[10px]">
                       {row.status.toUpperCase()}
                     </Badge>
+                    {row.status === 'pending' && (
+                      <Button size="sm" variant="ghost" className="h-6 ml-2 px-2 font-mono text-[10px]" onClick={() => setEditLeave(row)}>
+                        EDIT
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

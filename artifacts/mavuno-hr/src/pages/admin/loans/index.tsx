@@ -15,6 +15,7 @@ import { EditLoanRequestDialog } from "./edit-request-dialog";
 import { ApproveLoanDialog } from "./approve-dialog";
 import { RequestLoanForDialog } from "./request-for-dialog";
 import { LoanMonthlySchedule } from "./monthly-schedule";
+import { LoansByMonth } from "./by-month";
 
 export function LoansAdmin() {
   const [issuingLoan, setIssuingLoan] = useState(false);
@@ -79,8 +80,9 @@ export function LoansAdmin() {
       />
 
       <Tabs defaultValue="active" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2 mb-6 bg-card border border-border/50 p-1">
+        <TabsList className="grid w-full max-w-lg grid-cols-3 mb-6 bg-card border border-border/50 p-1">
           <TabsTrigger value="active" className="font-mono text-xs">ACTIVE LOANS</TabsTrigger>
+          <TabsTrigger value="bymonth" className="font-mono text-xs">BY MONTH</TabsTrigger>
           <TabsTrigger value="requests" className="font-mono text-xs flex items-center gap-2">
             REQUESTS
             {pendingRequests.length > 0 && (
@@ -196,6 +198,10 @@ export function LoansAdmin() {
         </TabsContent>
 
         {/* ── Loan Requests ── */}
+        <TabsContent value="bymonth" className="mt-0">
+          <LoansByMonth loans={(loans as any[]) ?? []} />
+        </TabsContent>
+
         <TabsContent value="requests" className="mt-0">
           <Card className="border-border/50 bg-card/30">
             <CardHeader className="py-4 border-b border-border/30">

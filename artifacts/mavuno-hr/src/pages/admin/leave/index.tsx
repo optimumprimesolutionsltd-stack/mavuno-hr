@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RequestLeaveForDialog } from "./request-for-dialog";
+import { EditLeaveDialog } from "./edit-leave-dialog";
 
 const BADGE_COLORS = [
   "bg-emerald-500/20 text-emerald-400",
@@ -198,6 +199,7 @@ export function LeaveAdmin() {
   const [search, setSearch] = useState("");
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [requestLeaveOpen, setRequestLeaveOpen] = useState(false);
+  const [editLeave, setEditLeave] = useState<any | null>(null);
 
   const handleDecision = (id: number, action: 'approve' | 'reject') => {
     decideLeave.mutate(
@@ -264,6 +266,13 @@ export function LeaveAdmin() {
       </div>
 
       <RequestLeaveForDialog open={requestLeaveOpen} onOpenChange={setRequestLeaveOpen} />
+
+      <EditLeaveDialog
+        leave={editLeave}
+        url={editLeave ? `/api/leaves/${editLeave.id}/edit` : null}
+        onClose={() => setEditLeave(null)}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: getListLeavesQueryKey() })}
+      />
 
       <Tabs defaultValue="requests">
         <TabsList className="font-mono">
@@ -347,6 +356,9 @@ export function LeaveAdmin() {
                         <TableCell className="text-right">
                           {row.leave.status === 'pending' ? (
                             <div className="flex justify-end gap-2">
+                              <Button size="sm" variant="outline" className="h-8 font-mono text-xs" onClick={() => setEditLeave(row.leave)}>
+                                EDIT
+                              </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
