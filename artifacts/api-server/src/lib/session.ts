@@ -61,11 +61,6 @@ export async function createSession(
   ip: string | null,
   userAgent: string | null,
 ): Promise<string> {
-  // One account, one live session: signing in ends any other session for this
-  // user, so two people cannot use the same login at the same time. The newest
-  // sign-in wins and the earlier browser is asked to log in again.
-  await revokeAllUserSessions(userId);
-
   const raw = randomBytes(32).toString("base64url");
   await db.insert(sessions).values({
     id: tokenHash(raw),
