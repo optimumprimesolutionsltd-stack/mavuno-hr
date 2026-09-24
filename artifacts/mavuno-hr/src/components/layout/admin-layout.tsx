@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useLogout, customFetch } from "@workspace/api-client-react";
 import { useClerk } from "@clerk/react";
 import { clearToken } from "@/lib/session";
+import { NewSettingsBanner } from "./new-settings-banner";
 import {
   Building2,
   Users,
@@ -465,6 +466,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <div className="pt-14 lg:pt-0">
           <AccessBanner />
         </div>
+        <NewSettingsBanner />
         <div className="flex-1 p-4 sm:p-6 lg:p-8 pt-4 lg:pt-8 overflow-y-auto">
           {children}
         </div>

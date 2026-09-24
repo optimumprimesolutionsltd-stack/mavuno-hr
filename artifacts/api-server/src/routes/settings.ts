@@ -85,6 +85,7 @@ router.get("/", requireAuth("org:admin"), async (req, res, next) => {
         autoEmailPayslipsOnPay: org.autoEmailPayslipsOnPay,
         overtimeEnabled: org.overtimeEnabled,
         loanConfig: normalizeLoanConfig(org.loanConfig),
+        settingsReviewed: !!org.settingsReviewedAt,
       },
       activeConfig: cfg,
       tier2Provider: cfg?.socialSecurity?.tier2Provider ?? "nssf",
@@ -107,6 +108,7 @@ const updateOrgSchema = z.object({
   autoEmailPayslipsOnPay: z.boolean().optional(),
   overtimeEnabled: z.boolean().optional(),
   loanConfig: loanConfigSchema.optional(),
+  settingsReviewed: z.literal(true).optional(),
 });
 
 router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
@@ -134,6 +136,10 @@ router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
     if (body.autoEmailPayslipsOnPay !== undefined) updates.autoEmailPayslipsOnPay = body.autoEmailPayslipsOnPay;
     if (body.overtimeEnabled !== undefined) updates.overtimeEnabled = body.overtimeEnabled;
     if (body.loanConfig !== undefined) updates.loanConfig = body.loanConfig;
+    // Saving either setting, or choosing to keep the defaults, counts as reviewed.
+    if (body.settingsReviewed || body.loanConfig !== undefined || body.overtimeEnabled !== undefined) {
+      updates.settingsReviewedAt = new Date();
+    }
 
     if (body.payrollStartPeriod !== undefined) {
       const next = body.payrollStartPeriod ?? null;

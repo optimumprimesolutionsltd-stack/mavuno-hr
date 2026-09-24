@@ -44,6 +44,10 @@ export const organizations = pgTable("organizations", {
      each: { company: { enabled, maxMonths }, ... }. null = all four offered,
      up to 60 months (how every company behaved before this setting). */
   loanConfig: jsonb("loan_config"),
+  /* When an admin last confirmed the overtime and loan settings (saved them or
+     chose to keep the defaults). null = the "review your new settings" banner
+     keeps showing. New companies answer at signup, so it is set then. */
+  settingsReviewedAt: timestamp("settings_reviewed_at"),
   trialEndsAt: timestamp("trial_ends_at"),
   /* Hard access cut-off. NULL = unlimited (no expiry) — every org created
      before this column existed stays unlimited until someone sets a date.
