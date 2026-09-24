@@ -32,6 +32,7 @@ interface OrgSettings {
     payrollStartPeriod: string | null;
     overtimeEnabled?: boolean;
     loanConfig?: LoanConfig;
+    settingsReviewed?: boolean;
   };
   activeConfig: {
     name: string;
@@ -117,6 +118,12 @@ export function AdminSettings() {
     },
   });
 
+  // Arriving from the "new settings" banner: scroll to the loans section.
+  useEffect(() => {
+    if (!data) return;
+    const id = window.location.hash.replace("#", "");
+    if (id) setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+  }, [!!data]);
   const [loanCfg, setLoanCfg] = useState<LoanConfig>(DEFAULT_LOAN_CONFIG);
   useEffect(() => {
     if (data?.org?.loanConfig) setLoanCfg(data.org.loanConfig);
@@ -321,7 +328,7 @@ export function AdminSettings() {
       </Card>
 
       {/* ── Loans ── */}
-      <Card className="border-border/50 shadow-sm bg-card/30">
+      <Card id="loans" className="border-border/50 shadow-sm bg-card/30 scroll-mt-6">
         <CardHeader className="pb-4">
           <CardTitle className="font-mono text-base">LOANS &amp; ADVANCES</CardTitle>
           <CardDescription>
@@ -330,6 +337,11 @@ export function AdminSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {data.org.settingsReviewed === false && (
+            <p className="text-xs text-primary bg-primary/5 border border-primary/30 rounded p-2">
+              You have not chosen yet, so the defaults apply: all four loan types, up to 60 months. Save to confirm your choice.
+            </p>
+          )}
           <LoanConfigEditor value={loanCfg} onChange={setLoanCfg} />
           <div className="flex justify-end">
             <Button onClick={() => saveLoanCfg.mutate()} disabled={saveLoanCfg.isPending} className="font-mono gap-1.5">
@@ -341,7 +353,7 @@ export function AdminSettings() {
       </Card>
 
       {/* ── Overtime ── */}
-      <Card className="border-border/50 shadow-sm bg-card/30">
+      <Card id="overtime" className="border-border/50 shadow-sm bg-card/30 scroll-mt-6">
         <CardHeader className="pb-4">
           <CardTitle className="font-mono text-base">OVERTIME</CardTitle>
           <CardDescription>

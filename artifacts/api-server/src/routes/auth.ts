@@ -397,6 +397,7 @@ router.post("/register", async (req, res, next) => {
         status: "active",
         overtimeEnabled,
         ...(loanConfig ? { loanConfig } : {}),
+        settingsReviewedAt: new Date(),
         // Mavuno is this company's payroll system of record from signup. The
         // onboarding step can move it earlier if they migrated mid-year.
         payrollStartPeriod: new Date().toISOString().slice(0, 7),
