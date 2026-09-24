@@ -80,6 +80,7 @@ export function Register() {
     new URLSearchParams(window.location.search).get("next") === "billing";
   const { toast } = useToast();
   const [step, setStep] = useState<1 | 2>(1);
+  const [overtimeEnabled, setOvertimeEnabled] = useState(true);
   const [step1Data, setStep1Data] = useState<Step1 | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -131,6 +132,7 @@ export function Register() {
           adminName:    values.adminName,
           adminEmail:   values.adminEmail,
           password:     values.password,
+          overtimeEnabled,
         }),
       });
       const data = await res.json();
@@ -361,6 +363,21 @@ export function Register() {
                       <FormMessage />
                     </FormItem>
                   )} />
+
+                  <label className="flex items-start gap-3 rounded-md border border-border/50 bg-background/30 p-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4"
+                      checked={overtimeEnabled}
+                      onChange={(e) => setOvertimeEnabled(e.target.checked)}
+                    />
+                    <span className="text-sm">
+                      <span className="font-medium">We pay overtime</span>
+                      <span className="block text-xs text-muted-foreground">
+                        Untick if your company does not pay overtime. The overtime field is then hidden from timesheets. You can change this later in Settings.
+                      </span>
+                    </span>
+                  </label>
 
                   <div className="flex gap-2 mt-2">
                     <Button

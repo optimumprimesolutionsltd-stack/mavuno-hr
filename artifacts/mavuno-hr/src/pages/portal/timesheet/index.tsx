@@ -35,6 +35,11 @@ export function PortalTimesheet() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const { data: features } = useQuery({
+    queryKey: ["portal", "features"],
+    queryFn: () => customFetch<{ overtimeEnabled: boolean }>("/api/portal/features"),
+  });
+  const overtimeOn = features?.overtimeEnabled !== false;
   const employee = (profile as any)?.employee;
   const isCasual = employee?.employmentType === "casual";
 
@@ -96,7 +101,7 @@ export function PortalTimesheet() {
   const handleSubmit = () => {
     const payload: Record<string, number | string> = {
       period,
-      overtimeHours: Number(overtimeHours) || 0,
+      overtimeHours: overtimeOn ? Number(overtimeHours) || 0 : 0,
       holidayHours: Number(holidayHours) || 0,
     };
     if (isCasual) {
@@ -142,6 +147,15 @@ export function PortalTimesheet() {
             </div>
           </div>
 
+          {existing?.rejectedAt && !existing?.approvedAt && (
+            <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-md p-3">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>
+                HR sent this timesheet back{existing.rejectionNote ? `: "${existing.rejectionNote}"` : "."} Please correct it and resubmit.
+              </span>
+            </div>
+          )}
+
           {/* Approved warning */}
           {existing?.approvedAt && (
             <div className="flex items-center gap-2 text-sm text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-md p-3">
@@ -186,7 +200,7 @@ export function PortalTimesheet() {
                 </div>
               </>
             )}
-            <div className="space-y-2">
+            {overtimeOn && <div className="space-y-2">
               <Label htmlFor="overtimeHours" className="font-mono text-xs text-muted-foreground tracking-widest">
                 OVERTIME HOURS
               </Label>
@@ -200,7 +214,7 @@ export function PortalTimesheet() {
                 onChange={(e) => setOvertimeHours(e.target.value)}
                 disabled={!!existing?.approvedAt}
               />
-            </div>
+            </div>}
             <div className="space-y-2">
               <Label htmlFor="holidayHours" className="font-mono text-xs text-muted-foreground tracking-widest">
                 HOLIDAY HOURS
@@ -245,7 +259,7 @@ export function PortalTimesheet() {
                     <TableHead className="font-mono text-xs text-right">NORMAL HRS</TableHead>
                   </>
                 )}
-                <TableHead className="font-mono text-xs text-right">OVERTIME HRS</TableHead>
+                {overtimeOn && <TableHead className="font-mono text-xs text-right">OVERTIME HRS</TableHead>}
                 <TableHead className="font-mono text-xs text-right">HOLIDAY HRS</TableHead>
                 <TableHead className="font-mono text-xs text-right">STATUS</TableHead>
               </TableRow>
@@ -273,13 +287,17 @@ export function PortalTimesheet() {
                         <TableCell className="text-right font-mono text-sm">{ts.normalHours ?? 0}h</TableCell>
                       </>
                     )}
-                    <TableCell className="text-right font-mono text-sm">{ts.overtimeHours ?? 0}h</TableCell>
+                    {overtimeOn && <TableCell className="text-right font-mono text-sm">{ts.overtimeHours ?? 0}h</TableCell>}
                     <TableCell className="text-right font-mono text-sm">{ts.holidayHours ?? 0}h</TableCell>
                     <TableCell className="text-right">
                       {ts.approvedAt ? (
                         <Badge className="font-mono text-[10px] bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                           <CheckCircle className="h-3 w-3 mr-1" />
                           APPROVED
+                        </Badge>
+                      ) : ts.rejectedAt ? (
+                        <Badge variant="destructive" className="font-mono text-[10px]">
+                          REJECTED
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="font-mono text-[10px]">

@@ -37,6 +37,9 @@ export const organizations = pgTable("organizations", {
   autoGeneratePayoutOnPay: boolean("auto_generate_payout_on_pay").notNull().default(false),
   /* When a run is paid, also email each employee their payslip. */
   autoEmailPayslipsOnPay: boolean("auto_email_payslips_on_pay").notNull().default(false),
+  /* Whether the company pays overtime at all. false hides the overtime field
+     from timesheets and payroll ignores any overtime hours. */
+  overtimeEnabled: boolean("overtime_enabled").notNull().default(true),
   trialEndsAt: timestamp("trial_ends_at"),
   /* Hard access cut-off. NULL = unlimited (no expiry) — every org created
      before this column existed stays unlimited until someone sets a date.
@@ -239,6 +242,8 @@ export const timesheets = pgTable("timesheets", {
   holidayHours: integer("holiday_hours").notNull().default(0),
   approvedBy: integer("approved_by"),
   approvedAt: timestamp("approved_at"),
+  rejectedAt: timestamp("rejected_at"),
+  rejectionNote: text("rejection_note"),
 }, (t) => [uniqueIndex("ts_org_emp_period_uq").on(t.orgId, t.employeeId, t.period)]);
 
 export const payAdjustments = pgTable("pay_adjustments", {

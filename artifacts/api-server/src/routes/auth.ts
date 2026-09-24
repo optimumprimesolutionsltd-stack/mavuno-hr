@@ -355,6 +355,7 @@ const registerSchema = z.object({
   adminName:    z.string().min(2).max(120),
   adminEmail:   z.string().email().max(255),
   password:     z.string().min(7).max(200),
+  overtimeEnabled: z.boolean().default(true),
 });
 
 router.post("/register", async (req, res, next) => {
@@ -364,7 +365,7 @@ router.post("/register", async (req, res, next) => {
       res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() });
       return;
     }
-    const { companyName, slug, countryCode, currencyCode, kraPin, adminName, adminEmail, password } = parsed.data;
+    const { companyName, slug, countryCode, currencyCode, kraPin, adminName, adminEmail, password, overtimeEnabled } = parsed.data;
 
     // Slug uniqueness
     const [existing] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.slug, slug));
@@ -392,6 +393,7 @@ router.post("/register", async (req, res, next) => {
         plan: "trial",
         seatLimit: 25,
         status: "active",
+        overtimeEnabled,
         // Mavuno is this company's payroll system of record from signup. The
         // onboarding step can move it earlier if they migrated mid-year.
         payrollStartPeriod: new Date().toISOString().slice(0, 7),
