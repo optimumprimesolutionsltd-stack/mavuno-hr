@@ -33,6 +33,7 @@ interface OrgSettings {
     overtimeEnabled?: boolean;
     loanConfig?: LoanConfig;
     settingsReviewed?: boolean;
+    saturdayIsWorkday?: boolean;
   };
   activeConfig: {
     name: string;
@@ -139,6 +140,22 @@ export function AdminSettings() {
       toast({ title: "Saved", description: "Loan settings updated." });
       qc.invalidateQueries({ queryKey: ["admin-settings"] });
       qc.invalidateQueries({ queryKey: ["loan-config"] });
+    },
+    onError: (e: any) => {
+      toast({ variant: "destructive", title: "Save failed", description: e?.data?.error ?? e?.message });
+    },
+  });
+
+  const toggleSaturday = useMutation({
+    mutationFn: (saturdayIsWorkday: boolean) =>
+      customFetch("/api/settings/org", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ saturdayIsWorkday }),
+      }),
+    onSuccess: () => {
+      toast({ title: "Saved", description: "Working week updated." });
+      qc.invalidateQueries({ queryKey: ["admin-settings"] });
     },
     onError: (e: any) => {
       toast({ variant: "destructive", title: "Save failed", description: e?.data?.error ?? e?.message });
@@ -324,6 +341,31 @@ export function AdminSettings() {
               SAVE PROFILE
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Working week ── */}
+      <Card id="working-week" className="border-border/50 shadow-sm bg-card/30 scroll-mt-6">
+        <CardHeader className="pb-4">
+          <CardTitle className="font-mono text-base">WORKING WEEK</CardTitle>
+          <CardDescription>
+            Turn this on if your company works Saturdays. Saturday is then counted as a normal working day for
+            everyone: annual leave and other leave spanning a Saturday use it, and attendance bulk entry
+            includes it. This overrides the working-days setting on each employee's profile. Sundays and
+            public holidays are still excluded. Leave requests already submitted keep their days until edited.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={!!data.org.saturdayIsWorkday}
+              disabled={toggleSaturday.isPending}
+              onChange={(e) => toggleSaturday.mutate(e.target.checked)}
+            />
+            <span className="text-sm">Saturday is a working day</span>
+          </label>
         </CardContent>
       </Card>
 

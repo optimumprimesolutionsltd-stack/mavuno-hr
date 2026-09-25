@@ -86,6 +86,7 @@ router.get("/", requireAuth("org:admin"), async (req, res, next) => {
         overtimeEnabled: org.overtimeEnabled,
         loanConfig: normalizeLoanConfig(org.loanConfig),
         settingsReviewed: !!org.settingsReviewedAt,
+        saturdayIsWorkday: org.saturdayIsWorkday,
       },
       activeConfig: cfg,
       tier2Provider: cfg?.socialSecurity?.tier2Provider ?? "nssf",
@@ -109,6 +110,7 @@ const updateOrgSchema = z.object({
   overtimeEnabled: z.boolean().optional(),
   loanConfig: loanConfigSchema.optional(),
   settingsReviewed: z.literal(true).optional(),
+  saturdayIsWorkday: z.boolean().optional(),
 });
 
 router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
@@ -136,6 +138,7 @@ router.patch("/org", requireAuth("org:admin"), async (req, res, next) => {
     if (body.autoEmailPayslipsOnPay !== undefined) updates.autoEmailPayslipsOnPay = body.autoEmailPayslipsOnPay;
     if (body.overtimeEnabled !== undefined) updates.overtimeEnabled = body.overtimeEnabled;
     if (body.loanConfig !== undefined) updates.loanConfig = body.loanConfig;
+    if (body.saturdayIsWorkday !== undefined) updates.saturdayIsWorkday = body.saturdayIsWorkday;
     // Saving either setting, or choosing to keep the defaults, counts as reviewed.
     if (body.settingsReviewed || body.loanConfig !== undefined || body.overtimeEnabled !== undefined) {
       updates.settingsReviewedAt = new Date();

@@ -2,7 +2,7 @@ import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { attendanceDays, timesheets, leaveRequests, organizations, employees } from "@workspace/db/schema";
 import { HttpError } from "./http-error.js";
-import { kenyaHolidays } from "./leave-days.js";
+import { kenyaHolidays, effectiveWorkDays } from "./leave-days.js";
 
 export const STATUSES = ["present", "absent", "half", "off"] as const;
 
@@ -143,6 +143,7 @@ export async function bulkFill(orgId: number, o: {
     lte(leaveRequests.startDate, o.to), gte(leaveRequests.endDate, o.from),
   ));
 
+  const satWork = (await effectiveWorkDays(orgId, 5)) === 6;
   const ot = (await overtimeEnabled(orgId)) ? o.overtimeHours : 0;
   const worked = o.status === "present" || o.status === "half";
   const rows: (typeof attendanceDays.$inferInsert)[] = [];
@@ -150,7 +151,7 @@ export async function bulkFill(orgId: number, o: {
   for (const s of staff) {
     for (const d of dates) {
       const dow = new Date(`${d}T00:00:00Z`).getUTCDay();
-      const nonWorking = dow === 0 || (dow === 6 && s.wd === 5) || holidays.has(d);
+      const nonWorking = dow === 0 || (dow === 6 && s.wd === 5 && !satWork) || holidays.has(d);
       const onLeave = leave.some((l) => l.employeeId === s.id && l.startDate <= d && l.endDate >= d);
       // Marking a day "off" is allowed on non-working days; work statuses are not.
       if ((nonWorking && o.status !== "off") || onLeave) { skipped++; continue; }

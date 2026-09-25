@@ -8,7 +8,7 @@ import { HttpError } from "../lib/http-error.js";
 import { computeLoanFringeBenefitTax } from "../lib/payroll.js";
 import { resolveConfig } from "../lib/statutory-resolve.js";
 import { fullName } from "../lib/employee-name.js";
-import { countLeaveDays } from "../lib/leave-days.js";
+import { countLeaveDays, effectiveWorkDays } from "../lib/leave-days.js";
 import { getLoanConfig, assertLoanAllowed } from "../lib/loan-config.js";
 
 const router = Router();
@@ -137,7 +137,7 @@ router.post("/leave", requireAuth("self:request"), async (req, res, next) => {
       leaveBalance: employees.leaveBalance,
     }).from(employees).where(and(eq(employees.id, empId), eq(employees.orgId, p.orgId)));
 
-    const workDaysPerWeek = emp?.workDaysPerWeek ?? 5;
+    const workDaysPerWeek = await effectiveWorkDays(p.orgId, emp?.workDaysPerWeek);
     const worksOnHolidays = emp?.worksOnHolidays ?? false;
     const days = countLeaveDays(parsed.data.startDate, parsed.data.endDate, workDaysPerWeek, worksOnHolidays);
 
@@ -206,7 +206,7 @@ router.patch("/leave/:id", requireAuth("self:request"), async (req, res, next) =
       leaveBalance: employees.leaveBalance,
     }).from(employees).where(and(eq(employees.id, empId), eq(employees.orgId, p.orgId)));
 
-    const days = countLeaveDays(parsed.data.startDate, parsed.data.endDate, emp?.workDaysPerWeek ?? 5, emp?.worksOnHolidays ?? false);
+    const days = countLeaveDays(parsed.data.startDate, parsed.data.endDate, await effectiveWorkDays(p.orgId, emp?.workDaysPerWeek), emp?.worksOnHolidays ?? false);
     const type = parsed.data.type ?? leave.type;
 
     if (type === "annual") {
