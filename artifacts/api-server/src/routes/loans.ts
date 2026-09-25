@@ -172,6 +172,11 @@ router.patch("/:id/type", requireAuth("loan:review"), async (req, res, next) => 
       .where(and(eq(loans.id, id), eq(loans.orgId, p.orgId)));
     if (!existing) { res.status(404).json({ error: "Loan not found" }); return; }
     if (existing.type === parsed.data.type) { res.json(existing); return; }
+    // A loan may keep its current type even if the company stopped offering it,
+    // but cannot be relabelled into a type the company does not offer.
+    if (!(await getLoanConfig(p.orgId))[parsed.data.type].enabled) {
+      throw new HttpError(422, "Your company does not offer that loan type. Turn it on in Settings first.", "LOAN_TYPE_DISABLED");
+    }
 
     const [updated] = await db.update(loans)
       .set({ type: parsed.data.type })

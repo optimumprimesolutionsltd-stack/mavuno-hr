@@ -16,6 +16,7 @@ import { ApproveLoanDialog } from "./approve-dialog";
 import { RequestLoanForDialog } from "./request-for-dialog";
 import { LoanMonthlySchedule } from "./monthly-schedule";
 import { LoansByMonth } from "./by-month";
+import { useLoanTypes, LOAN_TYPE_OPTIONS } from "@/lib/loan-config";
 
 export function LoansAdmin() {
   const [issuingLoan, setIssuingLoan] = useState(false);
@@ -25,6 +26,7 @@ export function LoansAdmin() {
   const [expandedLoanId, setExpandedLoanId] = useState<number | null>(null);
 
   const { data: loans, isLoading: isLoadingLoans } = useListLoans();
+  const offered = useLoanTypes("admin");
   const { data: requests, isLoading: isLoadingRequests } = useListLoanRequests();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -140,10 +142,12 @@ export function LoansAdmin() {
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="company">Company</SelectItem>
-                                  <SelectItem value="sacco">Sacco</SelectItem>
-                                  <SelectItem value="advance">Advance</SelectItem>
-                                  <SelectItem value="emergency">Emergency</SelectItem>
+                                  {/* Offered types, plus this loan's own type even if switched off */}
+                                  {LOAN_TYPE_OPTIONS
+                                    .filter((t) => t.value === row.loan.type || offered.types.some((o) => o.value === t.value))
+                                    .map((t) => (
+                                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                                    ))}
                                 </SelectContent>
                               </Select>
                             </TableCell>
