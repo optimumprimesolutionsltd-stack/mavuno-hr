@@ -6,7 +6,7 @@ import { leaveRequests, employees } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { can } from "../lib/rbac.js";
-import { countLeaveDays } from "../lib/leave-days.js";
+import { countLeaveDays, effectiveWorkDays } from "../lib/leave-days.js";
 import { HttpError } from "../lib/http-error.js";
 import { fullName } from "../lib/employee-name.js";
 
@@ -166,7 +166,7 @@ router.post("/", requireAuth("leave:admin"), async (req, res, next) => {
       .where(and(eq(employees.id, empId), eq(employees.orgId, p.orgId)));
     if (!emp) { res.status(404).json({ error: "Employee not found" }); return; }
 
-    const days = countLeaveDays(parsed.data.startDate, parsed.data.endDate, emp.workDaysPerWeek ?? 5, emp.worksOnHolidays ?? false) * 10;
+    const days = countLeaveDays(parsed.data.startDate, parsed.data.endDate, await effectiveWorkDays(p.orgId, emp.workDaysPerWeek), emp.worksOnHolidays ?? false) * 10;
 
     // Annual leave balance check
     if (parsed.data.type === "annual") {
@@ -247,7 +247,7 @@ router.patch("/:id/edit", requireAuth("leave:admin"), async (req, res, next) => 
 
     const [emp] = await db.select().from(employees)
       .where(and(eq(employees.id, leave.employeeId), eq(employees.orgId, p.orgId)));
-    const days = countLeaveDays(parsed.data.startDate, parsed.data.endDate, emp?.workDaysPerWeek ?? 5, emp?.worksOnHolidays ?? false) * 10;
+    const days = countLeaveDays(parsed.data.startDate, parsed.data.endDate, await effectiveWorkDays(p.orgId, emp?.workDaysPerWeek), emp?.worksOnHolidays ?? false) * 10;
 
     const [updated] = await db.update(leaveRequests).set({
       type: parsed.data.type, startDate: parsed.data.startDate, endDate: parsed.data.endDate,

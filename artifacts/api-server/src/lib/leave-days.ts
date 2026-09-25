@@ -1,3 +1,6 @@
+import { eq } from "drizzle-orm";
+import { db } from "@workspace/db";
+import { organizations } from "@workspace/db/schema";
 /** Kenyan public holidays and leave-day counting against an employee's work schedule. */
 export function kenyaHolidays(year: number): Set<string> {
   const fixed = [
@@ -52,3 +55,13 @@ export function countLeaveDays(
   return days;
 }
 
+
+/**
+ * The working days per week to count against: 6 for every employee when the
+ * company has switched Saturday on as a working day, otherwise the employee's
+ * own setting.
+ */
+export async function effectiveWorkDays(orgId: number, employeeWorkDays: number | null | undefined): Promise<number> {
+  const [org] = await db.select({ sat: organizations.saturdayIsWorkday }).from(organizations).where(eq(organizations.id, orgId));
+  return org?.sat ? 6 : (employeeWorkDays ?? 5);
+}

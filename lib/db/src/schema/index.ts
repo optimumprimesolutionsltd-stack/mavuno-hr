@@ -48,6 +48,10 @@ export const organizations = pgTable("organizations", {
      chose to keep the defaults). null = the "review your new settings" banner
      keeps showing. New companies answer at signup, so it is set then. */
   settingsReviewedAt: timestamp("settings_reviewed_at"),
+  /* Saturday is a working day for every employee (leave is counted over a
+     6-day week and attendance treats Saturday as a normal day), overriding the
+     per-employee working-days setting. false = each employee's own setting. */
+  saturdayIsWorkday: boolean("saturday_is_workday").notNull().default(false),
   trialEndsAt: timestamp("trial_ends_at"),
   /* Hard access cut-off. NULL = unlimited (no expiry) — every org created
      before this column existed stays unlimited until someone sets a date.
