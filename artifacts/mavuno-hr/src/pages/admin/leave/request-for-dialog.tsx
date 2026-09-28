@@ -45,7 +45,8 @@ const DEFAULTS = {
   reason: "",
 };
 
-function businessDays(startDate: string, endDate: string) {
+// Preview only; the server's count (which also skips public holidays) is what is saved.
+function businessDays(startDate: string, endDate: string, workDaysPerWeek: number) {
   if (!startDate || !endDate || endDate < startDate) return 0;
 
   const start = new Date(`${startDate}T00:00:00`);
@@ -55,7 +56,7 @@ function businessDays(startDate: string, endDate: string) {
 
   while (current <= end) {
     const day = current.getDay();
-    if (day !== 0 && day !== 6) days += 1;
+    if (day !== 0 && !(day === 6 && workDaysPerWeek !== 6)) days += 1;
     current.setDate(current.getDate() + 1);
   }
 
@@ -70,7 +71,8 @@ export function RequestLeaveForDialog({ open, onOpenChange }: Props) {
   const [form, setForm] = useState(DEFAULTS);
 
   const activeEmployees = employees?.filter((row) => row.employee.status === "active") ?? [];
-  const requestedDays = businessDays(form.startDate, form.endDate);
+  const selected = activeEmployees.find((row) => String(row.employee.id) === form.employeeId)?.employee;
+  const requestedDays = businessDays(form.startDate, form.endDate, selected?.workDaysPerWeek ?? 5);
 
   function set<K extends keyof typeof DEFAULTS>(key: K, value: (typeof DEFAULTS)[K]) {
     setForm((current) => ({ ...current, [key]: value }));

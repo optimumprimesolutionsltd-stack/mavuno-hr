@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { eq, and, ne, isNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { employees, users, payslips, payrollRuns, departments, leaveRequests, employeeSuspensions } from "@workspace/db/schema";
+import { employees, users, payslips, payrollRuns, departments, leaveRequests, employeeSuspensions, organizations } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { HttpError } from "../lib/http-error.js";
@@ -52,7 +52,8 @@ const employeeBaseSchema = z.object({
   mortgageInterest: moneyString.default("0"),
   helbMonthly: moneyString.default("0"),
   saccoMonthly: moneyString.default("0"),
-  workDaysPerWeek: z.enum(["5", "6"]).default("5").transform(Number),
+  // Omitted (e.g. spreadsheet import) = the company's default working week.
+  workDaysPerWeek: z.enum(["5", "6"]).transform(Number).optional(),
   worksOnHolidays: z.boolean().default(false),
   hireDate: isoDate,
   leaveBalance: z.number().int().min(0).max(3650).optional(),
@@ -77,7 +78,7 @@ const employeeBaseSchema = z.object({
   emergencyContactPhone: z.string().max(20).optional(),
 });
 
-function toRow(body: z.infer<typeof employeeBaseSchema>) {
+function toRow(body: z.infer<typeof employeeBaseSchema>, defaultWorkDays: number) {
   return {
     firstName: body.firstName, middleName: body.middleName ?? null, lastName: body.lastName, email: body.email.toLowerCase(),
     phone: body.phone ?? null, gender: body.gender, nationalId: body.nationalId ?? null,
@@ -89,7 +90,7 @@ function toRow(body: z.infer<typeof employeeBaseSchema>) {
     position: body.position, employmentType: body.employmentType,
     residentStatus: body.residentStatus, disabilityExemption: body.disabilityExemption,
     salaryBasis: body.salaryBasis,
-    workDaysPerWeek: body.workDaysPerWeek ?? 5,
+    workDaysPerWeek: body.workDaysPerWeek ?? defaultWorkDays,
     worksOnHolidays: body.worksOnHolidays ?? false,
     basicSalary: toCents(body.basicSalary),
     houseAllowance: toCents(body.houseAllowance ?? "0"),
@@ -119,6 +120,12 @@ function toRow(body: z.infer<typeof employeeBaseSchema>) {
     emergencyContactRelationship: body.emergencyContactRelationship ?? null,
     emergencyContactPhone: body.emergencyContactPhone ?? null,
   };
+}
+
+async function orgDefaultWorkDays(orgId: number): Promise<number> {
+  const [org] = await db.select({ wd: organizations.defaultWorkDaysPerWeek })
+    .from(organizations).where(eq(organizations.id, orgId));
+  return org?.wd ?? 5;
 }
 
 // Generate next employee number
@@ -168,7 +175,7 @@ router.post("/", requireAuth("employee:write"), async (req, res, next) => {
 
     const empNo = await nextEmpNo(p.orgId);
     const [emp] = await db.insert(employees).values({
-      orgId: p.orgId, empNo, ...toRow(parsed.data),
+      orgId: p.orgId, empNo, ...toRow(parsed.data, await orgDefaultWorkDays(p.orgId)),
     }).returning();
 
     await db.transaction(async (tx) => {
@@ -180,6 +187,46 @@ router.post("/", requireAuth("employee:write"), async (req, res, next) => {
     });
 
     res.status(201).json(emp);
+  } catch (err) { next(err); }
+});
+
+// GET /api/employees/onboarding-defaults -- what the onboarding form pre-fills.
+// Lives here, not in /api/settings, because HR onboards without org:admin.
+router.get("/onboarding-defaults", requireAuth("employee:write"), async (req, res, next) => {
+  try {
+    res.json({ workDaysPerWeek: await orgDefaultWorkDays((req as AuthRequest).principal.orgId) });
+  } catch (err) { next(err); }
+});
+
+// POST /api/employees/work-days -- set Mon–Fri or Mon–Sat for everyone
+// (not terminated) in one department. Leave already requested keeps its days.
+router.post("/work-days", requireAuth("employee:write"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const parsed = z.object({
+      departmentId: z.number().int().positive(),
+      workDaysPerWeek: z.union([z.literal(5), z.literal(6)]),
+    }).safeParse(req.body);
+    if (!parsed.success) { res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return; }
+    const { departmentId, workDaysPerWeek } = parsed.data;
+
+    const [dept] = await db.select({ id: departments.id, name: departments.name }).from(departments)
+      .where(and(eq(departments.id, departmentId), eq(departments.orgId, p.orgId)));
+    if (!dept) { res.status(404).json({ error: "Department not found" }); return; }
+
+    const updated = await db.transaction(async (tx) => {
+      const rows = await tx.update(employees).set({ workDaysPerWeek })
+        .where(and(eq(employees.orgId, p.orgId), eq(employees.departmentId, departmentId), ne(employees.status, "terminated")))
+        .returning({ id: employees.id });
+      await writeAudit(tx as any, {
+        orgId: p.orgId, action: "DEPARTMENT_WORK_DAYS_SET", entity: "departments", entityId: dept.id,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        after: { department: dept.name, workDaysPerWeek, employees: rows.length },
+      });
+      return rows.length;
+    });
+
+    res.json({ updated });
   } catch (err) { next(err); }
 });
 
@@ -576,6 +623,7 @@ router.post("/bulk", requireAuth("employee:write"), async (req, res, next) => {
 
     // Insert valid rows inside a transaction, generating empNo for each
     const inserted: string[] = [];
+    const defaultWorkDays = await orgDefaultWorkDays(p.orgId);
     await db.transaction(async (tx) => {
       for (const row of validRows) {
         const [countRow] = await tx.select({ count: sql<number>`count(*)` })
@@ -583,7 +631,7 @@ router.post("/bulk", requireAuth("employee:write"), async (req, res, next) => {
         const n = Number(countRow?.count ?? 0) + 1;
         const empNo = `EMP${String(n).padStart(4, "0")}`;
         const [emp] = await tx.insert(employees).values({
-          orgId: p.orgId, empNo, ...toRow(row),
+          orgId: p.orgId, empNo, ...toRow(row, defaultWorkDays),
         }).returning({ empNo: employees.empNo });
         inserted.push(emp.empNo);
       }

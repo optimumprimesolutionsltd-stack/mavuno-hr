@@ -876,6 +876,26 @@ async function addOrgSaturdayIsWorkday(): Promise<void> {
   await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS saturday_is_workday BOOLEAN NOT NULL DEFAULT FALSE`);
 }
 
+/*
+ * PR #103 made saturday_is_workday override every employee's own working
+ * days. It is now only a default for new hires, so an org that switched it on
+ * gets the behaviour it had frozen into the data: default 6, every employee 6.
+ * One statement, so it is atomic; it clears the flag, so re-running on the
+ * next boot matches nothing and later per-employee edits are never undone.
+ */
+async function convertOrgSaturdayOverride(): Promise<void> {
+  await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS default_work_days_per_week INTEGER NOT NULL DEFAULT 5`);
+  await db.execute(sql`
+    WITH converted AS (
+      UPDATE organizations SET saturday_is_workday = FALSE, default_work_days_per_week = 6
+      WHERE saturday_is_workday = TRUE
+      RETURNING id
+    )
+    UPDATE employees SET work_days_per_week = 6
+    WHERE org_id IN (SELECT id FROM converted)
+  `);
+}
+
 async function createEmployeeSuspensionsTable(): Promise<void> {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS employee_suspensions (
@@ -1055,6 +1075,7 @@ export async function runStartupMigrations(): Promise<void> {
     ["addDepartmentMaxOffAtOnce", addDepartmentMaxOffAtOnce],
     ["addOrgSettingsReviewedAt", addOrgSettingsReviewedAt],
     ["addOrgSaturdayIsWorkday", addOrgSaturdayIsWorkday],
+    ["convertOrgSaturdayOverride", convertOrgSaturdayOverride],
   ];
 
   for (const [name, run] of steps) {

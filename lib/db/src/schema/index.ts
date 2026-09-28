@@ -48,10 +48,16 @@ export const organizations = pgTable("organizations", {
      chose to keep the defaults). null = the "review your new settings" banner
      keeps showing. New companies answer at signup, so it is set then. */
   settingsReviewedAt: timestamp("settings_reviewed_at"),
-  /* Saturday is a working day for every employee (leave is counted over a
-     6-day week and attendance treats Saturday as a normal day), overriding the
-     per-employee working-days setting. false = each employee's own setting. */
+  /* RETIRED — always false. Briefly (PR #103) this forced Saturday on as a
+     working day for every employee. It is converted at startup into
+     defaultWorkDaysPerWeek = 6 plus each employee set to 6 (see
+     convertOrgSaturdayOverride); nothing reads it any more. */
   saturdayIsWorkday: boolean("saturday_is_workday").notNull().default(false),
+  /* Working days pre-filled for new employees (5 = Mon–Fri, 6 = Mon–Sat).
+     Only a default: leave and attendance always use each employee's own
+     workDaysPerWeek, so a department that works Saturdays can sit alongside
+     one that does not. */
+  defaultWorkDaysPerWeek: integer("default_work_days_per_week").notNull().default(5),
   trialEndsAt: timestamp("trial_ends_at"),
   /* Hard access cut-off. NULL = unlimited (no expiry) — every org created
      before this column existed stays unlimited until someone sets a date.
