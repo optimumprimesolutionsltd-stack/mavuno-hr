@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DangerZone, ExportData } from "./danger-zone";
 import {
   Building2, Save, Loader2, ShieldCheck, Settings2, RefreshCw, CheckCircle2, History,
@@ -649,34 +650,74 @@ export function AdminSettings() {
   );
 }
 
-/** Set Mon – Fri or Mon – Sat for everyone currently in one department. */
+const weekLabel = (d: number) => (d === 6 ? "Mon – Sat" : "Mon – Fri");
+
+type WorkDaysPreview = {
+  total: number;
+  changing: { id: number; empNo: string; name: string; workDaysPerWeek: number }[];
+};
+
+/**
+ * Set Mon – Fri or Mon – Sat for people in one department. Applying first
+ * shows who would change, each ticked, so anyone deliberately set up
+ * differently can be unticked and keep their own working week.
+ */
 function DepartmentWorkDays() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [deptId, setDeptId] = useState("");
   const [days, setDays] = useState("6");
+  const [preview, setPreview] = useState<WorkDaysPreview | null>(null);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const { data: departments = [] } = useQuery<{ id: number; name: string }[]>({
     queryKey: ["/api/departments"],
     queryFn: () => customFetch("/api/departments") as Promise<{ id: number; name: string }[]>,
   });
-  const apply = useMutation({
-    mutationFn: () =>
-      customFetch("/api/employees/work-days", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ departmentId: Number(deptId), workDaysPerWeek: Number(days) }),
-      }) as Promise<{ updated: number }>,
+  const deptName = departments.find((d) => String(d.id) === deptId)?.name ?? "the department";
+  const target = Number(days);
+
+  const post = (extra: object) =>
+    customFetch("/api/employees/work-days", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ departmentId: Number(deptId), workDaysPerWeek: target, ...extra }),
+    });
+  const onError = (e: any) =>
+    toast({ variant: "destructive", title: "Save failed", description: e?.data?.error ?? e?.message });
+
+  const check = useMutation({
+    mutationFn: () => post({ dryRun: true }) as Promise<WorkDaysPreview>,
     onSuccess: (r) => {
-      const dept = departments.find((d) => String(d.id) === deptId)?.name ?? "the department";
-      toast({ title: "Saved", description: `${r.updated} employee${r.updated === 1 ? "" : "s"} in ${dept} now work ${days === "6" ? "Mon – Sat" : "Mon – Fri"}.` });
+      if (r.changing.length === 0) {
+        toast({ title: "Nothing to change", description: r.total === 0
+          ? `${deptName} has no active employees.`
+          : `Everyone in ${deptName} already works ${weekLabel(target)}.` });
+        return;
+      }
+      setSelected(new Set(r.changing.map((e) => e.id)));
+      setPreview(r);
+    },
+    onError,
+  });
+
+  const apply = useMutation({
+    mutationFn: () => post({ employeeIds: [...selected] }) as Promise<{ updated: number }>,
+    onSuccess: (r) => {
+      toast({ title: "Saved", description: `${r.updated} employee${r.updated === 1 ? "" : "s"} in ${deptName} now work ${weekLabel(target)}.` });
       qc.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
+      setPreview(null);
     },
-    onError: (e: any) => {
-      toast({ variant: "destructive", title: "Save failed", description: e?.data?.error ?? e?.message });
-    },
+    onError,
+  });
+
+  const toggle = (id: number) => setSelected((cur) => {
+    const next = new Set(cur);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
   });
 
   if (departments.length === 0) return null;
+  const kept = preview ? preview.changing.length - selected.size : 0;
   return (
     <div className="space-y-1.5 pt-4 border-t border-border/40">
       <Label className="text-xs font-mono text-muted-foreground">APPLY TO A WHOLE DEPARTMENT</Label>
@@ -694,11 +735,50 @@ function DepartmentWorkDays() {
             <SelectItem value="6">6 days (Mon – Sat)</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" className="font-mono" disabled={!deptId || apply.isPending} onClick={() => apply.mutate()}>
-          {apply.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}APPLY
+        <Button variant="outline" className="font-mono" disabled={!deptId || check.isPending} onClick={() => check.mutate()}>
+          {check.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}APPLY
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">Updates everyone in the department today. People who join it later still get the default above unless changed.</p>
+      <p className="text-xs text-muted-foreground">
+        You will see who changes before anything is saved, and can leave out anyone set up differently on purpose.
+        People who join the department later get the default above unless changed.
+      </p>
+
+      <Dialog open={!!preview} onOpenChange={(o) => { if (!o) setPreview(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-mono text-base">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              {preview?.changing.length} of {preview?.total} in {deptName} will change
+            </DialogTitle>
+            <DialogDescription>
+              These people are not on {weekLabel(target)} today. Untick anyone who should keep their own working
+              week, for example someone in {deptName} who works a different schedule.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-72 overflow-y-auto divide-y divide-border/50 border border-border/50 rounded">
+            {preview?.changing.map((e) => (
+              <label key={e.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer text-sm">
+                <input type="checkbox" className="h-4 w-4" checked={selected.has(e.id)} onChange={() => toggle(e.id)} />
+                <span className="flex-1 min-w-0 truncate">{e.name} <span className="text-muted-foreground font-mono text-xs">{e.empNo}</span></span>
+                <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">
+                  {weekLabel(e.workDaysPerWeek)} → {selected.has(e.id) ? weekLabel(target) : "keeps"}
+                </span>
+              </label>
+            ))}
+          </div>
+          {kept > 0 && (
+            <p className="text-xs text-muted-foreground">{kept} unticked {kept === 1 ? "person keeps their" : "people keep their"} current working week.</p>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPreview(null)}>Cancel</Button>
+            <Button className="font-mono" disabled={selected.size === 0 || apply.isPending} onClick={() => apply.mutate()}>
+              {apply.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
+              CHANGE {selected.size} TO {weekLabel(target).toUpperCase()}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
