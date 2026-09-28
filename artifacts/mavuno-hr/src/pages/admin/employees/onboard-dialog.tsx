@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 import { useCreateEmployee, useListEmployees } from "@workspace/api-client-react";
@@ -120,6 +120,17 @@ export function OnboardDialog({ open, onOpenChange }: Props) {
     queryKey: ["/api/departments"],
     queryFn: () => customFetch("/api/departments") as Promise<any[]>,
   });
+  // The company's default working week (Settings → Working week) pre-fills the
+  // form each time it opens; the person onboarding can still change it.
+  const { data: onboardingDefaults } = useQuery<{ workDaysPerWeek: number }>({
+    queryKey: ["/api/employees/onboarding-defaults"],
+    queryFn: () => customFetch("/api/employees/onboarding-defaults") as Promise<{ workDaysPerWeek: number }>,
+    enabled: open,
+  });
+  const defaultWorkDays = String(onboardingDefaults?.workDaysPerWeek ?? 5);
+  useEffect(() => {
+    if (open) setForm(f => ({ ...f, workDaysPerWeek: defaultWorkDays }));
+  }, [open, defaultWorkDays]);
 
   const set = (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [field]: e.target.value }));

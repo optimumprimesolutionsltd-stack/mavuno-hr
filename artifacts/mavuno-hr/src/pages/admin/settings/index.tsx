@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { LoanConfigEditor } from "@/components/loan-config-editor";
 import { DEFAULT_LOAN_CONFIG, type LoanConfig } from "@/lib/loan-config";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { customFetch } from "@workspace/api-client-react";
+import { customFetch, getListEmployeesQueryKey } from "@workspace/api-client-react";
 import { formatMoney } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DangerZone, ExportData } from "./danger-zone";
 import {
   Building2, Save, Loader2, ShieldCheck, Settings2, RefreshCw, CheckCircle2, History,
@@ -33,7 +34,7 @@ interface OrgSettings {
     overtimeEnabled?: boolean;
     loanConfig?: LoanConfig;
     settingsReviewed?: boolean;
-    saturdayIsWorkday?: boolean;
+    defaultWorkDaysPerWeek?: number;
   };
   activeConfig: {
     name: string;
@@ -146,15 +147,15 @@ export function AdminSettings() {
     },
   });
 
-  const toggleSaturday = useMutation({
-    mutationFn: (saturdayIsWorkday: boolean) =>
+  const saveDefaultWorkDays = useMutation({
+    mutationFn: (defaultWorkDaysPerWeek: number) =>
       customFetch("/api/settings/org", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ saturdayIsWorkday }),
+        body: JSON.stringify({ defaultWorkDaysPerWeek }),
       }),
     onSuccess: () => {
-      toast({ title: "Saved", description: "Working week updated." });
+      toast({ title: "Saved", description: "Default working week updated." });
       qc.invalidateQueries({ queryKey: ["admin-settings"] });
     },
     onError: (e: any) => {
@@ -349,23 +350,28 @@ export function AdminSettings() {
         <CardHeader className="pb-4">
           <CardTitle className="font-mono text-base">WORKING WEEK</CardTitle>
           <CardDescription>
-            Turn this on if your company works Saturdays. Saturday is then counted as a normal working day for
-            everyone: annual leave and other leave spanning a Saturday use it, and attendance bulk entry
-            includes it. This overrides the working-days setting on each employee's profile. Sundays and
-            public holidays are still excluded. Leave requests already submitted keep their days until edited.
+            Each employee has their own working week, chosen when they are onboarded. Someone on Mon – Fri
+            does not use leave on a Saturday; someone on Mon – Sat does. Sundays and public holidays are never
+            counted. Leave requests already submitted keep their days until edited.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              className="h-4 w-4"
-              checked={!!data.org.saturdayIsWorkday}
-              disabled={toggleSaturday.isPending}
-              onChange={(e) => toggleSaturday.mutate(e.target.checked)}
-            />
-            <span className="text-sm">Saturday is a working day</span>
-          </label>
+        <CardContent className="space-y-5">
+          <div className="space-y-1.5 max-w-xs">
+            <Label className="text-xs font-mono text-muted-foreground">DEFAULT FOR NEW EMPLOYEES</Label>
+            <Select
+              value={String(data.org.defaultWorkDaysPerWeek ?? 5)}
+              disabled={saveDefaultWorkDays.isPending}
+              onValueChange={(v) => saveDefaultWorkDays.mutate(Number(v))}
+            >
+              <SelectTrigger className="bg-background/50"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5 days (Mon – Fri)</SelectItem>
+                <SelectItem value="6">6 days (Mon – Sat)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Pre-filled on the onboarding form and used for spreadsheet imports. It can be changed per employee.</p>
+          </div>
+          <DepartmentWorkDays />
         </CardContent>
       </Card>
 
@@ -639,6 +645,60 @@ export function AdminSettings() {
       <ExportData />
 
         <DangerZone orgName={data?.org?.name ?? orgName} />
+    </div>
+  );
+}
+
+/** Set Mon – Fri or Mon – Sat for everyone currently in one department. */
+function DepartmentWorkDays() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [deptId, setDeptId] = useState("");
+  const [days, setDays] = useState("6");
+  const { data: departments = [] } = useQuery<{ id: number; name: string }[]>({
+    queryKey: ["/api/departments"],
+    queryFn: () => customFetch("/api/departments") as Promise<{ id: number; name: string }[]>,
+  });
+  const apply = useMutation({
+    mutationFn: () =>
+      customFetch("/api/employees/work-days", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ departmentId: Number(deptId), workDaysPerWeek: Number(days) }),
+      }) as Promise<{ updated: number }>,
+    onSuccess: (r) => {
+      const dept = departments.find((d) => String(d.id) === deptId)?.name ?? "the department";
+      toast({ title: "Saved", description: `${r.updated} employee${r.updated === 1 ? "" : "s"} in ${dept} now work ${days === "6" ? "Mon – Sat" : "Mon – Fri"}.` });
+      qc.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
+    },
+    onError: (e: any) => {
+      toast({ variant: "destructive", title: "Save failed", description: e?.data?.error ?? e?.message });
+    },
+  });
+
+  if (departments.length === 0) return null;
+  return (
+    <div className="space-y-1.5 pt-4 border-t border-border/40">
+      <Label className="text-xs font-mono text-muted-foreground">APPLY TO A WHOLE DEPARTMENT</Label>
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={deptId} onValueChange={setDeptId}>
+          <SelectTrigger className="bg-background/50 w-56"><SelectValue placeholder="Choose department" /></SelectTrigger>
+          <SelectContent>
+            {departments.map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={days} onValueChange={setDays}>
+          <SelectTrigger className="bg-background/50 w-48"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="5">5 days (Mon – Fri)</SelectItem>
+            <SelectItem value="6">6 days (Mon – Sat)</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button variant="outline" className="font-mono" disabled={!deptId || apply.isPending} onClick={() => apply.mutate()}>
+          {apply.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}APPLY
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">Updates everyone in the department today. People who join it later still get the default above unless changed.</p>
     </div>
   );
 }
