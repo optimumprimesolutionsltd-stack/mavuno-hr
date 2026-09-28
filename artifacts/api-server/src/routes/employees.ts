@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { eq, and, ne, isNull, sql, type SQL } from "drizzle-orm";
+import { eq, and, ne, isNull, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { employees, users, payslips, payrollRuns, departments, leaveRequests, employeeSuspensions, organizations } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
@@ -198,30 +198,49 @@ router.get("/onboarding-defaults", requireAuth("employee:write"), async (req, re
   } catch (err) { next(err); }
 });
 
-// POST /api/employees/work-days -- set Mon–Fri or Mon–Sat for everyone
-// (not terminated) in one department. Leave already requested keeps its days.
+// POST /api/employees/work-days -- set Mon–Fri or Mon–Sat for people (not
+// terminated) in one department. Leave already requested keeps its days.
+//   dryRun: true   -> change nothing; list who WOULD change, so the admin can
+//                     see anyone set up differently before overwriting them.
+//   employeeIds    -> only these people (must be in the department); the
+//                     admin unticked the exceptions they want to keep.
 router.post("/work-days", requireAuth("employee:write"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
     const parsed = z.object({
       departmentId: z.number().int().positive(),
       workDaysPerWeek: z.union([z.literal(5), z.literal(6)]),
+      dryRun: z.boolean().optional(),
+      employeeIds: z.array(z.number().int().positive()).max(2000).optional(),
     }).safeParse(req.body);
     if (!parsed.success) { res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return; }
-    const { departmentId, workDaysPerWeek } = parsed.data;
+    const { departmentId, workDaysPerWeek, dryRun, employeeIds } = parsed.data;
 
     const [dept] = await db.select({ id: departments.id, name: departments.name }).from(departments)
       .where(and(eq(departments.id, departmentId), eq(departments.orgId, p.orgId)));
     if (!dept) { res.status(404).json({ error: "Department not found" }); return; }
 
+    const inDept = and(eq(employees.orgId, p.orgId), eq(employees.departmentId, departmentId), ne(employees.status, "terminated"));
+
+    if (dryRun) {
+      const staff = await db.select({
+        id: employees.id, empNo: employees.empNo, firstName: employees.firstName,
+        middleName: employees.middleName, lastName: employees.lastName, workDaysPerWeek: employees.workDaysPerWeek,
+      }).from(employees).where(inDept);
+      const changing = staff.filter((e) => e.workDaysPerWeek !== workDaysPerWeek)
+        .map((e) => ({ id: e.id, empNo: e.empNo, name: fullName(e), workDaysPerWeek: e.workDaysPerWeek }));
+      res.json({ total: staff.length, changing });
+      return;
+    }
+
     const updated = await db.transaction(async (tx) => {
       const rows = await tx.update(employees).set({ workDaysPerWeek })
-        .where(and(eq(employees.orgId, p.orgId), eq(employees.departmentId, departmentId), ne(employees.status, "terminated")))
+        .where(employeeIds ? and(inDept, inArray(employees.id, employeeIds.length ? employeeIds : [-1])) : inDept)
         .returning({ id: employees.id });
       await writeAudit(tx as any, {
         orgId: p.orgId, action: "DEPARTMENT_WORK_DAYS_SET", entity: "departments", entityId: dept.id,
         actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
-        after: { department: dept.name, workDaysPerWeek, employees: rows.length },
+        after: { department: dept.name, workDaysPerWeek, employees: rows.length, employeeIds: rows.map((r) => r.id) },
       });
       return rows.length;
     });
