@@ -192,3 +192,19 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground)); 
 }
+
+/* Dropdown lists (Select). Radix hides the scrollbar on purpose and relies on
+   small up/down arrows, so a long list (e.g. picking an employee) gives no
+   hint that there is more below. Show a thin, always-visible scrollbar. */
+[data-radix-select-viewport] {
+  scrollbar-width: thin !important;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.7) transparent !important;
+}
+[data-radix-select-viewport]::-webkit-scrollbar {
+  display: block !important;
+  width: 8px;
+}
+[data-radix-select-viewport]::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.7);
+  border-radius: 4px;
+}
