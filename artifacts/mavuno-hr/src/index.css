@@ -185,12 +185,21 @@
 ::-webkit-scrollbar-track {
   background: hsl(var(--background)); 
 }
+/* The thumb used to be --muted, barely lighter than the background, so tables
+   and long dialogs looked like they ended when they did not. */
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted)); 
+  background: hsl(var(--muted-foreground) / 0.45);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground)); 
+  background: hsl(var(--muted-foreground) / 0.8);
+}
+/* Firefox has no ::-webkit-scrollbar; give it the same visible thumb. */
+@supports not selector(::-webkit-scrollbar) {
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.45) transparent;
+  }
 }
 
 /* Dropdown lists (Select). Radix hides the scrollbar on purpose and relies on
