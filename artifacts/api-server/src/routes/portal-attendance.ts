@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { and, eq, gte, lte } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { attendanceDays, timesheets } from "@workspace/db/schema";
+import { attendanceDays, timesheets, employees } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest } from "../middlewares/require-auth.js";
 import { HttpError } from "../lib/http-error.js";
 import { periodBounds, leaveInPeriod, overtimeEnabled, upsertDay, clearDay, syncTimesheet, holidaysInPeriod, STATUSES } from "../lib/attendance.js";
@@ -38,8 +38,12 @@ router.get("/", requireAuth("self:read"), async (req, res, next) => {
     const [ts] = await db.select().from(timesheets).where(and(
       eq(timesheets.orgId, orgId), eq(timesheets.employeeId, empId), eq(timesheets.period, per.data),
     ));
+    const [emp] = await db.select({ wd: employees.workDaysPerWeek }).from(employees)
+      .where(and(eq(employees.id, empId), eq(employees.orgId, orgId)));
     res.json({
       days,
+      // So the calendar can shade this person's own days off (Saturday for Mon – Fri staff).
+      workDaysPerWeek: emp?.wd ?? 5,
       leave: await leaveInPeriod(orgId, per.data, empId),
       overtimeEnabled: await overtimeEnabled(orgId),
       locked: !!ts?.approvedAt,
