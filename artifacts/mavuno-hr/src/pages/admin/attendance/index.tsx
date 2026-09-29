@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { fullName } from "@/lib/utils";
 import { Calendar, Loader2, Send } from "lucide-react";
-import { STATUS_META, daysInPeriod, dateOf, weekday, onLeave, type DayStatus } from "@/lib/attendance-ui";
+import { STATUS_META, daysInPeriod, dateOf, weekday, onLeave, isRestDay, weekLabel, type DayStatus } from "@/lib/attendance-ui";
 
 const json = { "Content-Type": "application/json" };
 
@@ -149,7 +149,7 @@ export function AttendanceAdmin() {
                 <tr key={e.id} className="border-t border-border/30">
                   <td className="sticky left-0 z-10 bg-card px-3 py-1.5">
                     <div className="font-medium">{fullName(e)}</div>
-                    <div className="text-[10px] text-muted-foreground font-mono">{e.empNo}{e.departmentName ? ` · ${e.departmentName}` : ""}</div>
+                    <div className="text-[10px] text-muted-foreground font-mono">{e.empNo}{e.departmentName ? ` · ${e.departmentName}` : ""} · {weekLabel(e.workDaysPerWeek)}</div>
                   </td>
                   {dayNums.map((d) => {
                     const date = dateOf(period, d);
@@ -158,12 +158,13 @@ export function AttendanceAdmin() {
                     if (rec) { hrs += rec.hours; ot += rec.overtimeHours; if (rec.status === "present" || rec.status === "half") worked++; }
                     const st: DayStatus | null = rec?.status ?? (isLeave ? "leave" : null);
                     const meta = st ? STATUS_META[st] : null;
+                    const rest = isRestDay(period, d, e.workDaysPerWeek);
                     return (
                       <td key={d} className="p-0.5">
                         <button
                           onClick={() => open(e, date)}
-                          title={meta ? `${meta.label}${rec ? ` · ${rec.hours}h` : ""}` : "Not recorded"}
-                          className={`w-6 h-6 rounded border font-bold ${meta ? meta.cls : "border-border/30 text-transparent hover:border-primary/50"} ${(weekday(period, d) === 0 || holidays.has(date)) && !meta ? "bg-muted/40" : ""}`}
+                          title={meta ? `${meta.label}${rec ? ` · ${rec.hours}h` : ""}` : rest ? `Day off (works ${weekLabel(e.workDaysPerWeek)})` : "Not recorded"}
+                          className={`w-6 h-6 rounded border font-bold ${meta ? meta.cls : "border-border/30 text-transparent hover:border-primary/50"} ${(rest || holidays.has(date)) && !meta ? "bg-muted/40" : ""}`}
                         >
                           {meta ? meta.letter : "·"}
                         </button>

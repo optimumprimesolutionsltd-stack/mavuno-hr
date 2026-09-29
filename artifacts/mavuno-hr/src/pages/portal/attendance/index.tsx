@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ChevronLeft, ChevronRight, Loader2, Send } from "lucide-react";
-import { STATUS_META, daysInPeriod, dateOf, weekday, onLeave, type DayStatus } from "@/lib/attendance-ui";
+import { STATUS_META, daysInPeriod, dateOf, weekday, onLeave, isRestDay, type DayStatus } from "@/lib/attendance-ui";
 
 const json = { "Content-Type": "application/json" };
 const WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -111,7 +111,7 @@ export function PortalAttendance() {
                   key={date}
                   disabled={locked || isLeave}
                   onClick={() => open(date)}
-                  className={`aspect-square rounded-md border text-xs flex flex-col items-center justify-center transition-colors ${meta ? meta.cls : "border-border/40 hover:border-primary/50"} ${weekday(period, day) === 0 ? "opacity-60" : ""} ${holidays.has(date) && !meta ? "bg-amber-500/10 border-amber-500/30" : ""}`}
+                  className={`aspect-square rounded-md border text-xs flex flex-col items-center justify-center transition-colors ${meta ? meta.cls : "border-border/40 hover:border-primary/50"} ${isRestDay(period, day, data?.workDaysPerWeek) ? "opacity-60" : ""} ${holidays.has(date) && !meta ? "bg-amber-500/10 border-amber-500/30" : ""}`}
                   title={holidays.has(date) ? "Public holiday" : undefined}
                 >
                   <span className="font-mono">{day}</span>

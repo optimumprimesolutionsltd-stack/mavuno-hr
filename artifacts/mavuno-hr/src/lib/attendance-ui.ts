@@ -23,6 +23,18 @@ export function weekday(period: string, day: number): number {
   return new Date(y, m - 1, day).getDay();
 }
 
+/**
+ * Not a working day for this employee: every Sunday, and Saturday unless they
+ * work Mon – Sat. Mirrors the server (bulkFill and countLeaveDays).
+ */
+export function isRestDay(period: string, day: number, workDaysPerWeek: number | null | undefined): boolean {
+  const dow = weekday(period, day);
+  return dow === 0 || (dow === 6 && (workDaysPerWeek ?? 5) !== 6);
+}
+
+export const weekLabel = (workDaysPerWeek: number | null | undefined) =>
+  (workDaysPerWeek ?? 5) === 6 ? "Mon – Sat" : "Mon – Fri";
+
 export type LeaveSpan = { employeeId: number; type: string; startDate: string; endDate: string };
 
 export function onLeave(leave: LeaveSpan[], employeeId: number, date: string): boolean {
