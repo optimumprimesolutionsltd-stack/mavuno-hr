@@ -232,7 +232,11 @@ router.patch("/:id/cancel", requireAuth("leave:admin"), async (req, res, next) =
   } catch (err) { next(err); }
 });
 
-// ── PATCH /:id/edit — correct dates of a still-pending request ─────────────
+// ── PATCH /:id/edit — correct the type or dates of a pending or approved request ──
+// Approved leave can be corrected too (e.g. entered as annual when it was sick
+// leave). It stays approved. The annual balance needs no adjustment: it is
+// always computed from approved annual rows. Payroll only reads "unpaid"
+// leave, and only when a run is created or recalculated; paid runs never change.
 router.patch("/:id/edit", requireAuth("leave:admin"), async (req, res, next) => {
   try {
     const p = (req as AuthRequest).principal;
@@ -243,23 +247,55 @@ router.patch("/:id/edit", requireAuth("leave:admin"), async (req, res, next) => 
     const [leave] = await db.select().from(leaveRequests)
       .where(and(eq(leaveRequests.id, id), eq(leaveRequests.orgId, p.orgId)));
     if (!leave) { res.status(404).json({ error: "Leave request not found" }); return; }
-    if (leave.status !== "pending") throw new HttpError(409, "Only pending requests can be edited");
+    if (leave.status !== "pending" && leave.status !== "approved") {
+      throw new HttpError(409, "Only pending or approved leave can be edited");
+    }
 
+    // The leave may also be moved to a different employee when it was entered
+    // against the wrong person. Days are recounted on that person's own week.
+    const employeeId = parsed.data.employeeId ?? leave.employeeId;
     const [emp] = await db.select().from(employees)
-      .where(and(eq(employees.id, leave.employeeId), eq(employees.orgId, p.orgId)));
-    const days = countLeaveDays(parsed.data.startDate, parsed.data.endDate, emp?.workDaysPerWeek ?? 5, emp?.worksOnHolidays ?? false) * 10;
+      .where(and(eq(employees.id, employeeId), eq(employees.orgId, p.orgId)));
+    if (!emp) { res.status(404).json({ error: "Employee not found" }); return; }
+    if (employeeId !== leave.employeeId && emp.status === "terminated") {
+      throw new HttpError(409, "Leave cannot be moved to a terminated employee");
+    }
+    const days = countLeaveDays(parsed.data.startDate, parsed.data.endDate, emp.workDaysPerWeek ?? 5, emp.worksOnHolidays ?? false) * 10;
+
+    // Becoming (or staying) annual must fit the balance, not counting this request itself.
+    if (parsed.data.type === "annual") {
+      const year = parsed.data.startDate.slice(0, 4);
+      const others = await db.select({ days: leaveRequests.days, startDate: leaveRequests.startDate })
+        .from(leaveRequests)
+        .where(and(
+          eq(leaveRequests.employeeId, employeeId), eq(leaveRequests.orgId, p.orgId),
+          eq(leaveRequests.status, "approved"), eq(leaveRequests.type, "annual"), ne(leaveRequests.id, id),
+        ));
+      const taken = others.filter((l) => l.startDate?.startsWith(year))
+        .reduce((acc, l) => acc + Math.round((l.days ?? 0) / 10), 0);
+      const entitlement = Math.round((emp.leaveBalance ?? 210) / 10);
+      const requested = Math.round(days / 10);
+      if (taken + requested > entitlement) {
+        res.status(422).json({
+          error: `Insufficient annual leave balance. ${Math.max(0, entitlement - taken)} day(s) available, this leave needs ${requested}.`,
+          code: "INSUFFICIENT_LEAVE_BALANCE",
+        });
+        return;
+      }
+    }
 
     const [updated] = await db.update(leaveRequests).set({
-      type: parsed.data.type, startDate: parsed.data.startDate, endDate: parsed.data.endDate,
+      employeeId, type: parsed.data.type, startDate: parsed.data.startDate, endDate: parsed.data.endDate,
       days, reason: parsed.data.reason ?? leave.reason,
     }).where(and(eq(leaveRequests.id, id), eq(leaveRequests.orgId, p.orgId))).returning();
 
     await db.transaction(async (tx) => {
       await writeAudit(tx as any, {
-        orgId: p.orgId, action: "LEAVE_EDITED", entity: "leave_requests", entityId: id,
+        orgId: p.orgId, action: leave.status === "approved" ? "LEAVE_CORRECTED" : "LEAVE_EDITED",
+        entity: "leave_requests", entityId: id,
         actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
-        before: { startDate: leave.startDate, endDate: leave.endDate, type: leave.type },
-        after: { startDate: parsed.data.startDate, endDate: parsed.data.endDate, type: parsed.data.type },
+        before: { employeeId: leave.employeeId, startDate: leave.startDate, endDate: leave.endDate, type: leave.type },
+        after: { employeeId, startDate: parsed.data.startDate, endDate: parsed.data.endDate, type: parsed.data.type },
       });
     });
     res.json(updated);
