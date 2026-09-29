@@ -340,6 +340,7 @@ export function LeaveAdmin() {
         url={editLeave ? `/api/leaves/${editLeave.id}/edit` : null}
         onClose={() => setEditLeave(null)}
         onSaved={() => queryClient.invalidateQueries({ queryKey: getListLeavesQueryKey() })}
+        canChangeEmployee
       />
 
       <Tabs defaultValue="requests">
@@ -447,6 +448,10 @@ export function LeaveAdmin() {
                                 <Check className="h-4 w-4" />
                               </Button>
                             </div>
+                          ) : row.leave.status === "approved" ? (
+                            <Button size="sm" variant="outline" className="h-8 font-mono text-xs" onClick={() => setEditLeave(row.leave)}>
+                              EDIT
+                            </Button>
                           ) : (
                             <span className="text-xs text-muted-foreground font-mono">DECIDED</span>
                           )}
