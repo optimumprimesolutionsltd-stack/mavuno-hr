@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { eq, and, ne, isNull, inArray, sql, type SQL } from "drizzle-orm";
+import { eq, and, ne, isNull, inArray, desc, sql, type SQL } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { employees, users, payslips, payrollRuns, departments, leaveRequests, employeeSuspensions, organizations } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
@@ -264,13 +264,15 @@ router.get("/:id", requireAuth("employee:read"), async (req, res, next) => {
       .where(and(eq(employees.id, id), eq(employees.orgId, p.orgId)));
     if (!row) { res.status(404).json({ error: "Employee not found" }); return; }
 
-    // Last 12 payslips
+    // Every payslip, newest first (up to five years). This used to sort oldest
+    // first and stop at 12, so anyone with more than a year of payroll lost
+    // their most recent months from the Payslips tab.
     const slips = await db.select({ slip: payslips, run: payrollRuns })
       .from(payslips)
       .innerJoin(payrollRuns, eq(payslips.runId, payrollRuns.id))
       .where(and(eq(payslips.employeeId, id), eq(payslips.orgId, p.orgId)))
-      .orderBy(payrollRuns.period)
-      .limit(12);
+      .orderBy(desc(payrollRuns.period), desc(payrollRuns.id))
+      .limit(60);
 
     // Leave balance summary for this calendar year
     const thisYear = new Date().getFullYear().toString();

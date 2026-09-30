@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -21,6 +22,9 @@ export function PortalLogin() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const loginMutation = useLogin();
+  // Set when the email has accounts in more than one company: the server asks
+  // which one instead of guessing.
+  const [companies, setCompanies] = useState<{ slug: string; name: string }[] | null>(null);
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -30,11 +34,12 @@ export function PortalLogin() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof loginSchema>) {
+  function onSubmit(values: z.infer<typeof loginSchema>, orgSlug?: string) {
     loginMutation.mutate(
-      { data: values },
+      { data: orgSlug ? { ...values, orgSlug } : values },
       {
         onSuccess: (data) => {
+          setCompanies(null);
           if (data.role === "employee" || data.role === "admin" || data.role === "hr") {
             if (data.sessionToken) storeToken(data.sessionToken);
             toast({ title: "Welcome", description: `Logged in as ${data.name}` });
@@ -43,7 +48,11 @@ export function PortalLogin() {
             toast({ variant: "destructive", title: "Access denied", description: "You do not have portal access." });
           }
         },
-        onError: () => {
+        onError: (error: any) => {
+          if (error?.data?.code === "CHOOSE_ORGANIZATION") {
+            setCompanies(error.data.organizations ?? []);
+            return;
+          }
           toast({ variant: "destructive", title: "Login failed", description: "Invalid credentials. Please try again." });
         },
       }
@@ -66,7 +75,7 @@ export function PortalLogin() {
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit((v) => onSubmit(v))} className="space-y-4">
               <FormField
                 control={form.control}
                 name="email"
@@ -98,6 +107,23 @@ export function PortalLogin() {
                 SIGN IN
               </Button>
             </form>
+            {companies && (
+              <div className="mt-4 space-y-2 rounded-md border border-primary/30 bg-primary/5 p-3">
+                <p className="text-sm font-medium">Which company do you want to open?</p>
+                <p className="text-xs text-muted-foreground">This email has an account in more than one company.</p>
+                <div className="grid gap-2">
+                  {companies.map((c) => (
+                    <Button
+                      key={c.slug} type="button" variant="outline" className="justify-start font-mono"
+                      disabled={loginMutation.isPending}
+                      onClick={() => onSubmit(form.getValues(), c.slug)}
+                    >
+                      {c.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
           </Form>
             <div className="relative my-5">
               <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>

@@ -42,6 +42,8 @@ export interface Principal {
   employeeId: number | null;
   mustChangePassword: boolean;
   orgSlug: string;
+  /** Company name, shown in the app shell so people can see which company they are in. */
+  orgName: string;
   countryCode: string;
   currencyCode: string;
   /* NULL = unlimited access. Not enforced here — see requireActiveAccess()
@@ -148,6 +150,7 @@ export async function getPrincipal(req: Request): Promise<Principal | null> {
     employeeId: row.u.employeeId,
     mustChangePassword: row.u.mustChangePassword,
     orgSlug: row.o.slug,
+    orgName: row.o.name,
     countryCode: row.o.countryCode,
     currencyCode: row.o.currencyCode,
     accessUntil: row.o.accessUntil,

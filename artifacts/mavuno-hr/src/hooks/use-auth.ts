@@ -23,6 +23,8 @@ export function useAuth() {
     user,
     org: {
       slug: user?.orgSlug,
+      // Not yet in the generated client's Me type.
+      name: (user as any)?.orgName as string | undefined,
       countryCode: user?.countryCode,
       currencyCode: user?.currencyCode,
     },
