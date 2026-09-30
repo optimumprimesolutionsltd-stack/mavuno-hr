@@ -5,7 +5,7 @@ import { db } from "@workspace/db";
 import { payrollRuns, payslips, employees, loans, payoutBatches, statutoryFilings, organizations, departments } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
-import { calculateRun, recalculateRun, applyLoanRepayments, finalizeRunInTx } from "../lib/payroll-run.js";
+import { calculateRun, recalculateRun, applyLoanRepayments, finalizeRunInTx, loanDueInPeriod } from "../lib/payroll-run.js";
 import { importHistoricalRuns, HISTORICAL_IMPORT_COLUMNS, HISTORICAL_IMPORT_MAX_ROWS } from "../lib/payroll-historical-import.js";
 import { runAutoOnPay, generatePayoutBatch, emailRunPayslips } from "../lib/payroll-dispatch.js";
 import { computePayslip } from "../lib/payroll.js";
@@ -564,7 +564,8 @@ router.patch("/:runId/payslips/:slipId", requireAuth("payroll:calculate"), async
       const empLoans = await tx.select().from(loans)
         .where(and(eq(loans.orgId, p.orgId), eq(loans.employeeId, emp.id), eq(loans.status, "active"),
           lte(loans.startDate, runPeriodEnd)));
-      const loanInstallment = empLoans.reduce((s, l) => s + Math.min(l.monthlyInstallment, l.balance), 0) as import("../lib/money.js").Cents;
+      const loanInstallment = empLoans.filter((l) => loanDueInPeriod(l, run.period))
+        .reduce((s, l) => s + Math.min(l.monthlyInstallment, l.balance), 0) as import("../lib/money.js").Cents;
 
       const existingBreakdown: any = slip.breakdown ?? {};
       const existingOverrides: any = existingBreakdown.overrides ?? {};

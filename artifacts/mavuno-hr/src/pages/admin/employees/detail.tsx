@@ -37,6 +37,22 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/**
+ * Open the full payslip PDF for one month in a new tab (to view, print or
+ * save). The tab is opened before the fetch so pop-up blockers allow it.
+ */
+function openPayslip(runId: number, slipId: number) {
+  const tab = window.open("", "_blank");
+  fetch(`/api/payroll/${runId}/payslips/${slipId}/pdf`, { headers: authHeaders() })
+    .then((r) => (r.ok ? r.blob() : Promise.reject()))
+    .then((blob) => {
+      const url = URL.createObjectURL(blob);
+      if (tab) tab.location.href = url;
+      else window.location.href = url;
+    })
+    .catch(() => { tab?.close(); alert("Could not open the payslip. Please try again."); });
+}
+
 function EmployeeAvatar({ employeeId, name, editable }: { employeeId: number; name: string; editable: boolean }) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -792,6 +808,14 @@ export function EmployeeDetail() {
                             <div className="text-xs text-muted-foreground font-mono">NET PAY</div>
                             <div className="font-mono text-sm font-bold text-primary">{formatMoney(slip.netPay ?? 0)}</div>
                           </div>
+                          {run.id && slip.id && (
+                            <Button
+                              variant="outline" size="sm" className="h-8 font-mono text-xs"
+                              onClick={() => openPayslip(run.id, slip.id)}
+                            >
+                              VIEW PAYSLIP
+                            </Button>
+                          )}
                         </div>
                       </div>
                     );

@@ -72,7 +72,28 @@ router.post("/login", async (req, res, next) => {
         : eq(users.email, email.toLowerCase())
       );
     const rows = await query;
-    const row = rows[0];
+    let row = rows[0];
+
+    // The same email can have an account in more than one company (users are
+    // unique per org, not globally). Without a company chosen, rows[0] was
+    // whichever the database returned first, so people landed in a company
+    // they did not mean to and entered data there. Only accounts whose own
+    // password matches count; if more than one does, ask which company.
+    if (!orgId && rows.length > 1) {
+      const matches: typeof rows = [];
+      for (const r of rows) {
+        if (!r.u.disabledAt && await verifyPassword(password, r.u.passwordHash)) matches.push(r);
+      }
+      if (matches.length > 1) {
+        res.status(409).json({
+          error: "This email has accounts in more than one company. Choose which one to sign in to.",
+          code: "CHOOSE_ORGANIZATION",
+          organizations: matches.map((m) => ({ slug: m.o.slug, name: m.o.name })),
+        });
+        return;
+      }
+      if (matches.length === 1) row = matches[0];
+    }
 
     // Constant-time path: always verify to avoid timing oracle
     if (!row) {
@@ -118,7 +139,7 @@ router.post("/login", async (req, res, next) => {
     res.json({
       id: user.id, email: user.email, name: user.name, role: user.role,
       employeeId: user.employeeId, mustChangePassword: user.mustChangePassword,
-      orgSlug: org.slug, countryCode: org.countryCode, currencyCode: org.currencyCode,
+      orgSlug: org.slug, orgName: org.name, countryCode: org.countryCode, currencyCode: org.currencyCode,
       // Also return raw token so clients in cross-site iframe contexts can use Bearer auth
       sessionToken,
     });
@@ -534,7 +555,7 @@ router.get("/me", requireAuth(), (req, res) => {
   res.json({
     id: p.userId, email: p.email, name: p.name, role: p.role,
     employeeId: p.employeeId, mustChangePassword: p.mustChangePassword,
-    orgSlug: p.orgSlug, countryCode: p.countryCode, currencyCode: p.currencyCode,
+    orgSlug: p.orgSlug, orgName: p.orgName, countryCode: p.countryCode, currencyCode: p.currencyCode,
     isSuperAdmin: getSuperAdminEmails().includes(p.email.toLowerCase()),
     // Lets the app shell show a trial/access countdown without a separate
     // billing fetch. NULL = unlimited access, not enforced.

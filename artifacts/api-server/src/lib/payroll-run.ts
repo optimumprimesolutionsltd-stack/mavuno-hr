@@ -37,6 +37,27 @@ function staffEligibleForPeriod(orgId: number, period: string, employeeIds?: num
   );
 }
 
+/**
+ * Whether a loan is deducted in this payroll month. A salary advance is
+ * recovered only over its own repayment months, counted from the month it was
+ * issued (1 month = just that month's payroll). An advance posted for an
+ * earlier month that never got recovered there -- e.g. that month was entered
+ * as a historical record -- must not all land on a later month's payroll.
+ * Other loans keep being deducted every month until settled.
+ */
+export function loanDueInPeriod(
+  loan: { type: string; startDate: string; principal: number; monthlyInstallment: number },
+  period: string,
+): boolean {
+  const [sy, sm] = loan.startDate.slice(0, 7).split("-").map(Number);
+  const [py, pm] = period.split("-").map(Number);
+  const monthIndex = (py - sy) * 12 + (pm - sm);
+  if (monthIndex < 0) return false;
+  if (loan.type !== "advance") return true;
+  const months = loan.monthlyInstallment > 0 ? Math.ceil(loan.principal / loan.monthlyInstallment) : 1;
+  return monthIndex < Math.max(1, months);
+}
+
 /** Last calendar day of a 'YYYY-MM' period, as 'YYYY-MM-DD'. */
 function periodEnd(period: string): string {
   return `${period}-${String(daysInMonth(period)).padStart(2, "0")}`;
@@ -208,6 +229,7 @@ export async function calculateRun(
   ));
   const loanBy = new Map<number, Cents>();
   for (const l of activeLoans) {
+    if (!loanDueInPeriod(l, input.period)) continue;
     const inst = Math.min(l.monthlyInstallment, l.balance);
     loanBy.set(l.employeeId, (loanBy.get(l.employeeId) ?? 0) + inst);
   }
@@ -392,6 +414,7 @@ export async function recalculateRun(
   ));
   const loanBy = new Map<number, Cents>();
   for (const l of activeLoans) {
+    if (!loanDueInPeriod(l, run.period)) continue;
     const inst = Math.min(l.monthlyInstallment, l.balance);
     loanBy.set(l.employeeId, (loanBy.get(l.employeeId) ?? 0) + inst);
   }
@@ -582,6 +605,7 @@ export async function applyLoanRepayments(tx: Tx, orgId: number, runId: number) 
 
     for (const l of empLoans) {
       if (remaining <= 0) break;
+      if (run && !loanDueInPeriod(l, run.period)) continue;
       const pay = Math.min(l.monthlyInstallment, l.balance, remaining);
       if (pay <= 0) continue;
 

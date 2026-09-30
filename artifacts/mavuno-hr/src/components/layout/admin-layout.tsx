@@ -333,7 +333,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const logout = useLogout();
   const { signOut } = useClerk();
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
+  const { user, org } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = () => {
@@ -364,6 +364,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <X className="h-5 w-5" />
         </button>
       </div>
+
+      {/* Which company this session is in -- people with accounts in several
+          companies had no way to tell. */}
+      {org.name && (
+        <div className="px-6 py-2.5 border-b border-border bg-primary/5">
+          <div className="text-[10px] font-mono text-muted-foreground">COMPANY</div>
+          <div className="text-sm font-semibold truncate" title={org.name}>{org.name}</div>
+        </div>
+      )}
 
       {/* Nav items */}
       <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-1 px-3">
