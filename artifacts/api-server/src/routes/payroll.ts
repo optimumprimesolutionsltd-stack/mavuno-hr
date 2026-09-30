@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, lte } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { payrollRuns, payslips, employees, loans, payoutBatches, statutoryFilings, organizations, departments } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
@@ -557,9 +557,13 @@ router.patch("/:runId/payslips/:slipId", requireAuth("payroll:calculate"), async
         (run.statutorySnapshot as any) ??
         (await resolveConfig(tx as any, p.orgId, "KE", run.period)).config;
 
-      // Load active loans for this employee
+      // Load active loans for this employee issued by the end of this run's month
+      // (same rule as calculateRun/recalculateRun).
+      const [py, pm] = run.period.split("-").map(Number);
+      const runPeriodEnd = `${run.period}-${String(new Date(py, pm, 0).getDate()).padStart(2, "0")}`;
       const empLoans = await tx.select().from(loans)
-        .where(and(eq(loans.orgId, p.orgId), eq(loans.employeeId, emp.id), eq(loans.status, "active")));
+        .where(and(eq(loans.orgId, p.orgId), eq(loans.employeeId, emp.id), eq(loans.status, "active"),
+          lte(loans.startDate, runPeriodEnd)));
       const loanInstallment = empLoans.reduce((s, l) => s + Math.min(l.monthlyInstallment, l.balance), 0) as import("../lib/money.js").Cents;
 
       const existingBreakdown: any = slip.breakdown ?? {};

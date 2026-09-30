@@ -1,4 +1,4 @@
-import { and, eq, ne, or, gte, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, ne, or, gte, lte, inArray, isNull, sql } from "drizzle-orm";
 import {
   employees, payrollRuns, payslips, loans, loanRepayments, timesheets,
   payAdjustments, organizations, leaveRequests, employeeSuspensions,
@@ -35,6 +35,11 @@ function staffEligibleForPeriod(orgId: number, period: string, employeeIds?: num
     ),
     ...(employeeIds?.length ? [inArray(employees.id, employeeIds)] : []),
   );
+}
+
+/** Last calendar day of a 'YYYY-MM' period, as 'YYYY-MM-DD'. */
+function periodEnd(period: string): string {
+  return `${period}-${String(daysInMonth(period)).padStart(2, "0")}`;
 }
 
 function daysInMonth(period: string): number {
@@ -193,10 +198,13 @@ export async function calculateRun(
   }
   await addUnpaidSuspensionDays(tx, orgId, input.period, empIds, unpaidBy);
 
+  // Only loans/advances issued on or before the last day of this period. A
+  // catch-up run for an earlier month must not deduct an advance given later.
   const activeLoans = await tx.select().from(loans).where(and(
     eq(loans.orgId, orgId),
     eq(loans.status, "active"),
     inArray(loans.employeeId, empIds),
+    lte(loans.startDate, periodEnd(input.period)),
   ));
   const loanBy = new Map<number, Cents>();
   for (const l of activeLoans) {
@@ -374,10 +382,13 @@ export async function recalculateRun(
   }
   await addUnpaidSuspensionDays(tx, orgId, run.period, empIds, unpaidBy);
 
+  // Only loans/advances issued on or before the last day of this period. A
+  // catch-up run for an earlier month must not deduct an advance given later.
   const activeLoans = await tx.select().from(loans).where(and(
     eq(loans.orgId, orgId),
     eq(loans.status, "active"),
     inArray(loans.employeeId, empIds),
+    lte(loans.startDate, periodEnd(run.period)),
   ));
   const loanBy = new Map<number, Cents>();
   for (const l of activeLoans) {
@@ -552,6 +563,8 @@ export async function finalizeRunInTx(
 }
 
 export async function applyLoanRepayments(tx: Tx, orgId: number, runId: number) {
+  const [run] = await tx.select({ period: payrollRuns.period }).from(payrollRuns)
+    .where(and(eq(payrollRuns.id, runId), eq(payrollRuns.orgId, orgId)));
   const slips = await tx.select({
     employeeId: payslips.employeeId, loanDeduction: payslips.loanDeduction,
   }).from(payslips).where(and(eq(payslips.orgId, orgId), eq(payslips.runId, runId)));
@@ -564,6 +577,7 @@ export async function applyLoanRepayments(tx: Tx, orgId: number, runId: number) 
       eq(loans.orgId, orgId),
       eq(loans.employeeId, slip.employeeId),
       eq(loans.status, "active"),
+      ...(run ? [lte(loans.startDate, periodEnd(run.period))] : []),
     )).orderBy(loans.startDate).for("update");
 
     for (const l of empLoans) {
