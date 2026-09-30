@@ -14,6 +14,7 @@ import { IssueLoanDialog } from "./issue-dialog";
 import { EditLoanRequestDialog } from "./edit-request-dialog";
 import { ApproveLoanDialog } from "./approve-dialog";
 import { RequestLoanForDialog } from "./request-for-dialog";
+import { CorrectLoanDialog } from "./correct-loan-dialog";
 import { LoanMonthlySchedule } from "./monthly-schedule";
 import { LoansByMonth } from "./by-month";
 import { useLoanTypes, LOAN_TYPE_OPTIONS } from "@/lib/loan-config";
@@ -24,6 +25,7 @@ export function LoansAdmin() {
   const [editTarget, setEditTarget] = useState<any | null>(null);
   const [approveTarget, setApproveTarget] = useState<{ request: any; employee: any } | null>(null);
   const [expandedLoanId, setExpandedLoanId] = useState<number | null>(null);
+  const [correctTarget, setCorrectTarget] = useState<{ loan: any; deducted: boolean } | null>(null);
 
   const { data: loans, isLoading: isLoadingLoans } = useListLoans();
   const offered = useLoanTypes("admin");
@@ -68,6 +70,11 @@ export function LoansAdmin() {
       </div>
 
       <IssueLoanDialog open={issuingLoan} onOpenChange={setIssuingLoan} />
+      <CorrectLoanDialog
+        loan={correctTarget?.loan ?? null}
+        deducted={!!correctTarget?.deducted}
+        onClose={() => setCorrectTarget(null)}
+      />
       <RequestLoanForDialog open={requestingFor} onOpenChange={setRequestingFor} />
       <EditLoanRequestDialog
         request={editTarget}
@@ -128,7 +135,7 @@ export function LoansAdmin() {
                           <TableRow key={row.loan.id} className="hover:bg-muted/20">
                             <TableCell>
                               <div className="font-medium text-sm">{fullName(row.employee)}</div>
-                              <div className="text-xs text-muted-foreground font-mono">{row.employee.empNo}</div>
+                              <div className="text-xs text-muted-foreground font-mono">{row.employee.empNo} · issued {formatDate(row.loan.startDate)}</div>
                             </TableCell>
                             <TableCell>
                               <Select
@@ -164,7 +171,16 @@ export function LoansAdmin() {
                                 <span className="text-muted-foreground text-xs">N/A</span>
                               )}
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right whitespace-nowrap">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 gap-1 px-2 font-mono text-[10px]"
+                                title="Correct the employee or date"
+                                onClick={() => setCorrectTarget({ loan: row.loan, deducted: ((row.repayments as any[]) ?? []).length > 0 })}
+                              >
+                                <Pencil className="h-3.5 w-3.5" /> EDIT
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"

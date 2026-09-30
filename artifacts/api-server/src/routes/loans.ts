@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { getLoanConfig, assertLoanAllowed } from "../lib/loan-config.js";
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, asc } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { loans, loanRequests, loanRepayments, employees, organizations } from "@workspace/db/schema";
+import { loans, loanRequests, loanRepayments, employees, organizations, payrollRuns } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { toCents } from "../lib/money.js";
@@ -188,6 +188,72 @@ router.patch("/:id/type", requireAuth("loan:review"), async (req, res, next) => 
         orgId: p.orgId, action: "LOAN_TYPE_CORRECTED", entity: "loans", entityId: id,
         actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
         before: { type: existing.type }, after: { type: parsed.data.type },
+      });
+    });
+
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// PATCH /api/loans/:id/correct — fix the employee or date of an issued loan
+// or advance entered in error. Amount, months, interest and balance are left
+// alone. Once a deduction has been taken in payroll the money came out of that
+// person's pay, so the loan can no longer be moved to someone else, and its
+// date cannot move past the first month it was deducted.
+const correctLoanSchema = z.object({
+  employeeId: z.number().int().positive().optional(),
+  startDate: isoDate.optional(),
+});
+router.patch("/:id/correct", requireAuth("loan:review"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+    const parsed = correctLoanSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(422).json({ error: "Validation failed", issues: parsed.error.flatten() }); return; }
+
+    const [existing] = await db.select().from(loans)
+      .where(and(eq(loans.id, id), eq(loans.orgId, p.orgId)));
+    if (!existing) { res.status(404).json({ error: "Loan not found" }); return; }
+
+    const employeeId = parsed.data.employeeId ?? existing.employeeId;
+    const startDate = parsed.data.startDate ?? existing.startDate;
+    if (employeeId === existing.employeeId && startDate === existing.startDate) { res.json(existing); return; }
+
+    const deducted = await db.select({ period: payrollRuns.period })
+      .from(loanRepayments)
+      .leftJoin(payrollRuns, eq(loanRepayments.runId, payrollRuns.id))
+      .where(and(eq(loanRepayments.loanId, id), eq(loanRepayments.orgId, p.orgId)))
+      .orderBy(asc(payrollRuns.period));
+    const months = deducted.map((d) => d.period).filter((x): x is string => !!x);
+
+    if (employeeId !== existing.employeeId) {
+      if (deducted.length > 0) {
+        throw new HttpError(409,
+          `This has already been deducted in payroll${months.length ? ` (${months.join(", ")})` : ""}, so it cannot be moved to another employee.`,
+          "LOAN_ALREADY_DEDUCTED");
+      }
+      const [emp] = await db.select({ id: employees.id, status: employees.status }).from(employees)
+        .where(and(eq(employees.id, employeeId), eq(employees.orgId, p.orgId)));
+      if (!emp) { res.status(404).json({ error: "Employee not found" }); return; }
+      if (emp.status === "terminated") throw new HttpError(409, "A loan cannot be moved to a terminated employee");
+    }
+
+    if (startDate !== existing.startDate && months.length > 0 && startDate.slice(0, 7) > months[0]) {
+      throw new HttpError(409,
+        `It was first deducted in ${months[0]}, so the date cannot be later than that month.`,
+        "LOAN_ALREADY_DEDUCTED");
+    }
+
+    const [updated] = await db.update(loans).set({ employeeId, startDate })
+      .where(and(eq(loans.id, id), eq(loans.orgId, p.orgId)))
+      .returning();
+
+    await db.transaction(async (tx) => {
+      await writeAudit(tx as any, {
+        orgId: p.orgId, action: "LOAN_CORRECTED", entity: "loans", entityId: id,
+        actorUserId: p.userId, actorEmail: p.email, actorIp: getIp(req),
+        before: { employeeId: existing.employeeId, startDate: existing.startDate },
+        after: { employeeId, startDate },
       });
     });
 
