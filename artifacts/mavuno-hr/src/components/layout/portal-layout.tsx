@@ -16,6 +16,7 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { clearToken } from "@/lib/session";
 
 interface PortalLayoutProps {
   children: ReactNode;
@@ -69,6 +70,7 @@ export function PortalLayout({ children }: PortalLayoutProps) {
   const handleLogout = () => {
     logout.mutate(undefined, {
       onSuccess: async () => {
+        clearToken();
         await signOut();
         setLocation("/portal/login");
       },

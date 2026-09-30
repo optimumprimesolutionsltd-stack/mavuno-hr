@@ -4,7 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Router as WouterRouter } from 'wouter';
 import { Router } from '@/router';
 import { setAuthTokenGetter, ApiError } from '@workspace/api-client-react';
-import { getToken } from '@/lib/session';
+import { getToken, onSessionChange } from '@/lib/session';
 import { ClerkProvider } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 
@@ -46,6 +46,9 @@ const queryClient = new QueryClient({
     onError: (error) => { if (isAccessExpired(error)) redirectToBilling(); },
   }),
 });
+
+// A different login must never see the previous session's cached data.
+onSessionChange(() => queryClient.clear());
 
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
