@@ -8,7 +8,7 @@ export function LoanConfigEditor({ value, onChange }: { value: LoanConfig; onCha
       {LOAN_TYPE_OPTIONS.map((t) => {
         const c = value[t.value] ?? { enabled: true, maxMonths: 60 };
         return (
-          <div key={t.value} className="flex items-center gap-3 rounded-md border border-border/50 bg-background/30 px-3 py-2">
+          <div key={t.value} className="flex items-center gap-3 rounded-md border border-border bg-background/30 px-3 py-2">
             <label className="flex items-center gap-2 flex-1 cursor-pointer text-sm">
               <input
                 type="checkbox"

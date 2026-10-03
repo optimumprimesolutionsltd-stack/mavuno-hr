@@ -257,7 +257,7 @@ export function PayslipEditDialog({ runId, slip, employee, open, onOpenChange }:
           </div>
         </div>
 
-        <DialogFooter className="shrink-0 pt-4 border-t border-border/50">
+        <DialogFooter className="shrink-0 pt-4 border-t border-border">
           <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>
           <Button className="font-mono" onClick={handleSave} disabled={mutation.isPending}>
             {mutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

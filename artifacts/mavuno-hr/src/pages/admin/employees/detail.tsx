@@ -95,7 +95,7 @@ function EmployeeAvatar({ employeeId, name, editable }: { employeeId: number; na
 
   return (
     <div className="relative shrink-0">
-      <div className="h-14 w-14 rounded-full overflow-hidden bg-muted border border-border/50 flex items-center justify-center">
+      <div className="h-14 w-14 rounded-full overflow-hidden bg-muted border border-border flex items-center justify-center">
         {photoUrl
           ? <img src={photoUrl} alt={name} className="h-full w-full object-cover" />
           : <span className="font-mono text-sm text-muted-foreground">{initials || <User className="h-5 w-5" />}</span>}
@@ -250,7 +250,7 @@ export function EmployeeDetail() {
         </Button>
         <EmployeeAvatar employeeId={id} name={fullName(employee)} editable={!isTerminated} />
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-bold tracking-tight font-mono uppercase truncate">
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none truncate">
             {fullName(employee)}
           </h1>
           <p className="text-muted-foreground text-sm font-mono">
@@ -388,7 +388,7 @@ export function EmployeeDetail() {
       )}
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-6 bg-card border border-border/50 p-1">
+        <TabsList className="grid w-full grid-cols-5 mb-6 bg-card border border-border p-1">
           <TabsTrigger value="overview" className="font-mono text-xs">OVERVIEW</TabsTrigger>
           <TabsTrigger value="payroll" className="font-mono text-xs">PAY STRUCTURE</TabsTrigger>
           <TabsTrigger value="history" className="font-mono text-xs">PAYSLIPS</TabsTrigger>
@@ -401,7 +401,7 @@ export function EmployeeDetail() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             {/* Personal Info */}
-            <Card className="border-border/50 shadow-sm bg-card/30">
+            <Card className="border-border shadow-sm bg-card">
               <CardHeader className="pb-3 border-b border-border/30">
                 <CardTitle className="text-sm font-mono flex items-center text-muted-foreground">
                   <User className="h-4 w-4 mr-2 text-primary" />PERSONAL INFO
@@ -443,7 +443,7 @@ export function EmployeeDetail() {
             </Card>
 
             {/* Employment */}
-            <Card className="border-border/50 shadow-sm bg-card/30">
+            <Card className="border-border shadow-sm bg-card">
               <CardHeader className="pb-3 border-b border-border/30">
                 <CardTitle className="text-sm font-mono flex items-center text-muted-foreground">
                   <Briefcase className="h-4 w-4 mr-2 text-primary" />EMPLOYMENT
@@ -472,7 +472,7 @@ export function EmployeeDetail() {
             </Card>
 
             {/* Statutory IDs */}
-            <Card className="border-border/50 shadow-sm bg-card/30">
+            <Card className="border-border shadow-sm bg-card">
               <CardHeader className="pb-3 border-b border-border/30">
                 <CardTitle className="text-sm font-mono flex items-center text-muted-foreground">
                   <FileText className="h-4 w-4 mr-2 text-primary" />STATUTORY IDs
@@ -501,7 +501,7 @@ export function EmployeeDetail() {
             </Card>
 
             {/* Banking */}
-            <Card className="border-border/50 shadow-sm bg-card/30">
+            <Card className="border-border shadow-sm bg-card">
               <CardHeader className="pb-3 border-b border-border/30">
                 <CardTitle className="text-sm font-mono flex items-center text-muted-foreground">
                   <Landmark className="h-4 w-4 mr-2 text-primary" />BANKING
@@ -530,7 +530,7 @@ export function EmployeeDetail() {
             </Card>
 
             {/* Next of Kin */}
-            <Card className="border-border/50 shadow-sm bg-card/30 md:col-span-2">
+            <Card className="border-border shadow-sm bg-card md:col-span-2">
               <CardHeader className="pb-3 border-b border-border/30">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm font-mono flex items-center text-muted-foreground">
@@ -641,7 +641,7 @@ export function EmployeeDetail() {
             </Card>
 
             {/* Leave Balance */}
-            <Card className="border-border/50 shadow-sm bg-card/30 md:col-span-2">
+            <Card className="border-border shadow-sm bg-card md:col-span-2">
               <CardHeader className="pb-3 border-b border-border/30">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm font-mono flex items-center text-muted-foreground">
@@ -721,7 +721,7 @@ export function EmployeeDetail() {
 
         {/* ── Pay Structure tab ── */}
         <TabsContent value="payroll" className="mt-0">
-          <Card className="border-border/50 shadow-sm bg-card/30">
+          <Card className="border-border shadow-sm bg-card">
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="font-mono">COMPENSATION STRUCTURE</CardTitle>
               {!isTerminated && (
@@ -733,7 +733,7 @@ export function EmployeeDetail() {
             </CardHeader>
             <CardContent>
               <div className="max-w-2xl">
-                <div className="flex justify-between items-center py-3 border-b border-border/50">
+                <div className="flex justify-between items-center py-3 border-b border-border">
                   <span className="font-medium">Basic Salary</span>
                   <span className="font-mono text-primary font-bold text-lg">{formatMoney(employee.basicSalary)}</span>
                 </div>
@@ -778,7 +778,7 @@ export function EmployeeDetail() {
 
         {/* ── Payslips tab ── */}
         <TabsContent value="history" className="mt-0">
-          <Card className="border-border/50 shadow-sm bg-card/30">
+          <Card className="border-border shadow-sm bg-card">
             <CardContent className="p-0">
               {(data as any).payslips?.length > 0 ? (
                 <div className="divide-y divide-border/50">
@@ -1042,7 +1042,7 @@ function EmployeeDocumentsTab({ employeeId, editable }: { employeeId: number; ed
   }
 
   return (
-    <Card className="border-border/50 shadow-sm bg-card/30">
+    <Card className="border-border shadow-sm bg-card">
       {editable && (
         <CardHeader className="pb-3 border-b border-border/30">
           <div className="flex flex-wrap items-end gap-3">
@@ -1129,7 +1129,7 @@ function EmployeeTotalsTab({ employeeId }: { employeeId: number }) {
   ];
 
   return (
-    <Card className="border-border/50 shadow-sm bg-card/30">
+    <Card className="border-border shadow-sm bg-card">
       <CardHeader className="pb-3 border-b border-border/30">
         <CardTitle className="text-sm font-mono flex items-center text-muted-foreground">
           <Wallet className="h-4 w-4 mr-2 text-primary" />PAID TO DATE
@@ -1145,7 +1145,7 @@ function EmployeeTotalsTab({ employeeId }: { employeeId: number }) {
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {rows.map((r) => (
-                <div key={r.label} className="rounded-lg border border-border/50 p-4">
+                <div key={r.label} className="rounded-lg border border-border p-4">
                   <div className="text-xs text-muted-foreground font-mono mb-1">{r.label.toUpperCase()}</div>
                   <div className="font-mono text-lg font-bold text-primary">{formatMoney(r.employee ?? 0)}</div>
                   {r.employer !== undefined && (

@@ -44,7 +44,7 @@ export function PortalLoans() {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight font-mono">MY LOANS</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">MY LOANS</h1>
           <p className="text-muted-foreground text-sm">View your active loans and salary advances</p>
         </div>
         <Button className="font-mono shrink-0" onClick={() => setRequestOpen(true)}>
@@ -56,7 +56,7 @@ export function PortalLoans() {
       <LoanRequestDialog open={requestOpen} onOpenChange={setRequestOpen} />
 
       <Tabs defaultValue="active">
-        <TabsList className="grid w-full max-w-sm grid-cols-2 bg-card border border-border/50 p-1 mb-6">
+        <TabsList className="grid w-full max-w-sm grid-cols-2 bg-card border border-border p-1 mb-6">
           <TabsTrigger value="active" className="font-mono text-xs">ACTIVE LOANS</TabsTrigger>
           <TabsTrigger value="requests" className="font-mono text-xs flex items-center gap-1.5">
             MY REQUESTS
@@ -71,9 +71,9 @@ export function PortalLoans() {
         {/* ── Active loans tab ── */}
         <TabsContent value="active" className="space-y-4 mt-0">
           {loansLoading ? (
-            <Card className="border-border/50 bg-card/30 animate-pulse h-48" />
+            <Card className="border-border bg-card animate-pulse h-48" />
           ) : !loans || loans.length === 0 ? (
-            <Card className="border-border/50 bg-card/30">
+            <Card className="border-border bg-card">
               <CardContent className="p-12 text-center text-muted-foreground font-mono text-sm">
                 <p>YOU HAVE NO ACTIVE LOANS</p>
                 <p className="text-xs mt-2 font-sans">Use the REQUEST LOAN button to apply for one</p>
@@ -83,7 +83,7 @@ export function PortalLoans() {
             (loans as any[]).map((row) => {
               const fbt = row.fringeBenefit as { monthlyBenefit: number; monthlyTax: number } | null;
               return (
-                <Card key={row.loan.id} className="border-border/50 bg-card/30 overflow-hidden relative">
+                <Card key={row.loan.id} className="border-border bg-card overflow-hidden relative">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-10 -mt-10 blur-2xl" />
                   <CardHeader className="border-b border-border/30 pb-4">
                     <div className="flex justify-between items-start">
@@ -195,7 +195,7 @@ export function PortalLoans() {
 
         {/* ── My requests tab ── */}
         <TabsContent value="requests" className="mt-0">
-          <Card className="border-border/50 bg-card/30">
+          <Card className="border-border bg-card">
             <CardHeader className="border-b border-border/30 py-4">
               <CardTitle className="font-mono text-sm">MY LOAN REQUESTS</CardTitle>
             </CardHeader>
@@ -211,7 +211,7 @@ export function PortalLoans() {
             ) : (
               <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader className="bg-muted/30">
+                  <TableHeader className="bg-muted">
                     <TableRow>
                       <TableHead className="font-mono text-xs">DATE</TableHead>
                       <TableHead className="font-mono text-xs">TYPE</TableHead>

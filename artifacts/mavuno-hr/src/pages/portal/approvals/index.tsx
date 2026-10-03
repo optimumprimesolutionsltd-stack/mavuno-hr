@@ -92,7 +92,7 @@ export function PortalApprovals() {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight font-mono">LEAVE APPROVALS</h1>
+        <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">LEAVE APPROVALS</h1>
         <p className="text-muted-foreground text-sm">Review and action employee leave requests</p>
       </div>
 
@@ -118,9 +118,9 @@ export function PortalApprovals() {
 
         {/* PENDING TAB */}
         <TabsContent value="pending" className="mt-4">
-          <div className="border border-border/50 rounded-lg overflow-hidden bg-card/30">
+          <div className="border border-border border-t-2 border-t-foreground overflow-hidden bg-card">
             <Table>
-              <TableHeader className="bg-muted/30">
+              <TableHeader className="bg-muted">
                 <TableRow>
                   <TableHead className="font-mono text-xs">EMPLOYEE</TableHead>
                   <TableHead className="font-mono text-xs">TYPE</TableHead>
@@ -202,9 +202,9 @@ export function PortalApprovals() {
 
         {/* ALL REQUESTS TAB */}
         <TabsContent value="decided" className="mt-4">
-          <div className="border border-border/50 rounded-lg overflow-hidden bg-card/30">
+          <div className="border border-border border-t-2 border-t-foreground overflow-hidden bg-card">
             <Table>
-              <TableHeader className="bg-muted/30">
+              <TableHeader className="bg-muted">
                 <TableRow>
                   <TableHead className="font-mono text-xs">EMPLOYEE</TableHead>
                   <TableHead className="font-mono text-xs">TYPE</TableHead>

@@ -269,13 +269,13 @@ export function AdminSettings() {
           <Settings2 className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight font-mono">SETTINGS</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">SETTINGS</h1>
           <p className="text-muted-foreground text-sm">Organisation profile &amp; statutory configuration</p>
         </div>
       </div>
 
       {/* ── Panel 1: Organisation Profile ── */}
-      <Card className="border-border/50 shadow-sm bg-card/30">
+      <Card className="border-border shadow-sm bg-card">
         <CardHeader className="pb-4">
           <CardTitle className="font-mono flex items-center gap-2 text-base">
             <Building2 className="h-4 w-4 text-primary" />
@@ -326,7 +326,7 @@ export function AdminSettings() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-mono text-muted-foreground">COUNTRY</Label>
-              <div className="h-9 px-3 flex items-center rounded-md border border-border/50 bg-muted/30 font-mono text-sm text-muted-foreground">
+              <div className="h-9 px-3 flex items-center rounded-md border border-border bg-muted/30 font-mono text-sm text-muted-foreground">
                 {data.org.countryCode} — {data.org.currencyCode}
               </div>
             </div>
@@ -347,7 +347,7 @@ export function AdminSettings() {
       </Card>
 
       {/* ── Working week ── */}
-      <Card id="working-week" className="border-border/50 shadow-sm bg-card/30 scroll-mt-6">
+      <Card id="working-week" className="border-border shadow-sm bg-card scroll-mt-6">
         <CardHeader className="pb-4">
           <CardTitle className="font-mono text-base">WORKING WEEK</CardTitle>
           <CardDescription>
@@ -377,7 +377,7 @@ export function AdminSettings() {
       </Card>
 
       {/* ── Loans ── */}
-      <Card id="loans" className="border-border/50 shadow-sm bg-card/30 scroll-mt-6">
+      <Card id="loans" className="border-border shadow-sm bg-card scroll-mt-6">
         <CardHeader className="pb-4">
           <CardTitle className="font-mono text-base">LOANS &amp; ADVANCES</CardTitle>
           <CardDescription>
@@ -402,7 +402,7 @@ export function AdminSettings() {
       </Card>
 
       {/* ── Overtime ── */}
-      <Card id="overtime" className="border-border/50 shadow-sm bg-card/30 scroll-mt-6">
+      <Card id="overtime" className="border-border shadow-sm bg-card scroll-mt-6">
         <CardHeader className="pb-4">
           <CardTitle className="font-mono text-base">OVERTIME</CardTitle>
           <CardDescription>
@@ -425,7 +425,7 @@ export function AdminSettings() {
       </Card>
 
       {/* ── Panel 1b: Payroll Migration ── */}
-      <Card className="border-border/50 shadow-sm bg-card/30">
+      <Card className="border-border shadow-sm bg-card">
         <CardHeader className="pb-4">
           <CardTitle className="font-mono flex items-center gap-2 text-base">
             <History className="h-4 w-4 text-primary" />
@@ -491,7 +491,7 @@ export function AdminSettings() {
       </Card>
 
       {/* ── Panel 2: Statutory Configuration ── */}
-      <Card className="border-border/50 shadow-sm bg-card/30">
+      <Card className="border-border shadow-sm bg-card">
         <CardHeader className="pb-4">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -514,7 +514,7 @@ export function AdminSettings() {
           {cfg ? (
             <>
               {/* Active pack info */}
-              <div className="rounded-lg border border-border/50 bg-muted/20 p-4 space-y-3">
+              <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono text-muted-foreground">ACTIVE PACK</span>
                   <Badge variant="secondary" className="font-mono text-xs bg-primary/10 text-primary border-primary/20">
@@ -583,7 +583,7 @@ export function AdminSettings() {
                       className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                         tier2Provider === val
                           ? "border-primary/50 bg-primary/5"
-                          : "border-border/50 hover:border-border bg-muted/10"
+                          : "border-border hover:border-border bg-muted/10"
                       }`}
                     >
                       <div className={`mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
@@ -756,7 +756,7 @@ function DepartmentWorkDays() {
               week, for example someone in {deptName} who works a different schedule.
             </DialogDescription>
           </DialogHeader>
-          <div className="max-h-72 overflow-y-auto divide-y divide-border/50 border border-border/50 rounded">
+          <div className="max-h-72 overflow-y-auto divide-y divide-border/50 border border-border rounded">
             {preview?.changing.map((e) => (
               <label key={e.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer text-sm">
                 <input type="checkbox" className="h-4 w-4" checked={selected.has(e.id)} onChange={() => toggle(e.id)} />

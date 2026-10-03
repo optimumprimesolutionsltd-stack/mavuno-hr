@@ -136,7 +136,7 @@ export function PayrollList() {
     <div className="space-y-6 max-w-[1200px] mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight font-mono">PAYROLL RUNS</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">PAYROLL RUNS</h1>
           <p className="text-muted-foreground text-sm">Manage, review, and execute payroll batches</p>
         </div>
 
@@ -155,7 +155,7 @@ export function PayrollList() {
                 OFF-CYCLE RUN
               </Button>
             </DialogTrigger>
-            <DialogContent className="border-border/50 bg-card/95 backdrop-blur-sm sm:max-w-md">
+            <DialogContent className="border-border bg-card sm:max-w-md">
               <DialogHeader>
                 <DialogTitle className="font-mono">Off-Cycle Payroll Run</DialogTitle>
                 <DialogDescription>
@@ -247,7 +247,7 @@ export function PayrollList() {
                 NEW PAYROLL RUN
               </Button>
             </DialogTrigger>
-            <DialogContent className="border-border/50 bg-card/95 backdrop-blur-sm">
+            <DialogContent className="border-border bg-card">
               <DialogHeader>
                 <DialogTitle className="font-mono">INITIALIZE PAYROLL RUN</DialogTitle>
               </DialogHeader>
@@ -334,9 +334,9 @@ export function PayrollList() {
         Migration history only
       </label>
 
-      <div className="border border-border/50 rounded-lg overflow-hidden bg-card/30">
+      <div className="border border-border border-t-2 border-t-foreground overflow-hidden bg-card">
         <Table>
-          <TableHeader className="bg-muted/30">
+          <TableHeader className="bg-muted">
             <TableRow>
               <TableHead className="font-mono text-xs">PERIOD</TableHead>
               <TableHead className="font-mono text-xs">NAME</TableHead>

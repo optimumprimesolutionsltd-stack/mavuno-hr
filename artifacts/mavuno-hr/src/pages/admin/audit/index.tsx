@@ -12,7 +12,7 @@ export function AuditLog() {
     <div className="space-y-6 max-w-[1200px] mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight font-mono">AUDIT TRAIL</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">AUDIT TRAIL</h1>
           <p className="text-muted-foreground text-sm">Tamper-evident, hash-chained activity log</p>
         </div>
         <Badge variant="outline" className="font-mono bg-primary/10 text-primary border-primary/30">
@@ -20,7 +20,7 @@ export function AuditLog() {
         </Badge>
       </div>
 
-      <Card className="border-border/50 bg-card/30">
+      <Card className="border-border bg-card">
         <CardHeader className="border-b border-border/30 bg-muted/20">
           <CardTitle className="text-sm font-mono flex items-center">
             <Database className="h-4 w-4 mr-2" /> CRYPTOGRAPHIC LEDGER
@@ -71,7 +71,7 @@ export function AuditLog() {
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end group">
                         <LinkIcon className="h-3 w-3 text-muted-foreground mr-2 opacity-30 group-hover:opacity-100 transition-opacity" />
-                        <div className="font-mono text-[10px] flex items-center bg-background px-2 py-1 rounded border border-border/50 group-hover:border-primary/50 transition-colors">
+                        <div className="font-mono text-[10px] flex items-center bg-background px-2 py-1 rounded border border-border group-hover:border-primary/50 transition-colors">
                           <span className="text-muted-foreground/50 w-8 truncate">{log.prevHash?.substring(0,6) || 'root'}</span>
                           <ArrowRight className="h-3 w-3 mx-1 text-muted-foreground/50" />
                           <span className="text-primary font-bold">{log.hash.substring(0,8)}</span>

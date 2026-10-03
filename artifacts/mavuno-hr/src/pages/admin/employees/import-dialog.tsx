@@ -354,7 +354,7 @@ export function ImportDialog({ open, onOpenChange }: Props) {
             {/* Drop zone */}
             <div
               className={`relative border-2 border-dashed rounded-xl p-10 text-center transition-colors cursor-pointer
-                ${dragging ? "border-primary bg-primary/5" : "border-border/50 hover:border-primary/50 hover:bg-muted/20"}`}
+                ${dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/20"}`}
               onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
               onDragLeave={() => setDragging(false)}
               onDrop={handleDrop}

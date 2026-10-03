@@ -277,7 +277,7 @@ function ChangePlanDialog({ open, onOpenChange, currentPlan, headcount, onConfir
                     ? "opacity-40 cursor-not-allowed border-border/40"
                     : isSelected
                       ? "border-primary bg-primary/5"
-                      : "border-border/50 hover:border-border"
+                      : "border-border hover:border-border"
                 }`}
               >
                 <div>
@@ -390,7 +390,7 @@ export function AdminBilling() {
           <CreditCard className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight font-mono">BILLING</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">BILLING</h1>
           <p className="text-muted-foreground text-sm">Your subscription payments and receipts</p>
         </div>
       </div>
@@ -466,7 +466,7 @@ export function AdminBilling() {
           )}
 
           {/* Plan card */}
-          <div className="rounded-lg border border-border/50 bg-card/30 p-5 space-y-4">
+          <div className="rounded-lg border border-border bg-card p-5 space-y-4">
             <div className="flex items-start justify-between flex-wrap gap-4">
               <div className="space-y-1">
                 <p className="text-xs font-mono text-muted-foreground">CURRENT PLAN</p>
@@ -546,7 +546,7 @@ export function AdminBilling() {
               Everything in the plan card above it is a live estimate at today's
               headcount; this is the figure that does not move. */}
           {charge && (
-            <div className="rounded-lg border border-border/50 bg-card/30 p-5 space-y-3">
+            <div className="rounded-lg border border-border bg-card p-5 space-y-3">
               <div className="flex items-start justify-between flex-wrap gap-4">
                 <div className="space-y-1">
                   <p className="text-xs font-mono text-muted-foreground">THIS PERIOD</p>
@@ -608,7 +608,7 @@ export function AdminBilling() {
 
           {/* Billing account number */}
           {billingRef && (
-            <div className="rounded-lg border border-border/50 bg-card/30 p-5 flex items-center justify-between flex-wrap gap-3">
+            <div className="rounded-lg border border-border bg-card p-5 flex items-center justify-between flex-wrap gap-3">
               <div className="space-y-1">
                 <p className="text-xs font-mono text-muted-foreground">BILLING ACCOUNT NUMBER</p>
                 <p className="text-lg font-mono font-bold tracking-wider text-foreground select-all">{billingRef}</p>
@@ -636,7 +636,7 @@ export function AdminBilling() {
           {/* Payments table */}
           <div>
             <h2 className="text-sm font-mono font-semibold text-muted-foreground mb-3">PAYMENT HISTORY</h2>
-            <div className="rounded-lg border border-border/50 overflow-hidden">
+            <div className="rounded-lg border border-border overflow-hidden">
               <Table>
                 <TableHeader className="bg-muted/20">
                   <TableRow>

@@ -60,7 +60,7 @@ export function ResetPassword() {
       <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/10 via-background to-background" />
 
       <div className="w-full max-w-md z-10 space-y-4">
-        <Card className="border-border/50 shadow-2xl bg-card/80 backdrop-blur-sm">
+        <Card className="border-border shadow-2xl bg-card/80 backdrop-blur-sm">
           <CardHeader className="space-y-4 pb-6">
             <div className="mx-auto w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
               <Building2 className="w-6 h-6 text-primary" />

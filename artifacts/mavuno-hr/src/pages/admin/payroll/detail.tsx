@@ -453,7 +453,7 @@ export function PayrollDetail() {
           <Link href="/admin/payroll"><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight font-mono uppercase">{run?.name}</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">{run?.name}</h1>
           <p className="text-muted-foreground text-sm font-mono">{run?.period} • {run?.runType?.replace("_", " ")}</p>
         </div>
 
@@ -627,33 +627,23 @@ export function PayrollDetail() {
         </div>
       )}
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-border/50 bg-card/30">
-          <CardHeader className="py-4">
-            <CardDescription className="font-mono text-xs">GROSS TOTAL</CardDescription>
-            <CardTitle className="text-xl font-mono text-primary">{formatMoney(run?.grossTotal ?? 0)}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-border/50 bg-card/30">
-          <CardHeader className="py-4">
-            <CardDescription className="font-mono text-xs">NET PAYOUT</CardDescription>
-            <CardTitle className="text-xl font-mono text-emerald-700">{formatMoney(run?.netTotal ?? 0)}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-border/50 bg-card/30">
-          <CardHeader className="py-4">
-            <CardDescription className="font-mono text-xs">PAYE TO KRA</CardDescription>
-            <CardTitle className="text-xl font-mono">{formatMoney(run?.payeTotal ?? 0)}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-border/50 bg-card/30">
-          <CardHeader className="py-4">
-            <CardDescription className="font-mono text-xs">EMPLOYEES</CardDescription>
-            <CardTitle className="text-xl font-mono">{run?.employeeCount ?? 0}</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
+      {/* The run's totals, ruled like the foot of a return. */}
+      <section aria-label="Run totals" className="grid grid-cols-2 md:grid-cols-4 border-2 border-foreground bg-card">
+        {[
+          { label: "Gross total", value: formatMoney(run?.grossTotal ?? 0), tone: "" },
+          { label: "Net payout", value: formatMoney(run?.netTotal ?? 0), tone: "text-primary" },
+          { label: "PAYE to KRA", value: formatMoney(run?.payeTotal ?? 0), tone: "" },
+          { label: "Employees", value: String(run?.employeeCount ?? 0), tone: "" },
+        ].map((total, i) => (
+          <div
+            key={total.label}
+            className={`min-w-0 p-4 ${i % 2 === 1 ? "border-l border-border" : ""} ${i >= 2 ? "border-t md:border-t-0 border-border" : ""} ${i === 2 ? "md:border-l" : ""}`}
+          >
+            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">{total.label}</p>
+            <p className={`mt-1.5 truncate font-mono text-lg md:text-xl font-medium tabular-nums ${total.tone}`}>{total.value}</p>
+          </div>
+        ))}
+      </section>
 
       {/* Compliance banner — missing NSSF / SHIF numbers */}
       {canEdit && readinessData && !readinessData.ok && readinessData.missing?.length > 0 && (
@@ -729,7 +719,7 @@ export function PayrollDetail() {
 
       {/* iTax P10 Export Dialog */}
       <Dialog open={itaxOpen} onOpenChange={setItaxOpen}>
-        <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col border-border/50 bg-card/95 backdrop-blur-sm">
+        <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col border-border bg-card">
           <DialogHeader className="shrink-0">
             <DialogTitle className="font-mono flex items-center gap-2">
               <FileSpreadsheet className="h-4 w-4 text-emerald-700" />
@@ -825,7 +815,7 @@ export function PayrollDetail() {
       </Dialog>
 
       <Dialog open={emailIssuesOpen} onOpenChange={setEmailIssuesOpen}>
-        <DialogContent className="max-w-xl border-border/50 bg-card/95 backdrop-blur-sm">
+        <DialogContent className="max-w-xl border-border bg-card">
           <DialogHeader>
             <DialogTitle className="font-mono flex items-center gap-2 text-red-700">
               <Mail className="h-4 w-4" />
@@ -886,9 +876,9 @@ export function PayrollDetail() {
 
       {/* Month-on-month variance section */}
       {run?.status !== "draft" && (
-        <Card className="border-border/50 bg-card/30">
+        <Card className="border-border bg-card">
           <CardHeader
-            className="border-b border-border/30 py-3 cursor-pointer select-none flex flex-row items-center justify-between"
+            className="border-b border-border py-3 cursor-pointer select-none flex flex-row items-center justify-between"
             onClick={() => setVarianceOpen((v) => !v)}
           >
             <CardTitle className="font-mono text-sm flex items-center gap-2">
@@ -943,7 +933,7 @@ export function PayrollDetail() {
                     </div>
                     <div className="overflow-x-auto">
                       <Table className="text-xs">
-                        <TableHeader className="bg-muted/30">
+                        <TableHeader className="bg-muted">
                           <TableRow>
                             <TableHead className="font-mono text-[10px] pl-4">EMPLOYEE</TableHead>
                             <TableHead className="font-mono text-[10px] text-right">GROSS (curr)</TableHead>
@@ -1018,8 +1008,8 @@ export function PayrollDetail() {
       )}
 
       {/* Payslips table */}
-      <Card className="border-border/50 shadow-sm bg-card/30">
-        <CardHeader className="border-b border-border/30 flex flex-row items-center justify-between gap-3 flex-wrap">
+      <Card className="border-border bg-card">
+        <CardHeader className="border-b border-border flex flex-row items-center justify-between gap-3 flex-wrap">
           <CardTitle className="font-mono text-sm">INDIVIDUAL PAYSLIPS</CardTitle>
           <div className="flex items-center gap-3 flex-1 justify-end">
             <input
@@ -1038,7 +1028,7 @@ export function PayrollDetail() {
         </CardHeader>
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader className="bg-muted/30">
+            <TableHeader className="bg-muted">
               <TableRow>
                 {(["empno", "name", "dept", "basic", "gross", "deductions", "net"] as const).map((col, idx) => {
                   const labels: Record<string, string> = {

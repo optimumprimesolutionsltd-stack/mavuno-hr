@@ -125,7 +125,7 @@ export function UsersAdmin() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight font-mono">ACCESS & LOGINS</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">ACCESS & LOGINS</h1>
           <p className="text-muted-foreground text-sm mt-1">Create and manage portal login accounts for employees</p>
         </div>
         <Button onClick={() => setShowCreate(true)} className="font-mono">
@@ -135,10 +135,10 @@ export function UsersAdmin() {
       </div>
 
       {/* Users table */}
-      <Card className="border-border/50 bg-card/30">
+      <Card className="border-border bg-card">
         <CardContent className="p-0">
           <Table>
-            <TableHeader className="bg-muted/30">
+            <TableHeader className="bg-muted">
               <TableRow>
                 <TableHead className="font-mono text-xs">USER</TableHead>
                 <TableHead className="font-mono text-xs">LINKED EMPLOYEE</TableHead>
@@ -300,7 +300,7 @@ export function UsersAdmin() {
               <DialogDescription>Share these credentials with the employee securely. The password will NOT be shown again.</DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
-              <div className="p-4 rounded-lg bg-muted/30 border border-border/50 font-mono text-sm space-y-2">
+              <div className="p-4 rounded-lg bg-muted/30 border border-border font-mono text-sm space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground text-xs">LOGIN URL</span>
                   <code className="text-xs">{window.location.origin}/portal/login</code>

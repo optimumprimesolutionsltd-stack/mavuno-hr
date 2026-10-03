@@ -188,7 +188,7 @@ export function Reports() {
     <div className="space-y-6 max-w-[1200px] mx-auto pb-10">
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight font-mono">REPORTS</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">REPORTS</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Download annual tax certificates, payroll registers, and statutory returns from one place.
           </p>
@@ -381,7 +381,7 @@ function ReportCard({
   onClick: () => void;
 }) {
   return (
-    <Card className="border-border/60 bg-card/50 h-full">
+    <Card className="border-border/60 bg-card h-full">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">{icon}{title}</CardTitle>
         <CardDescription className="min-h-10">{description}</CardDescription>

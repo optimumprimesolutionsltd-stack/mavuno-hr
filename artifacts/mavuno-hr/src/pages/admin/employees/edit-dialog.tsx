@@ -325,7 +325,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
         </DialogHeader>
 
         <Tabs defaultValue={defaultTab} className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid grid-cols-5 bg-card border border-border/50">
+          <TabsList className="grid grid-cols-5 bg-card border border-border">
             <TabsTrigger value="personal" className="font-mono text-xs gap-1">
               <User className="h-3.5 w-3.5" />PERSONAL
             </TabsTrigger>
@@ -384,7 +384,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
                 ])}
               </div>
               {textField("REGION / COUNTY", "region", "text", "e.g. Nairobi, Mombasa")}
-              <div className="pt-2 border-t border-border/50">
+              <div className="pt-2 border-t border-border">
                 <p className="text-xs font-mono text-muted-foreground mb-3">WORK SCHEDULE</p>
                 <div className="grid grid-cols-2 gap-4">
                   {selectField("WORKING DAYS PER WEEK", "workDaysPerWeek", [
@@ -420,7 +420,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
                   </div>
                 </div>
               </div>
-              <div className="pt-2 border-t border-border/50">
+              <div className="pt-2 border-t border-border">
                 <p className="text-xs font-mono text-muted-foreground mb-3">COMPENSATION</p>
                 <div className="grid grid-cols-2 gap-4">
                   {textField("BASIC SALARY (KES)", "basicSalary", "text", "50000.00")}
@@ -433,7 +433,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
                   {textField("OTHER ALLOWANCE", "otherAllowance", "text", "0")}
                 </div>
               </div>
-              <div className="pt-2 border-t border-border/50">
+              <div className="pt-2 border-t border-border">
                 <p className="text-xs font-mono text-muted-foreground mb-3">DEDUCTIONS</p>
                 <div className="grid grid-cols-2 gap-4">
                   {textField("INSURANCE PREMIUM", "insurancePremium", "text", "0")}
@@ -533,7 +533,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
                 </div>
               </div>
 
-              <div className="space-y-4 pt-4 border-t border-border/50">
+              <div className="space-y-4 pt-4 border-t border-border">
                 <p className="text-xs text-muted-foreground font-mono">
                   SECOND NEXT OF KIN — optional. Leave blank if there is only one.
                 </p>
@@ -547,7 +547,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
                 </div>
               </div>
 
-              <div className="space-y-4 pt-4 border-t border-border/50">
+              <div className="space-y-4 pt-4 border-t border-border">
                 <p className="text-xs text-muted-foreground font-mono">
                   EMERGENCY CONTACT — who to actually call, if different from the next of kin above (e.g. the next of kin is a child).
                 </p>
@@ -562,7 +562,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, defaultTab = 
           </div>
         </Tabs>
 
-        <div className="flex justify-end gap-2 pt-4 border-t border-border/50 shrink-0">
+        <div className="flex justify-end gap-2 pt-4 border-t border-border shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button className="font-mono" onClick={handleSave} disabled={update.isPending}>
             {update.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

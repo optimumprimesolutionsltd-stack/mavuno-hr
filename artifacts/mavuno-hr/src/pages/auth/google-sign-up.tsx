@@ -166,7 +166,7 @@ export function GoogleSignUp() {
             appearance={clerkAppearance}
           />
         ) : phase === "companySetup" ? (
-          <Card className="border-border/50 shadow-2xl bg-card/80 backdrop-blur-sm">
+          <Card className="border-border shadow-2xl bg-card/80 backdrop-blur-sm">
             <CardHeader className="pb-4">
               <CardTitle className="font-mono text-base">SET UP YOUR COMPANY</CardTitle>
               <CardDescription>One last step — tell us about the organisation</CardDescription>

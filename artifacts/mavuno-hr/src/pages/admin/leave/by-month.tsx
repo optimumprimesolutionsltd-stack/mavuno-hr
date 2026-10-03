@@ -90,9 +90,9 @@ export function LeaveByMonth({ leaves }: { leaves: any[] }) {
         ))}
       </div>
 
-      <div className="border border-border/50 rounded-lg overflow-hidden bg-card/30">
+      <div className="border border-border border-t-2 border-t-foreground overflow-hidden bg-card">
         <Table>
-          <TableHeader className="bg-muted/30">
+          <TableHeader className="bg-muted">
             <TableRow>
               <TableHead className="font-mono text-xs">EMPLOYEE</TableHead>
               <TableHead className="font-mono text-xs">TYPE</TableHead>

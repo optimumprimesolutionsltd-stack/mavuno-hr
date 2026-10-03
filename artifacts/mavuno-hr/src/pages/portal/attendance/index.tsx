@@ -77,11 +77,11 @@ export function PortalAttendance() {
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight font-mono">MY ATTENDANCE</h1>
+        <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">MY ATTENDANCE</h1>
         <p className="text-muted-foreground text-sm">Tap a day to record it, then send the month to HR as your timesheet.</p>
       </div>
 
-      <Card className="border-border/50 bg-card/30">
+      <Card className="border-border bg-card">
         <CardContent className="p-4 sm:p-6 space-y-4">
           <div className="flex items-center justify-between">
             <Button variant="outline" size="icon" onClick={() => setPeriod(shift(period, -1))}><ChevronLeft className="h-4 w-4" /></Button>

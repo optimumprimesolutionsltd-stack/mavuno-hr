@@ -43,12 +43,12 @@ export function PortalProfile() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight font-mono">MY PROFILE</h1>
+        <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">MY PROFILE</h1>
         <p className="text-muted-foreground text-sm">View your employment details and payslip history</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="border-border/50 shadow-sm bg-card/30">
+        <Card className="border-border shadow-sm bg-card">
           <CardHeader className="pb-3 border-b border-border/30">
             <CardTitle className="text-sm font-mono flex items-center text-muted-foreground">
               <User className="h-4 w-4 mr-2 text-primary" />
@@ -71,7 +71,7 @@ export function PortalProfile() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/50 shadow-sm bg-card/30">
+        <Card className="border-border shadow-sm bg-card">
           <CardHeader className="pb-3 border-b border-border/30">
             <CardTitle className="text-sm font-mono flex items-center text-muted-foreground">
               <Briefcase className="h-4 w-4 mr-2 text-primary" />
@@ -95,7 +95,7 @@ export function PortalProfile() {
         </Card>
       </div>
 
-      <Card className="border-border/50 shadow-sm bg-card/30">
+      <Card className="border-border shadow-sm bg-card">
         <CardHeader className="border-b border-border/30 flex flex-row items-center justify-between">
           <CardTitle className="font-mono text-sm flex items-center">
             <FileText className="h-4 w-4 mr-2" />
@@ -105,7 +105,7 @@ export function PortalProfile() {
         </CardHeader>
         <CardContent className="p-0">
           <Table>
-            <TableHeader className="bg-muted/30">
+            <TableHeader className="bg-muted">
               <TableRow>
                 <TableHead className="font-mono text-xs">PERIOD</TableHead>
                 <TableHead className="font-mono text-xs text-right">GROSS PAY</TableHead>

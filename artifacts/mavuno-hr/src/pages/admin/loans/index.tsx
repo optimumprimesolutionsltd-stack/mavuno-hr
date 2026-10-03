@@ -54,7 +54,7 @@ export function LoansAdmin() {
     <div className="space-y-6 max-w-[1200px] mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight font-mono">LOANS & ADVANCES</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">LOANS & ADVANCES</h1>
           <p className="text-muted-foreground text-sm">Manage employee loans, salary advances, and fringe benefits</p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -89,7 +89,7 @@ export function LoansAdmin() {
       />
 
       <Tabs defaultValue="active" className="w-full">
-        <TabsList className="grid w-full max-w-lg grid-cols-3 mb-6 bg-card border border-border/50 p-1">
+        <TabsList className="grid w-full max-w-lg grid-cols-3 mb-6 bg-card border border-border p-1">
           <TabsTrigger value="active" className="font-mono text-xs">ACTIVE LOANS</TabsTrigger>
           <TabsTrigger value="bymonth" className="font-mono text-xs">BY MONTH</TabsTrigger>
           <TabsTrigger value="requests" className="font-mono text-xs flex items-center gap-2">
@@ -104,13 +104,13 @@ export function LoansAdmin() {
 
         {/* ── Active Loans ── */}
         <TabsContent value="active" className="space-y-4 mt-0">
-          <Card className="border-border/50 bg-card/30">
+          <Card className="border-border bg-card">
             <CardHeader className="py-4 border-b border-border/30">
               <CardTitle className="text-sm font-mono">CURRENT PORTFOLIO</CardTitle>
             </CardHeader>
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-muted/30">
+                <TableHeader className="bg-muted">
                   <TableRow>
                     <TableHead className="font-mono text-xs">EMPLOYEE</TableHead>
                     <TableHead className="font-mono text-xs">TYPE</TableHead>
@@ -223,13 +223,13 @@ export function LoansAdmin() {
         </TabsContent>
 
         <TabsContent value="requests" className="mt-0">
-          <Card className="border-border/50 bg-card/30">
+          <Card className="border-border bg-card">
             <CardHeader className="py-4 border-b border-border/30">
               <CardTitle className="text-sm font-mono">ALL REQUESTS</CardTitle>
             </CardHeader>
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-muted/30">
+                <TableHeader className="bg-muted">
                   <TableRow>
                     <TableHead className="font-mono text-xs">DATE</TableHead>
                     <TableHead className="font-mono text-xs">EMPLOYEE</TableHead>

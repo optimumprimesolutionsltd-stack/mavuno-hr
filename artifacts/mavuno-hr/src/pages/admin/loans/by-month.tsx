@@ -53,7 +53,7 @@ export function LoansByMonth({ loans }: { loans: any[] }) {
           Some employees have more than one loan or advance in this month (marked below). Check none was posted twice.
         </div>
       )}
-      <div className="rounded-md border border-border/50 bg-card/50">
+      <div className="border border-border border-t-2 border-t-foreground bg-card">
         <Table>
           <TableHeader>
             <TableRow>
