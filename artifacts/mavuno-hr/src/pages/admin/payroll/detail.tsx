@@ -27,10 +27,10 @@ import { downloadP10Csv, downloadNssfWorkbook, downloadShifTemplate, downloadAhl
 function StatusBadge({ status }: { status: string }) {
   const cfg: Record<string, string> = {
     draft:            "border-muted-foreground/40 text-muted-foreground bg-muted/20",
-    pending_approval: "border-amber-500/60 text-amber-500 bg-amber-500/10",
-    approved:         "border-blue-500/60 text-blue-400 bg-blue-500/10",
-    paid:             "border-emerald-500/60 text-emerald-400 bg-emerald-500/10",
-    reversed:         "border-red-500/60 text-red-400 bg-red-500/10",
+    pending_approval: "border-amber-500/60 text-amber-700 bg-amber-500/10",
+    approved:         "border-blue-500/60 text-blue-700 bg-blue-500/10",
+    paid:             "border-emerald-500/60 text-emerald-700 bg-emerald-500/10",
+    reversed:         "border-red-500/60 text-red-700 bg-red-500/10",
   };
   const cls = cfg[status] ?? "border-muted-foreground/40 text-muted-foreground";
   return (
@@ -518,7 +518,7 @@ export function PayrollDetail() {
                 size="sm" variant="outline"
                 onClick={handleInsuranceCorrection}
                 disabled={insuranceCorrectionPending}
-                className="font-mono gap-1.5 border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
+                className="font-mono gap-1.5 border-amber-500/50 text-amber-700 hover:bg-amber-500/10"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${insuranceCorrectionPending ? "animate-spin" : ""}`} />
                 {insuranceCorrectionPending ? "APPLYING..." : "APPLY INSURANCE DEDUCTIONS"}
@@ -527,19 +527,19 @@ export function PayrollDetail() {
                 size="sm" variant="outline"
                 onClick={handleItaxExport}
                 disabled={itaxLoading}
-                className="font-mono gap-1.5 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10"
+                className="font-mono gap-1.5 border-emerald-500/50 text-emerald-700 hover:bg-emerald-500/10"
               >
                 <FileSpreadsheet className={`h-3.5 w-3.5 ${itaxLoading ? "animate-pulse" : ""}`} />
                  {itaxLoading ? "LOADING..." : "iTAX P10A"}
                 {p10Filing && !itaxLoading && (
-                  <span className="ml-1 text-[10px] bg-emerald-500/20 text-emerald-300 px-1 rounded font-mono">FILED</span>
+                  <span className="ml-1 text-[10px] bg-emerald-500/20 text-emerald-700 px-1 rounded font-mono">FILED</span>
                 )}
               </Button>
               <Button
                 size="sm" variant="outline"
                 onClick={handleDownloadP9Zip}
                 disabled={p9ZipLoading}
-                className="font-mono gap-1.5 border-teal-500/50 text-teal-400 hover:bg-teal-500/10"
+                className="font-mono gap-1.5 border-teal-500/50 text-teal-700 hover:bg-teal-500/10"
                 title="Download one annual P9 certificate per employee in a single ZIP file"
               >
                 <Download className={`h-3.5 w-3.5 ${p9ZipLoading ? "animate-pulse" : ""}`} />
@@ -549,7 +549,7 @@ export function PayrollDetail() {
                 size="sm" variant="outline"
                 onClick={handleDownloadP10Pdf}
                 disabled={p10PdfLoading}
-                className="font-mono gap-1.5 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
+                className="font-mono gap-1.5 border-cyan-500/50 text-cyan-700 hover:bg-cyan-500/10"
               >
                 <FileText className={`h-3.5 w-3.5 ${p10PdfLoading ? "animate-pulse" : ""}`} />
                 {p10PdfLoading ? "LOADING..." : "ANNUAL P10 PDF"}
@@ -558,36 +558,36 @@ export function PayrollDetail() {
                 size="sm" variant="outline"
                 onClick={handleNssfExport}
                 disabled={nssfLoading}
-                className="font-mono gap-1.5 border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
+                className="font-mono gap-1.5 border-orange-500/50 text-orange-700 hover:bg-orange-500/10"
               >
                 <Download className={`h-3.5 w-3.5 ${nssfLoading ? "animate-pulse" : ""}`} />
                 {nssfLoading ? "LOADING..." : "NSSF XLSX"}
                 {nssfFiling && !nssfLoading && (
-                  <span className="ml-1 text-[10px] bg-orange-500/20 text-orange-300 px-1 rounded font-mono">FILED</span>
+                  <span className="ml-1 text-[10px] bg-orange-500/20 text-orange-700 px-1 rounded font-mono">FILED</span>
                 )}
               </Button>
               <Button
                 size="sm" variant="outline"
                 onClick={handleShifExport}
                 disabled={shifLoading}
-                className="font-mono gap-1.5 border-sky-500/50 text-sky-400 hover:bg-sky-500/10"
+                className="font-mono gap-1.5 border-sky-500/50 text-sky-700 hover:bg-sky-500/10"
               >
                 <Download className={`h-3.5 w-3.5 ${shifLoading ? "animate-pulse" : ""}`} />
                 {shifLoading ? "LOADING..." : "SHIF XLSX"}
                 {shifFiling && !shifLoading && (
-                  <span className="ml-1 text-[10px] bg-sky-500/20 text-sky-300 px-1 rounded font-mono">FILED</span>
+                  <span className="ml-1 text-[10px] bg-sky-500/20 text-sky-700 px-1 rounded font-mono">FILED</span>
                 )}
               </Button>
               <Button
                 size="sm" variant="outline"
                 onClick={handleAhlExport}
                 disabled={ahlLoading}
-                className="font-mono gap-1.5 border-violet-500/50 text-violet-400 hover:bg-violet-500/10"
+                className="font-mono gap-1.5 border-violet-500/50 text-violet-700 hover:bg-violet-500/10"
               >
                 <Download className={`h-3.5 w-3.5 ${ahlLoading ? "animate-pulse" : ""}`} />
                 {ahlLoading ? "LOADING..." : "AHL CSV"}
                 {ahlFiling && !ahlLoading && (
-                  <span className="ml-1 text-[10px] bg-violet-500/20 text-violet-300 px-1 rounded font-mono">FILED</span>
+                  <span className="ml-1 text-[10px] bg-violet-500/20 text-violet-700 px-1 rounded font-mono">FILED</span>
                 )}
               </Button>
               {!isHistorical && (
@@ -617,7 +617,7 @@ export function PayrollDetail() {
       {/* Historical / migration banner */}
       {isHistorical && (
         <div className="rounded-lg border border-violet-500/30 bg-violet-500/5 px-4 py-3 flex items-center gap-3">
-          <History className="h-4 w-4 text-violet-400 shrink-0" />
+          <History className="h-4 w-4 text-violet-700 shrink-0" />
           <p className="text-sm text-muted-foreground">
             {run.status === "paid"
               ? <>Recorded {formatDateTime(run.paidAt)} — migrated from prior system.</>
@@ -638,7 +638,7 @@ export function PayrollDetail() {
         <Card className="border-border/50 bg-card/30">
           <CardHeader className="py-4">
             <CardDescription className="font-mono text-xs">NET PAYOUT</CardDescription>
-            <CardTitle className="text-xl font-mono text-emerald-400">{formatMoney(run?.netTotal ?? 0)}</CardTitle>
+            <CardTitle className="text-xl font-mono text-emerald-700">{formatMoney(run?.netTotal ?? 0)}</CardTitle>
           </CardHeader>
         </Card>
         <Card className="border-border/50 bg-card/30">
@@ -658,16 +658,16 @@ export function PayrollDetail() {
       {/* Compliance banner — missing NSSF / SHIF numbers */}
       {canEdit && readinessData && !readinessData.ok && readinessData.missing?.length > 0 && (
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3 space-y-2">
-          <div className="flex items-center gap-2 text-amber-400 font-mono text-xs font-bold">
+          <div className="flex items-center gap-2 text-amber-700 font-mono text-xs font-bold">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             {readinessData.missing.length} EMPLOYEE{readinessData.missing.length !== 1 ? "S" : ""} MISSING STATUTORY NUMBERS — NSSF / SHIF FILINGS MAY BE REJECTED
           </div>
           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0.5">
             {readinessData.missing.map((m: { name: string; employeeNo: string; missingFields: string[] }) => (
               <li key={m.employeeNo} className="flex items-center gap-1.5 text-xs font-mono">
-                <span className="text-amber-300/80">{m.name}</span>
+                <span className="text-amber-700/80">{m.name}</span>
                 <span className="text-muted-foreground">({m.employeeNo})</span>
-                <span className="text-amber-500">— {m.missingFields.join(", ")}</span>
+                <span className="text-amber-700">— {m.missingFields.join(", ")}</span>
               </li>
             ))}
           </ul>
@@ -680,50 +680,50 @@ export function PayrollDetail() {
       {/* Email delivery failure banners */}
       {nssfEmailFailed && (
         <div className="rounded-lg border border-red-500/40 bg-red-500/5 px-4 py-3 flex items-start gap-3">
-          <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+          <AlertTriangle className="h-4 w-4 text-red-700 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-red-400 font-mono text-xs">NSSF CONFIRMATION EMAIL NOT DELIVERED</p>
-            <p className="text-xs text-red-300/80 mt-0.5">
+            <p className="font-semibold text-red-700 font-mono text-xs">NSSF CONFIRMATION EMAIL NOT DELIVERED</p>
+            <p className="text-xs text-red-700/80 mt-0.5">
               The NSSF remittance confirmation email could not be sent to your account.
               The CSV was still downloaded and the filing was recorded.
             </p>
             {nssfEmailFailed && (
-              <p className="text-[11px] text-red-400/60 mt-1 font-mono">{nssfEmailFailed}</p>
+              <p className="text-[11px] text-red-700/60 mt-1 font-mono">{nssfEmailFailed}</p>
             )}
           </div>
-          <button onClick={() => setNssfEmailFailed(null)} className="text-red-400/60 hover:text-red-300 text-xs shrink-0">✕</button>
+          <button onClick={() => setNssfEmailFailed(null)} className="text-red-700/60 hover:text-red-700 text-xs shrink-0">✕</button>
         </div>
       )}
       {shifEmailFailed && (
         <div className="rounded-lg border border-red-500/40 bg-red-500/5 px-4 py-3 flex items-start gap-3">
-          <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+          <AlertTriangle className="h-4 w-4 text-red-700 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-red-400 font-mono text-xs">SHIF CONFIRMATION EMAIL NOT DELIVERED</p>
-            <p className="text-xs text-red-300/80 mt-0.5">
+            <p className="font-semibold text-red-700 font-mono text-xs">SHIF CONFIRMATION EMAIL NOT DELIVERED</p>
+            <p className="text-xs text-red-700/80 mt-0.5">
               The SHIF remittance confirmation email could not be sent to your account.
               The CSV was still downloaded and the filing was recorded.
             </p>
             {shifEmailFailed && (
-              <p className="text-[11px] text-red-400/60 mt-1 font-mono">{shifEmailFailed}</p>
+              <p className="text-[11px] text-red-700/60 mt-1 font-mono">{shifEmailFailed}</p>
             )}
           </div>
-          <button onClick={() => setShifEmailFailed(null)} className="text-red-400/60 hover:text-red-300 text-xs shrink-0">✕</button>
+          <button onClick={() => setShifEmailFailed(null)} className="text-red-700/60 hover:text-red-700 text-xs shrink-0">✕</button>
         </div>
       )}
       {ahlEmailFailed && (
         <div className="rounded-lg border border-red-500/40 bg-red-500/5 px-4 py-3 flex items-start gap-3">
-          <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+          <AlertTriangle className="h-4 w-4 text-red-700 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-red-400 font-mono text-xs">AHL CONFIRMATION EMAIL NOT DELIVERED</p>
-            <p className="text-xs text-red-300/80 mt-0.5">
+            <p className="font-semibold text-red-700 font-mono text-xs">AHL CONFIRMATION EMAIL NOT DELIVERED</p>
+            <p className="text-xs text-red-700/80 mt-0.5">
               The AHL remittance confirmation email could not be sent to your account.
               The CSV was still downloaded and the filing was recorded.
             </p>
             {ahlEmailFailed && (
-              <p className="text-[11px] text-red-400/60 mt-1 font-mono">{ahlEmailFailed}</p>
+              <p className="text-[11px] text-red-700/60 mt-1 font-mono">{ahlEmailFailed}</p>
             )}
           </div>
-          <button onClick={() => setAhlEmailFailed(null)} className="text-red-400/60 hover:text-red-300 text-xs shrink-0">✕</button>
+          <button onClick={() => setAhlEmailFailed(null)} className="text-red-700/60 hover:text-red-700 text-xs shrink-0">✕</button>
         </div>
       )}
 
@@ -732,7 +732,7 @@ export function PayrollDetail() {
         <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col border-border/50 bg-card/95 backdrop-blur-sm">
           <DialogHeader className="shrink-0">
             <DialogTitle className="font-mono flex items-center gap-2">
-              <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
+              <FileSpreadsheet className="h-4 w-4 text-emerald-700" />
               iTAX P10A RETURN — {itaxData?.period ?? run?.period}
             </DialogTitle>
             <DialogDescription className="font-mono text-xs">
@@ -743,13 +743,13 @@ export function PayrollDetail() {
           {/* Warnings */}
           {itaxData?.warnings?.length > 0 && (
             <div className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3 space-y-1">
-              <div className="flex items-center gap-2 text-amber-400 font-mono text-xs font-bold">
+              <div className="flex items-center gap-2 text-amber-700 font-mono text-xs font-bold">
                 <AlertTriangle className="h-4 w-4" />
                 {itaxData.warnings.length} EMPLOYEE{itaxData.warnings.length > 1 ? "S" : ""} WITH MISSING KRA PIN
               </div>
               <ul className="list-disc list-inside space-y-0.5">
                 {itaxData.warnings.map((w: string, i: number) => (
-                  <li key={i} className="text-xs text-amber-300/80 font-mono">{w}</li>
+                  <li key={i} className="text-xs text-amber-700/80 font-mono">{w}</li>
                 ))}
               </ul>
             </div>
@@ -775,14 +775,14 @@ export function PayrollDetail() {
                     <TableHead className="font-mono text-[10px] px-2 text-right">TAXABLE PAY</TableHead>
                     <TableHead className="font-mono text-[10px] px-2 text-right">PERS. RELIEF</TableHead>
                     <TableHead className="font-mono text-[10px] px-2 text-right">INS. RELIEF</TableHead>
-                    <TableHead className="font-mono text-[10px] px-2 text-right text-emerald-400">PAYE</TableHead>
+                    <TableHead className="font-mono text-[10px] px-2 text-right text-emerald-700">PAYE</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {itaxData.rows.map((row: any, i: number) => (
                     <TableRow key={i} className={`hover:bg-muted/20 ${row.missingPin ? "bg-amber-500/5" : ""}`}>
-                      <TableCell className={`font-mono px-2 py-1.5 ${row.missingPin ? "text-amber-400" : ""}`}>
-                        {row.kraPin || <span className="text-amber-400">MISSING</span>}
+                      <TableCell className={`font-mono px-2 py-1.5 ${row.missingPin ? "text-amber-700" : ""}`}>
+                        {row.kraPin || <span className="text-amber-700">MISSING</span>}
                       </TableCell>
                       <TableCell className="px-2 py-1.5 max-w-[140px] truncate">{row.name}</TableCell>
                       <TableCell className="text-right font-mono px-2 py-1.5">{formatMoney(row.totalCashPay)}</TableCell>
@@ -793,7 +793,7 @@ export function PayrollDetail() {
                       <TableCell className="text-right font-mono px-2 py-1.5">{formatMoney(row.taxablePay)}</TableCell>
                       <TableCell className="text-right font-mono px-2 py-1.5 text-muted-foreground">{formatMoney(row.personalRelief)}</TableCell>
                       <TableCell className="text-right font-mono px-2 py-1.5 text-muted-foreground">{formatMoney(row.insuranceRelief)}</TableCell>
-                      <TableCell className="text-right font-mono px-2 py-1.5 font-bold text-emerald-400">{formatMoney(row.paye)}</TableCell>
+                      <TableCell className="text-right font-mono px-2 py-1.5 font-bold text-emerald-700">{formatMoney(row.paye)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -804,7 +804,7 @@ export function PayrollDetail() {
           <DialogFooter className="shrink-0 flex-row items-center justify-between gap-3">
             <div className="text-xs text-muted-foreground font-mono">
               {itaxData?.rows?.length ?? 0} employees • Total PAYE: {formatMoney(itaxData?.totalPaye ?? 0)}
-              {itaxData && <span className="ml-3 text-emerald-400">✓ Download recorded as filed</span>}
+              {itaxData && <span className="ml-3 text-emerald-700">✓ Download recorded as filed</span>}
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="font-mono" onClick={() => setItaxOpen(false)}>
@@ -827,7 +827,7 @@ export function PayrollDetail() {
       <Dialog open={emailIssuesOpen} onOpenChange={setEmailIssuesOpen}>
         <DialogContent className="max-w-xl border-border/50 bg-card/95 backdrop-blur-sm">
           <DialogHeader>
-            <DialogTitle className="font-mono flex items-center gap-2 text-red-400">
+            <DialogTitle className="font-mono flex items-center gap-2 text-red-700">
               <Mail className="h-4 w-4" />
               EMAIL DELIVERY ISSUES
             </DialogTitle>
@@ -837,7 +837,7 @@ export function PayrollDetail() {
           </DialogHeader>
           <div className="max-h-[50vh] overflow-y-auto space-y-2 pr-1">
             {emailIssues.map((issue, index) => (
-              <div key={`${issue}-${index}`} className="rounded-md border border-red-500/25 bg-red-500/5 px-3 py-2 text-xs text-red-300">
+              <div key={`${issue}-${index}`} className="rounded-md border border-red-500/25 bg-red-500/5 px-3 py-2 text-xs text-red-700">
                 {issue}
               </div>
             ))}
@@ -852,7 +852,7 @@ export function PayrollDetail() {
       {run?.status === "paid" && (
         <Card className="border-emerald-500/30 bg-emerald-500/5">
           <CardContent className="py-4 flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center text-sm font-medium text-emerald-400">
+            <div className="flex items-center text-sm font-medium text-emerald-700">
               <CheckCircle className="h-5 w-5 mr-3" />
               FUNDS DISBURSED — {formatDateTime(run?.paidAt || "")}
             </div>
@@ -924,8 +924,8 @@ export function PayrollDetail() {
                 const pctColor = (curr: number, prev: number) => {
                   if (prev === 0 && curr === 0) return "text-muted-foreground";
                   const d = curr - prev;
-                  if (d > 0) return "text-emerald-400";
-                  if (d < 0) return "text-red-400";
+                  if (d > 0) return "text-emerald-700";
+                  if (d < 0) return "text-red-700";
                   return "text-muted-foreground";
                 };
                 return (
@@ -935,9 +935,9 @@ export function PayrollDetail() {
                       <span>·</span>
                       <span>Gross payroll</span>
                       {grossDelta >= 0
-                        ? <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-                        : <TrendingDown className="h-3.5 w-3.5 text-red-400" />}
-                      <span className={grossDelta >= 0 ? "text-emerald-400" : "text-red-400"}>
+                        ? <TrendingUp className="h-3.5 w-3.5 text-emerald-700" />
+                        : <TrendingDown className="h-3.5 w-3.5 text-red-700" />}
+                      <span className={grossDelta >= 0 ? "text-emerald-700" : "text-red-700"}>
                         {grossDelta >= 0 ? "↑" : "↓"} {Math.abs(grossDelta).toFixed(1)}%
                       </span>
                     </div>
@@ -964,10 +964,10 @@ export function PayrollDetail() {
                                 <span className="font-mono text-muted-foreground mr-1.5">{row.empNo}</span>
                                 {row.empName}
                                 {row.isNew && (
-                                  <span className="ml-2 text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">NEW</span>
+                                  <span className="ml-2 text-[10px] font-mono text-emerald-700 bg-emerald-500/10 px-1.5 py-0.5 rounded">NEW</span>
                                 )}
                                 {row.isRemoved && (
-                                  <span className="ml-2 text-[10px] font-mono text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded">FINAL</span>
+                                  <span className="ml-2 text-[10px] font-mono text-red-700 bg-red-500/10 px-1.5 py-0.5 rounded">FINAL</span>
                                 )}
                               </TableCell>
                               <TableCell className="text-right font-mono py-1.5">{fmtKsh(row.currentGross)}</TableCell>
@@ -1153,7 +1153,7 @@ export function PayrollDetail() {
                             <span>{empName}</span>
                           )}
                           {hasOverrides && (
-                            <span className="ml-2 text-[10px] font-mono text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">EDITED</span>
+                            <span className="ml-2 text-[10px] font-mono text-amber-700 bg-amber-500/10 px-1.5 py-0.5 rounded">EDITED</span>
                           )}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{dept.name || <span className="text-muted-foreground/40">—</span>}</TableCell>
@@ -1245,7 +1245,7 @@ export function PayrollDetail() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-mono flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <AlertTriangle className="h-4 w-4 text-amber-700" />
               MISSING STATUTORY NUMBERS
             </DialogTitle>
             <DialogDescription>
@@ -1264,7 +1264,7 @@ export function PayrollDetail() {
                 {readinessMissing.map((m) => (
                   <tr key={m.employeeNo} className="border-b border-border/20 last:border-0">
                     <td className="px-3 py-2 font-mono">{m.name} <span className="text-muted-foreground">({m.employeeNo})</span></td>
-                    <td className="px-3 py-2 text-amber-400 font-mono">{m.missingFields.join(", ")}</td>
+                    <td className="px-3 py-2 text-amber-700 font-mono">{m.missingFields.join(", ")}</td>
                   </tr>
                 ))}
               </tbody>

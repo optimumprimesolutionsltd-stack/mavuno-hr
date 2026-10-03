@@ -137,7 +137,7 @@ export function EditLoanRequestDialog({ request, open, onOpenChange }: Props) {
             <div className="col-span-2 space-y-1">
               <Label className="text-xs font-mono text-muted-foreground">
                 SACCO INTEREST RATE (BPS)
-                <span className="text-[10px] font-normal text-amber-500 ml-2">— locked once approved</span>
+                <span className="text-[10px] font-normal text-amber-700 ml-2">— locked once approved</span>
               </Label>
               <Input type="number" value={form.interestRateBps} onChange={e => set("interestRateBps", e.target.value)} placeholder="1200" className="bg-background/50" />
               <p className="text-xs text-muted-foreground font-mono">100 bps = 1% p.a.</p>

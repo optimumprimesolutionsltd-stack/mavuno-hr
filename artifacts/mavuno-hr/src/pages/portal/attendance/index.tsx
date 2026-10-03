@@ -90,7 +90,7 @@ export function PortalAttendance() {
           </div>
 
           {locked && (
-            <p className="text-sm text-emerald-500 bg-emerald-500/10 border border-emerald-500/30 rounded-md p-3">
+            <p className="text-sm text-emerald-700 bg-emerald-500/10 border border-emerald-500/30 rounded-md p-3">
               This month's timesheet is approved, so the calendar is locked. Contact HR to make changes.
             </p>
           )}

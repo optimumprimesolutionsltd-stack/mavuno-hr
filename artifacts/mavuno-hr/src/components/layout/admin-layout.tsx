@@ -281,7 +281,7 @@ function AccessBanner() {
         expired
           ? "bg-destructive/10 border-destructive/30 text-destructive"
           : urgent
-            ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+            ? "bg-amber-500/10 border-amber-500/30 text-amber-700"
             : "bg-primary/10 border-primary/30 text-primary"
       }`}
     >
@@ -351,15 +351,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const SidebarContent = () => (
     <>
       {/* Logo */}
-      <div className="h-16 flex items-center px-6 border-b border-border shrink-0">
+      <div className="h-16 flex items-center px-6 border-b border-sidebar-border shrink-0">
         <img src={`${import.meta.env.BASE_URL}branding/mavuno-mark.svg`} alt="" className="h-7 w-7 mr-3" />
-        <span className="font-bold text-lg tracking-tight font-mono">
-           Mavuno<span className="text-primary"> HR</span>
+        <span className="font-serif font-extrabold uppercase text-[15px] tracking-[0.03em] [font-stretch:118%] text-sidebar-foreground">
+           Mavuno<span className="text-sidebar-primary"> HR</span>
         </span>
         {/* Close button — mobile only */}
         <button
           onClick={closeSidebar}
-          className="ml-auto lg:hidden text-muted-foreground hover:text-foreground"
+          className="ml-auto lg:hidden text-sidebar-foreground/60 hover:text-sidebar-foreground"
         >
           <X className="h-5 w-5" />
         </button>
@@ -368,8 +368,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Which company this session is in -- people with accounts in several
           companies had no way to tell. */}
       {org.name && (
-        <div className="px-6 py-2.5 border-b border-border bg-primary/5">
-          <div className="text-[10px] font-mono text-muted-foreground">COMPANY</div>
+        <div className="px-6 py-3 border-b border-sidebar-border bg-sidebar-accent/70">
+          <div className="text-[10px] font-mono tracking-[0.08em] text-sidebar-primary">COMPANY</div>
           <div className="text-sm font-semibold truncate" title={org.name}>{org.name}</div>
         </div>
       )}
@@ -385,14 +385,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               key={item.href}
               href={item.href}
               onClick={closeSidebar}
-              className={`flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors ${
+              className={`flex items-center px-3 py-2.5 text-sm font-medium rounded-[2px] transition-colors ${
                 isActive
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  ? "bg-sidebar-accent text-sidebar-foreground font-semibold shadow-[inset_3px_0_0_hsl(var(--signal))]"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
               }`}
             >
               <item.icon
-                className={`h-4 w-4 mr-3 shrink-0 ${isActive ? "text-primary" : "text-muted-foreground"}`}
+                className={`h-4 w-4 mr-3 shrink-0 ${isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50"}`}
               />
               {item.label}
             </Link>
@@ -401,19 +401,19 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </div>
 
       {/* User footer */}
-      <div className="p-4 border-t border-border bg-sidebar shrink-0">
+      <div className="p-4 border-t border-sidebar-border bg-sidebar shrink-0">
         <div className="flex items-center mb-4 px-2">
-          <div className="h-8 w-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-mono text-xs font-bold mr-3 border border-primary/30 shrink-0">
+          <div className="h-8 w-8 rounded-[2px] bg-sidebar-accent text-sidebar-primary flex items-center justify-center font-mono text-xs font-bold mr-3 border border-sidebar-border shrink-0">
             {user?.name?.charAt(0) || "A"}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{user?.name}</p>
-            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+            <p className="text-xs text-sidebar-foreground/60 truncate">{user?.email}</p>
           </div>
         </div>
         <Button
           variant="outline"
-          className="w-full justify-start text-muted-foreground hover:text-foreground"
+          className="w-full justify-start border-sidebar-border bg-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
           onClick={handleLogout}
         >
           <LogOut className="h-4 w-4 mr-2" />
@@ -426,7 +426,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* ── Desktop sidebar (always visible ≥ lg) ── */}
-      <aside className="hidden lg:flex w-64 border-r border-border bg-sidebar flex-col fixed inset-y-0 left-0 z-30">
+      <aside className="hidden lg:flex w-64 border-r border-sidebar-border grid-navy text-sidebar-foreground flex-col fixed inset-y-0 left-0 z-30">
         <SidebarContent />
       </aside>
 
@@ -440,7 +440,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* ── Mobile: slide-in drawer ── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-sidebar border-r border-border flex flex-col transform transition-transform duration-200 ease-in-out lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 grid-navy text-sidebar-foreground border-r border-sidebar-border flex flex-col transform transition-transform duration-200 ease-in-out lg:hidden ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -448,7 +448,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </aside>
 
       {/* ── Mobile topbar ── */}
-      <header className="lg:hidden fixed top-0 inset-x-0 z-30 h-14 bg-card border-b border-border flex items-center px-4 gap-3">
+      <header className="lg:hidden fixed top-0 inset-x-0 z-30 h-14 bg-card border-b-2 border-foreground flex items-center px-4 gap-3">
         <button
           onClick={() => setSidebarOpen(true)}
           className="text-muted-foreground hover:text-foreground"
@@ -456,7 +456,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <Menu className="h-5 w-5" />
         </button>
             <img src={`${import.meta.env.BASE_URL}branding/mavuno-mark.svg`} alt="" className="h-6 w-6" />
-        <span className="font-bold tracking-tight font-mono text-base">
+        <span className="font-serif font-extrabold uppercase text-sm tracking-[0.03em] [font-stretch:118%]">
              Mavuno<span className="text-primary"> HR</span>
         </span>
         {/* Bell on mobile topbar */}

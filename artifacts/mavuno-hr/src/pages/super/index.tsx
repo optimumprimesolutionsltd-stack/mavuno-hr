@@ -257,7 +257,7 @@ function NewOrgDialog({ open, onClose }: { open: boolean; onClose: () => void })
           <>
             <DialogHeader>
               <DialogTitle className="font-mono flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                <CheckCircle2 className="h-5 w-5 text-emerald-700" />
                 {result.org.name.toUpperCase()} CREATED
               </DialogTitle>
               <DialogDescription>slug: {result.org.slug} · admin: {result.admin.email}</DialogDescription>
@@ -267,7 +267,7 @@ function NewOrgDialog({ open, onClose }: { open: boolean; onClose: () => void })
               {result.warnings.length > 0 && (
                 <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 space-y-1">
                   {result.warnings.map((w, i) => (
-                    <div key={i} className="flex items-start gap-2 text-xs text-amber-400">
+                    <div key={i} className="flex items-start gap-2 text-xs text-amber-700">
                       <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                       <span>{w}</span>
                     </div>
@@ -277,7 +277,7 @@ function NewOrgDialog({ open, onClose }: { open: boolean; onClose: () => void })
 
               <div className="rounded-md border border-border/40 bg-muted/20 px-3 py-2 flex items-center gap-2 text-xs">
                 {result.inviteEmailed ? (
-                  <><Mail className="h-3.5 w-3.5 text-emerald-500 shrink-0" /><span className="text-emerald-400">Invite emailed to {result.admin.email}</span></>
+                  <><Mail className="h-3.5 w-3.5 text-emerald-700 shrink-0" /><span className="text-emerald-700">Invite emailed to {result.admin.email}</span></>
                 ) : (
                   <><Info className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-muted-foreground">No email sent — share the link below</span></>
                 )}
@@ -612,7 +612,7 @@ function CreditsDialog({ org, open, onClose }: { org: OrgRow; open: boolean; onC
           {/* Open balance */}
           <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 flex justify-between items-center">
             <span className="text-xs font-mono text-muted-foreground">OPEN BALANCE</span>
-            <span className="font-mono font-bold text-emerald-400">{kes(data?.openBalanceCents ?? 0)}</span>
+            <span className="font-mono font-bold text-emerald-700">{kes(data?.openBalanceCents ?? 0)}</span>
           </div>
 
           {/* Issue form */}
@@ -759,9 +759,9 @@ export function SuperAdminCompanies() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: "TOTAL COMPANIES",   value: orgs.length,    icon: Building2,   color: "text-primary" },
-          { label: "ACTIVE",            value: activeOrgs,     icon: CheckCircle2, color: "text-emerald-400" },
-          { label: "ON TRIAL",          value: trialOrgs,      icon: ShieldCheck,  color: "text-amber-400" },
-          { label: "TOTAL EMPLOYEES",   value: totalEmployees, icon: Users,        color: "text-blue-400" },
+          { label: "ACTIVE",            value: activeOrgs,     icon: CheckCircle2, color: "text-emerald-700" },
+          { label: "ON TRIAL",          value: trialOrgs,      icon: ShieldCheck,  color: "text-amber-700" },
+          { label: "TOTAL EMPLOYEES",   value: totalEmployees, icon: Users,        color: "text-blue-700" },
         ].map((c) => (
           <div key={c.label} className="rounded-lg border border-border/50 bg-card/30 p-4 space-y-2">
             <div className="flex items-center gap-2 text-muted-foreground">
@@ -907,7 +907,7 @@ export function SuperAdminCompanies() {
                         </div>
                       </div>
                     ) : (
-                      <span className="text-xs text-muted-foreground font-mono bg-yellow-500/10 text-yellow-400 px-1.5 py-0.5 rounded">
+                      <span className="text-xs text-muted-foreground font-mono bg-yellow-500/10 text-yellow-700 px-1.5 py-0.5 rounded">
                         FREE
                       </span>
                     )}
@@ -944,7 +944,7 @@ export function SuperAdminCompanies() {
                       <>
                         <span className={
                           org.accessState === "expired" ? "text-destructive font-bold"
-                          : org.accessState === "expiring_soon" ? "text-amber-400"
+                          : org.accessState === "expiring_soon" ? "text-amber-700"
                           : ""
                         }>
                           {new Date(org.accessUntil).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
@@ -953,7 +953,7 @@ export function SuperAdminCompanies() {
                           <div className="text-[10px] font-mono text-destructive">EXPIRED — LOCKED</div>
                         )}
                         {org.accessState === "expiring_soon" && (
-                          <div className="text-[10px] font-mono text-amber-400/80">EXPIRING SOON</div>
+                          <div className="text-[10px] font-mono text-amber-700/80">EXPIRING SOON</div>
                         )}
                       </>
                     ) : (

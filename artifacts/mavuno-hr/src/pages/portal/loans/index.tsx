@@ -135,7 +135,7 @@ export function PortalLoans() {
 
                     {/* Fringe Benefit Tax notice (company loans only — employer cost) */}
                     {fbt && (
-                      <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 mb-4 text-xs text-amber-700 dark:text-amber-400">
+                      <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 mb-4 text-xs text-amber-700 dark:text-amber-700">
                         <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                         <div className="space-y-0.5">
                           <p className="font-mono font-semibold">FRINGE BENEFIT TAX (FBT) — EMPLOYER COST</p>

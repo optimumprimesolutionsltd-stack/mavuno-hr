@@ -19,10 +19,10 @@ import { EditLeaveDialog } from "./edit-leave-dialog";
 import { LeaveByMonth } from "./by-month";
 
 const BADGE_COLORS = [
-  "bg-emerald-500/20 text-emerald-400",
-  "bg-blue-500/20 text-blue-400",
-  "bg-purple-500/20 text-purple-400",
-  "bg-amber-500/20 text-amber-400",
+  "bg-emerald-500/20 text-emerald-700",
+  "bg-blue-500/20 text-blue-700",
+  "bg-purple-500/20 text-purple-700",
+  "bg-amber-500/20 text-amber-700",
   "bg-rose-500/20 text-rose-400",
 ];
 
@@ -324,7 +324,7 @@ export function LeaveAdmin() {
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5 border-amber-500/40 font-mono text-amber-400 hover:bg-amber-500/10"
+            className="gap-1.5 border-amber-500/40 font-mono text-amber-700 hover:bg-amber-500/10"
             onClick={() => setResetDialogOpen(true)}
           >
             <RotateCcw className="h-3.5 w-3.5" />
@@ -411,7 +411,7 @@ export function LeaveAdmin() {
                         </TableCell>
                         <TableCell className="text-right">
                           {row.leave.type === "annual" && remaining != null ? (
-                            <span className={`font-mono text-sm font-medium ${remaining <= 3 ? "text-destructive" : remaining <= 7 ? "text-amber-400" : "text-primary"}`}>
+                            <span className={`font-mono text-sm font-medium ${remaining <= 3 ? "text-destructive" : remaining <= 7 ? "text-amber-700" : "text-primary"}`}>
                               {remaining}d
                             </span>
                           ) : (
@@ -489,7 +489,7 @@ export function LeaveAdmin() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="font-mono flex items-center gap-2">
-              <RotateCcw className="h-4 w-4 text-amber-400" />
+              <RotateCcw className="h-4 w-4 text-amber-700" />
               RESET ANNUAL LEAVE BALANCES
             </AlertDialogTitle>
             <AlertDialogDescription>

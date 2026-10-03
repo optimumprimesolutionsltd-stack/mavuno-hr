@@ -47,12 +47,12 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Sidebar */}
-      <aside className="hidden lg:flex w-64 border-r border-border bg-sidebar flex-col fixed inset-y-0 left-0 z-30">
+      <aside className="hidden lg:flex w-64 border-r border-sidebar-border grid-navy text-sidebar-foreground flex-col fixed inset-y-0 left-0 z-30">
         {/* Logo */}
-        <div className="h-16 flex items-center px-6 border-b border-border shrink-0 gap-3">
-          <ShieldCheck className="h-5 w-5 text-primary" />
-          <span className="font-bold text-lg tracking-tight font-mono">
-            MAVUNO<span className="text-primary">.SUPER</span>
+        <div className="h-16 flex items-center px-6 border-b border-sidebar-border shrink-0 gap-3">
+          <ShieldCheck className="h-5 w-5 text-sidebar-primary" />
+          <span className="font-serif font-extrabold uppercase text-[15px] tracking-[0.03em] [font-stretch:118%] text-sidebar-foreground">
+            MAVUNO<span className="text-sidebar-primary">.SUPER</span>
           </span>
         </div>
 
@@ -68,23 +68,23 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors ${
+                className={`flex items-center px-3 py-2.5 text-sm font-medium rounded-[2px] transition-colors ${
                   isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    ? "bg-sidebar-accent text-sidebar-foreground font-semibold shadow-[inset_3px_0_0_hsl(var(--signal))]"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
                 }`}
               >
-                <item.icon className={`h-4 w-4 mr-3 shrink-0 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+                <item.icon className={`h-4 w-4 mr-3 shrink-0 ${isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50"}`} />
                 {item.label}
               </Link>
             );
           })}
 
           {/* Link back to own admin panel */}
-          <div className="mt-4 pt-4 border-t border-border/50">
+          <div className="mt-4 pt-4 border-t border-sidebar-border">
             <Link
               href="/admin"
-              className="flex items-center px-3 py-2.5 text-sm font-medium rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              className="flex items-center px-3 py-2.5 text-sm font-medium rounded-[2px] text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground transition-colors"
             >
               <Building2 className="h-4 w-4 mr-3 shrink-0" />
               My HR Panel
@@ -93,19 +93,19 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
         </div>
 
         {/* User footer */}
-        <div className="p-4 border-t border-border shrink-0">
+        <div className="p-4 border-t border-sidebar-border shrink-0">
           <div className="flex items-center mb-4 px-2">
-            <div className="h-8 w-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-mono text-xs font-bold mr-3 border border-primary/30 shrink-0">
+            <div className="h-8 w-8 rounded-[2px] bg-sidebar-accent text-sidebar-primary flex items-center justify-center font-mono text-xs font-bold mr-3 border border-sidebar-border shrink-0">
               {user?.name?.charAt(0) ?? "S"}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{user?.name}</p>
-              <p className="text-xs text-primary truncate font-mono">SUPER ADMIN</p>
+              <p className="text-xs text-sidebar-primary truncate font-mono">SUPER ADMIN</p>
             </div>
           </div>
           <Button
             variant="outline"
-            className="w-full justify-start text-muted-foreground hover:text-foreground"
+            className="w-full justify-start border-sidebar-border bg-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
             onClick={handleLogout}
           >
             <LogOut className="h-4 w-4 mr-2" />

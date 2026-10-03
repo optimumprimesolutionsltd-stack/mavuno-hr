@@ -69,102 +69,87 @@
 }
 
 :root {
-  /* Enforce dark mode variables everywhere since we want a cockpit/bloomberg feel */
-  --background: 220 20% 6%;
-  --foreground: 210 20% 98%;
+  /* The statutory form, as on mavunohr.co.ke: a paper work area for long
+     days of tables, a navy rail with the drafting grid, hairline rules,
+     figures in mono. Emerald is for action and confirmation only. */
+  --navy: 219 67% 12%;        /* #0A1B33 */
+  --navy-2: 217 59% 19%;      /* #132A4D grid lines */
+  --signal: 155 77% 43%;      /* #19C37D emerald on navy */
 
-  --card: 220 25% 9%;
-  --card-foreground: 210 20% 98%;
-  --card-border: 220 20% 16%;
+  --background: 100 18% 97%;  /* #F6F8F5 paper */
+  --foreground: 219 67% 12%;
 
-  --popover: 220 25% 9%;
-  --popover-foreground: 210 20% 98%;
-  --popover-border: 220 20% 16%;
+  --card: 0 0% 100%;
+  --card-foreground: 219 67% 12%;
+  --card-border: 140 10% 84%;
 
-  --primary: 158 84% 39%;
-  --primary-foreground: 220 20% 6%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 219 67% 12%;
+  --popover-border: 140 10% 84%;
 
-  --secondary: 220 20% 16%;
-  --secondary-foreground: 210 20% 98%;
+  --primary: 158 85% 28%;     /* emerald, dark enough for text on paper */
+  --primary-foreground: 0 0% 100%;
 
-  --muted: 220 20% 16%;
-  --muted-foreground: 215 15% 65%;
+  --secondary: 120 12% 92%;
+  --secondary-foreground: 219 67% 12%;
 
-  --accent: 220 20% 16%;
-  --accent-foreground: 210 20% 98%;
+  --muted: 120 12% 93%;
+  --muted-foreground: 219 18% 38%;
 
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 20% 98%;
+  --accent: 120 12% 92%;
+  --accent-foreground: 219 67% 12%;
 
-  --border: 220 20% 16%;
-  --input: 220 20% 16%;
-  --ring: 158 84% 39%;
+  --destructive: 0 72% 42%;
+  --destructive-foreground: 0 0% 100%;
 
-  --chart-1: 158 84% 39%;
-  --chart-2: 180 80% 45%;
-  --chart-3: 200 80% 50%;
-  --chart-4: 220 80% 55%;
-  --chart-5: 240 80% 60%;
+  --border: 140 10% 84%;
+  --input: 140 10% 78%;
+  --ring: 158 85% 28%;
 
-  --sidebar: 220 25% 7%;
-  --sidebar-foreground: 210 20% 98%;
-  --sidebar-border: 220 20% 16%;
-  --sidebar-primary: 158 84% 39%;
-  --sidebar-primary-foreground: 220 20% 6%;
-  --sidebar-accent: 220 20% 14%;
-  --sidebar-accent-foreground: 210 20% 98%;
-  --sidebar-ring: 158 84% 39%;
+  --chart-1: 158 85% 28%;
+  --chart-2: 219 67% 22%;
+  --chart-3: 155 60% 55%;
+  --chart-4: 38 85% 48%;
+  --chart-5: 219 25% 55%;
 
-  --app-font-sans: 'Inter', system-ui, sans-serif;
-  --app-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-  --radius: 0.3rem;
+  --sidebar: var(--navy);
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-border: 218 42% 24%;
+  --sidebar-primary: var(--signal);
+  --sidebar-primary-foreground: var(--navy);
+  --sidebar-accent: 217 59% 19%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-ring: var(--signal);
+
+  --app-font-sans: 'Public Sans', system-ui, sans-serif;
+  --app-font-serif: 'Archivo', 'Arial Narrow', Arial, sans-serif;
+  --app-font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --radius: 0.125rem;
 }
 
+/* Kept for anything that still opts into .dark: the navy of the rail. */
 .dark {
-  --background: 220 20% 6%;
-  --foreground: 210 20% 98%;
-
-  --card: 220 25% 9%;
-  --card-foreground: 210 20% 98%;
-  --card-border: 220 20% 16%;
-
-  --popover: 220 25% 9%;
-  --popover-foreground: 210 20% 98%;
-  --popover-border: 220 20% 16%;
-
-  --primary: 158 84% 39%;
-  --primary-foreground: 220 20% 6%;
-
-  --secondary: 220 20% 16%;
-  --secondary-foreground: 210 20% 98%;
-
-  --muted: 220 20% 16%;
-  --muted-foreground: 215 15% 65%;
-
-  --accent: 220 20% 16%;
-  --accent-foreground: 210 20% 98%;
-
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 20% 98%;
-
-  --border: 220 20% 16%;
-  --input: 220 20% 16%;
-  --ring: 158 84% 39%;
-
-  --chart-1: 158 84% 39%;
-  --chart-2: 180 80% 45%;
-  --chart-3: 200 80% 50%;
-  --chart-4: 220 80% 55%;
-  --chart-5: 240 80% 60%;
-
-  --sidebar: 220 25% 7%;
-  --sidebar-foreground: 210 20% 98%;
-  --sidebar-border: 220 20% 16%;
-  --sidebar-primary: 158 84% 39%;
-  --sidebar-primary-foreground: 220 20% 6%;
-  --sidebar-accent: 220 20% 14%;
-  --sidebar-accent-foreground: 210 20% 98%;
-  --sidebar-ring: 158 84% 39%;
+  --background: 219 67% 9%;
+  --foreground: 0 0% 98%;
+  --card: 219 60% 12%;
+  --card-foreground: 0 0% 98%;
+  --card-border: 218 42% 22%;
+  --popover: 219 60% 12%;
+  --popover-foreground: 0 0% 98%;
+  --popover-border: 218 42% 22%;
+  --primary: 155 77% 43%;
+  --primary-foreground: 219 67% 9%;
+  --secondary: 218 42% 18%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 218 42% 18%;
+  --muted-foreground: 215 20% 70%;
+  --accent: 218 42% 18%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 65% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 218 42% 22%;
+  --input: 218 42% 26%;
+  --ring: 155 77% 43%;
 }
 
 @layer base {
@@ -174,6 +159,24 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+  }
+
+  /* Headings in the wide cut of Archivo, as on the website. */
+  h1, h2, h3 {
+    font-family: var(--app-font-serif);
+    font-stretch: 112%;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  /* Drafting grid for the navy rail. */
+  .grid-navy {
+    background-color: hsl(var(--navy));
+    background-image:
+      linear-gradient(hsl(var(--navy-2)) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--navy-2)) 1px, transparent 1px);
+    background-size: 32px 32px;
   }
 }
 

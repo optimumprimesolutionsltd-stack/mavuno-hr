@@ -19,36 +19,37 @@ export const clerkAppearance = {
     socialButtonsPlacement: "top" as const,
     socialButtonsVariant: "blockButton" as const,
   },
+  // The statutory-form look: a white sheet with a navy rule on the paper
+  // ground, emerald only for the action.
   variables: {
-    colorPrimary: "#10b981",
-    colorForeground: "#f8fafc",
-    colorMutedForeground: "#94a3b8",
-    colorDanger: "#f87171",
-    colorBackground: "#111827",
-    colorInput: "#0f172a",
-    colorInputForeground: "#f8fafc",
-    colorNeutral: "#334155",
-    fontFamily: "Inter, sans-serif",
-    borderRadius: "0.75rem",
+    colorPrimary: "#0B8457",
+    colorForeground: "#0A1B33",
+    colorMutedForeground: "#4B5A73",
+    colorDanger: "#B91C1C",
+    colorBackground: "#FFFFFF",
+    colorInput: "#FFFFFF",
+    colorInputForeground: "#0A1B33",
+    colorNeutral: "#0A1B33",
+    fontFamily: "'Public Sans', system-ui, sans-serif",
+    borderRadius: "0.125rem",
   },
   elements: {
-    cardBox: "bg-slate-900 border border-slate-700 rounded-2xl w-[440px] max-w-full overflow-hidden",
+    cardBox: "bg-white border-2 border-[#0A1B33] rounded-[2px] w-[440px] max-w-full overflow-hidden shadow-[10px_10px_0_rgb(11_132_87/0.18)]",
     card: "!shadow-none !border-0 !bg-transparent",
     footer: "!shadow-none !border-0 !bg-transparent",
-    headerTitle: "text-slate-50",
-    headerSubtitle: "text-slate-400",
-    formFieldLabel: "text-slate-300",
-    footerActionLink: "text-emerald-400",
-    footerActionText: "text-slate-400",
+    headerTitle: "text-[#0A1B33] font-extrabold uppercase [font-family:Archivo,sans-serif] [font-stretch:112%]",
+    headerSubtitle: "text-slate-600",
+    formFieldLabel: "text-slate-700",
+    footerActionLink: "text-emerald-700",
+    footerActionText: "text-slate-600",
     dividerText: "text-slate-500",
-    formFieldInput: "bg-slate-950 text-slate-50 border-slate-700",
-    formButtonPrimary: "bg-emerald-500 hover:bg-emerald-400 text-slate-950",
+    formFieldInput: "bg-white text-[#0A1B33] border-slate-300",
+    formButtonPrimary: "bg-[#0B8457] hover:bg-[#0A1B33] text-white",
     socialButtonsBlockButton:
-      "!bg-slate-700 !border !border-slate-500 hover:!bg-slate-600",
-    socialButtonsBlockButtonText: "!text-white !font-medium",
-    socialButtonsProviderIcon__google: "brightness-125",
-    alert: "bg-red-950/50 border-red-500/40",
-    alertText: "text-red-200",
+      "!bg-white !border !border-slate-300 hover:!bg-slate-50",
+    socialButtonsBlockButtonText: "!text-[#0A1B33] !font-medium",
+    alert: "bg-red-50 border-red-300",
+    alertText: "text-red-800",
   },
 };
 
@@ -96,13 +97,13 @@ export function GoogleSignIn() {
           // reverted #16 loop; keeping it out removes that vector entirely.
           bridgeError ? (
             <div className="space-y-3">
-              <div role="alert" className="rounded-lg border border-red-500/40 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+              <div role="alert" className="rounded-lg border border-red-500/40 bg-red-950/40 px-4 py-3 text-sm text-red-800">
                 {bridgeError}
               </div>
               <button
                 type="button"
                 onClick={() => { void signOut(() => setLocation("/admin/login")); }}
-                className="text-sm text-emerald-400 hover:text-emerald-300"
+                className="text-sm text-emerald-700 hover:text-emerald-700"
               >
                 Back to login
               </button>

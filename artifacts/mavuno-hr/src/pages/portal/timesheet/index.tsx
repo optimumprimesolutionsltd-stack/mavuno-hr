@@ -158,7 +158,7 @@ export function PortalTimesheet() {
 
           {/* Approved warning */}
           {existing?.approvedAt && (
-            <div className="flex items-center gap-2 text-sm text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-md p-3">
+            <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-500/10 border border-emerald-500/30 rounded-md p-3">
               <CheckCircle className="h-4 w-4 shrink-0" />
               <span>This timesheet was approved on {formatDate(existing.approvedAt)}. Contact HR to make changes.</span>
             </div>
@@ -291,7 +291,7 @@ export function PortalTimesheet() {
                     <TableCell className="text-right font-mono text-sm">{ts.holidayHours ?? 0}h</TableCell>
                     <TableCell className="text-right">
                       {ts.approvedAt ? (
-                        <Badge className="font-mono text-[10px] bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                        <Badge className="font-mono text-[10px] bg-emerald-500/20 text-emerald-700 border-emerald-500/30">
                           <CheckCircle className="h-3 w-3 mr-1" />
                           APPROVED
                         </Badge>
@@ -301,7 +301,7 @@ export function PortalTimesheet() {
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="font-mono text-[10px]">
-                          <AlertCircle className="h-3 w-3 mr-1 text-amber-400" />
+                          <AlertCircle className="h-3 w-3 mr-1 text-amber-700" />
                           PENDING
                         </Badge>
                       )}

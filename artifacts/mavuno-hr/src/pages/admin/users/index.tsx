@@ -54,10 +54,10 @@ const ROLE_LABELS: Record<string, string> = {
 
 const ROLE_COLORS: Record<string, string> = {
   admin: "bg-primary/10 text-primary border-primary/30",
-  approver: "bg-purple-500/10 text-purple-400 border-purple-500/30",
-  payroll_officer: "bg-blue-500/10 text-blue-400 border-blue-500/30",
-  hr: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30",
-  manager: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+  approver: "bg-purple-500/10 text-purple-700 border-purple-500/30",
+  payroll_officer: "bg-blue-500/10 text-blue-700 border-blue-500/30",
+  hr: "bg-cyan-500/10 text-cyan-700 border-cyan-500/30",
+  manager: "bg-amber-500/10 text-amber-700 border-amber-500/30",
   employee: "bg-muted/60 text-muted-foreground border-border",
 };
 
@@ -199,7 +199,7 @@ export function UsersAdmin() {
                     </TableCell>
                     <TableCell>
                       {u.mustChangePassword && !u.disabledAt && (
-                        <Badge variant="outline" className="font-mono text-[10px] text-amber-400 border-amber-400/30 bg-amber-400/5">
+                        <Badge variant="outline" className="font-mono text-[10px] text-amber-700 border-amber-400/30 bg-amber-400/5">
                           MUST CHANGE PW
                         </Badge>
                       )}
@@ -207,7 +207,7 @@ export function UsersAdmin() {
                         <Badge variant="destructive" className="font-mono text-[10px]">DISABLED</Badge>
                       )}
                       {!u.disabledAt && !u.mustChangePassword && (
-                        <Badge variant="outline" className="font-mono text-[10px] text-emerald-400 border-emerald-400/30 bg-emerald-400/5">
+                        <Badge variant="outline" className="font-mono text-[10px] text-emerald-700 border-emerald-400/30 bg-emerald-400/5">
                           ACTIVE
                         </Badge>
                       )}
@@ -223,7 +223,7 @@ export function UsersAdmin() {
                         </Button>
                         <Button
                           variant="ghost" size="sm"
-                          className={`h-7 px-2 font-mono text-xs ${u.disabledAt ? 'text-emerald-400' : 'text-destructive'}`}
+                          className={`h-7 px-2 font-mono text-xs ${u.disabledAt ? 'text-emerald-700' : 'text-destructive'}`}
                           onClick={() => toggleDisable.mutate({ id: u.id, disabled: !u.disabledAt })}
                         >
                           {u.disabledAt
@@ -296,7 +296,7 @@ export function UsersAdmin() {
         <Dialog open onOpenChange={() => setCreatedCreds(null)}>
           <DialogContent className="max-w-md bg-card border-border/60">
             <DialogHeader>
-              <DialogTitle className="font-mono text-emerald-400">✓ LOGIN CREATED</DialogTitle>
+              <DialogTitle className="font-mono text-emerald-700">✓ LOGIN CREATED</DialogTitle>
               <DialogDescription>Share these credentials with the employee securely. The password will NOT be shown again.</DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">

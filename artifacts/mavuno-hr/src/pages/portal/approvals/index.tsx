@@ -18,12 +18,12 @@ const PENDING_LEAVES_KEY = ["portal", "pending-leaves"];
 
 function leaveStatusBadge(status: string) {
   if (status === "approved")
-    return <Badge className="font-mono text-[10px] bg-emerald-500/20 text-emerald-400 border-emerald-500/30">APPROVED</Badge>;
+    return <Badge className="font-mono text-[10px] bg-emerald-500/20 text-emerald-700 border-emerald-500/30">APPROVED</Badge>;
   if (status === "rejected")
     return <Badge variant="destructive" className="font-mono text-[10px]">REJECTED</Badge>;
   if (status === "cancelled")
     return <Badge variant="outline" className="font-mono text-[10px] text-muted-foreground">CANCELLED</Badge>;
-  return <Badge variant="outline" className="font-mono text-[10px] text-amber-400 border-amber-400/40">PENDING</Badge>;
+  return <Badge variant="outline" className="font-mono text-[10px] text-amber-700 border-amber-400/40">PENDING</Badge>;
 }
 
 export function PortalApprovals() {
@@ -98,11 +98,11 @@ export function PortalApprovals() {
 
       {/* Summary chips */}
       <div className="flex gap-3 flex-wrap">
-        <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-sm">
+        <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 font-mono text-sm">
           <ClipboardList className="h-4 w-4" />
           <span className="font-bold">{pending.length}</span> pending
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-sm">
+        <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 font-mono text-sm">
           <CheckCircle className="h-4 w-4" />
           <span className="font-bold">{decided.filter((r) => r.leave.status === "approved").length}</span> approved
         </div>
@@ -140,7 +140,7 @@ export function PortalApprovals() {
                 ) : pending.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-10 text-muted-foreground font-mono text-sm">
-                      <CheckCircle className="h-8 w-8 mx-auto mb-2 text-emerald-500/40" />
+                      <CheckCircle className="h-8 w-8 mx-auto mb-2 text-emerald-700/40" />
                       ALL CAUGHT UP — NO PENDING REQUESTS
                     </TableCell>
                   </TableRow>
@@ -181,7 +181,7 @@ export function PortalApprovals() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 w-8 p-0 text-emerald-400 border-emerald-500/50 hover:bg-emerald-500 hover:text-white"
+                            className="h-8 w-8 p-0 text-emerald-700 border-emerald-500/50 hover:bg-emerald-500 hover:text-white"
                             onClick={() => handleDecide(row.leave.id, "approve")}
                             disabled={decide.isPending && decidingId === row.leave.id}
                             title="Approve"

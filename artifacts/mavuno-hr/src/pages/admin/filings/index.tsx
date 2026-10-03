@@ -92,7 +92,7 @@ function StatusCell({
     return (
       <td className="px-4 py-3 text-center">
         <Link href={`/admin/payroll/${row.runId}`}>
-          <span className="inline-flex items-center gap-1.5 text-amber-500 text-xs font-medium cursor-pointer hover:text-amber-400 transition-colors">
+          <span className="inline-flex items-center gap-1.5 text-amber-700 text-xs font-medium cursor-pointer hover:text-amber-700 transition-colors">
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
             Pending
           </span>
@@ -110,7 +110,7 @@ function StatusCell({
     <td className="px-4 py-3 text-center">
       <button
         onClick={() => filing && onClickFiled(filing, row.period, kind)}
-        className="inline-flex items-center gap-1.5 text-emerald-400 text-xs font-medium hover:text-emerald-300 transition-colors group"
+        className="inline-flex items-center gap-1.5 text-emerald-700 text-xs font-medium hover:text-emerald-700 transition-colors group"
       >
         <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
         <span>{filedDate}</span>
@@ -163,12 +163,12 @@ export function FilingsPage() {
       {/* Outstanding obligations banner */}
       {outstanding.length > 0 && currentPeriod && (
         <div className="border border-amber-500/40 bg-amber-500/10 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+          <AlertCircle className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-amber-400 text-sm">
+            <p className="font-semibold text-amber-700 text-sm">
               Outstanding filings for {formatPeriod(currentPeriod)}
             </p>
-            <p className="text-xs text-amber-300/80 mt-0.5">
+            <p className="text-xs text-amber-700/80 mt-0.5">
               The following returns have not been downloaded yet:{" "}
               {outstanding.map((k) => KIND_LABELS[k as FilingKind]?.label ?? k).join(", ")}
             </p>
@@ -179,7 +179,7 @@ export function FilingsPage() {
               if (!row) return null;
               return (
                 <Link key={k} href={`/admin/payroll/${row.runId}`}>
-                  <Button size="sm" variant="outline" className="border-amber-500/50 text-amber-400 hover:bg-amber-500/10 text-xs h-7">
+                  <Button size="sm" variant="outline" className="border-amber-500/50 text-amber-700 hover:bg-amber-500/10 text-xs h-7">
                     Download {k}
                   </Button>
                 </Link>
@@ -293,7 +293,7 @@ export function FilingsPage() {
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 <div className="text-muted-foreground">Status</div>
                 <div>
-                  <span className={`font-medium ${detail.filing.status === "filed" ? "text-blue-400" : "text-emerald-400"}`}>
+                  <span className={`font-medium ${detail.filing.status === "filed" ? "text-blue-700" : "text-emerald-700"}`}>
                     {detail.filing.status === "filed" ? "Confirmed Filed" : "Downloaded"}
                   </span>
                 </div>
@@ -353,10 +353,10 @@ export function FilingsPage() {
 function RunStatusBadge({ status }: { status: string }) {
   const cfgs: Record<string, string> = {
     draft:            "border-muted-foreground/40 text-muted-foreground",
-    pending_approval: "border-amber-500/60 text-amber-500",
-    approved:         "border-blue-500/60 text-blue-400",
-    paid:             "border-emerald-500/60 text-emerald-400",
-    reversed:         "border-red-500/60 text-red-400",
+    pending_approval: "border-amber-500/60 text-amber-700",
+    approved:         "border-blue-500/60 text-blue-700",
+    paid:             "border-emerald-500/60 text-emerald-700",
+    reversed:         "border-red-500/60 text-red-700",
   };
   return (
     <Badge variant="outline" className={`font-mono text-[10px] ${cfgs[status] ?? "border-muted-foreground/40 text-muted-foreground"}`}>

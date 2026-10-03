@@ -120,7 +120,7 @@ export function AttendanceAdmin() {
         {(Object.keys(STATUS_META) as DayStatus[]).map((k) => (
           <span key={k} className={`px-2 py-0.5 rounded border ${STATUS_META[k].cls}`}>{STATUS_META[k].letter} {STATUS_META[k].label}</span>
         ))}
-        <span className="px-2 py-0.5 rounded border bg-amber-500/20 text-amber-600 border-amber-500/30">Public holiday (column shaded)</span>
+        <span className="px-2 py-0.5 rounded border bg-amber-500/20 text-amber-700 border-amber-500/30">Public holiday (column shaded)</span>
       </div>
 
       <div className="border border-border/50 rounded-lg overflow-auto bg-card/30 max-h-[70vh]">
@@ -130,7 +130,7 @@ export function AttendanceAdmin() {
               <th className="sticky left-0 z-30 bg-muted text-left px-3 py-2 font-mono min-w-[180px]">EMPLOYEE</th>
               {dayNums.map((d) => (
                 <th key={d} title={holidays.has(dateOf(period, d)) ? "Public holiday" : undefined}
-                  className={`px-1 py-1 font-mono min-w-[28px] ${weekday(period, d) === 0 ? "text-muted-foreground" : ""} ${holidays.has(dateOf(period, d)) ? "bg-amber-500/20 text-amber-600" : ""}`}>
+                  className={`px-1 py-1 font-mono min-w-[28px] ${weekday(period, d) === 0 ? "text-muted-foreground" : ""} ${holidays.has(dateOf(period, d)) ? "bg-amber-500/20 text-amber-700" : ""}`}>
                   <div>{d}</div>
                   <div className="text-[9px] font-normal">{"SMTWTFS"[weekday(period, d)]}</div>
                 </th>
