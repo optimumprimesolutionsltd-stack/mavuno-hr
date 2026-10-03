@@ -153,7 +153,7 @@ export function FilingsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight font-mono">STATUTORY FILINGS</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">STATUTORY FILINGS</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Monthly P10, NSSF, SHIF, and AHL filing status — download exports from the payroll run page
           </p>
@@ -190,7 +190,7 @@ export function FilingsPage() {
       )}
 
       {/* Main grid */}
-      <Card className="border-border/50 bg-card/50 shadow-sm overflow-hidden">
+      <Card className="border-border bg-card shadow-sm overflow-hidden">
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-base">
             <FileCheck className="h-4 w-4 text-primary" />
@@ -215,7 +215,7 @@ export function FilingsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border/50 bg-muted/30">
+                  <tr className="border-b border-border bg-muted/30">
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">
                       Period
                     </th>
@@ -321,7 +321,7 @@ export function FilingsPage() {
               </div>
 
               {detail.filing.status !== "filed" && (
-                <div className="border border-border/50 rounded-lg p-3 bg-muted/20 text-xs text-muted-foreground">
+                <div className="border border-border rounded-lg p-3 bg-muted/20 text-xs text-muted-foreground">
                   <Info className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
                   Mark as <strong>Confirmed Filed</strong> once you have actually submitted this return to the tax/NSSF/SHIF authority.
                 </div>

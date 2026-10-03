@@ -82,7 +82,7 @@ export function ExportData() {
   }
 
   return (
-    <Card className="border-border/50 shadow-sm bg-card/30">
+    <Card className="border-border shadow-sm bg-card">
       <CardHeader className="pb-4">
         <CardTitle className="font-mono flex items-center gap-2 text-base">
           <Download className="h-4 w-4" />

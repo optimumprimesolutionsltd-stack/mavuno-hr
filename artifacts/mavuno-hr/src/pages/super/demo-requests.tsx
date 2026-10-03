@@ -82,7 +82,7 @@ export function SuperAdminDemoRequests() {
             <Mail className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight font-mono">DEMO REQUESTS</h1>
+            <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">DEMO REQUESTS</h1>
             <p className="text-muted-foreground text-sm">
               Leads from the marketing site's "Request Demo" form
               {newCount > 0 && <span className="text-amber-700"> — {newCount} new</span>}
@@ -91,9 +91,9 @@ export function SuperAdminDemoRequests() {
         </div>
       </div>
 
-      <div className="border border-border/50 rounded-lg overflow-hidden bg-card/30">
+      <div className="border border-border border-t-2 border-t-foreground overflow-hidden bg-card">
         <Table>
-          <TableHeader className="bg-muted/30">
+          <TableHeader className="bg-muted">
             <TableRow>
               <TableHead className="font-mono text-xs">NAME</TableHead>
               <TableHead className="font-mono text-xs">PHONE</TableHead>

@@ -17,7 +17,7 @@ function Row({ label, amount, bold, highlight, negative }: {
 }) {
   if (amount === 0) return null;
   return (
-    <div className={`flex justify-between items-center py-1.5 text-sm ${highlight ? "border-t border-border/50 mt-1 pt-2.5" : ""}`}>
+    <div className={`flex justify-between items-center py-1.5 text-sm ${highlight ? "border-t border-border mt-1 pt-2.5" : ""}`}>
       <span className={`${bold ? "font-semibold" : "text-muted-foreground"}`}>{label}</span>
       <span className={`font-mono ${bold ? "font-bold" : ""} ${negative ? "text-destructive" : ""} ${highlight ? "text-primary text-base" : ""}`}>
         {formatMoney(amount)}
@@ -62,7 +62,7 @@ export function PayslipDialog({ slip, open, onOpenChange, employeeName }: Props)
             <Row label="Non-Cash Benefit" amount={slip.nonCashBenefit || 0} />
             <Row label="Overtime / Holiday Pay" amount={(slip.overtime || 0)} />
             <Row label="Bonus / Adjustments" amount={slip.adjustmentEarnings || 0} />
-            <div className="flex justify-between items-center py-1.5 mt-1 border-t border-border/50">
+            <div className="flex justify-between items-center py-1.5 mt-1 border-t border-border">
               <span className="font-semibold">Gross Pay</span>
               <span className="font-mono font-bold">{formatMoney(slip.grossPay || slip.gross || 0)}</span>
             </div>

@@ -139,7 +139,7 @@ export function EmployeeList() {
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight font-mono">EMPLOYEES</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">EMPLOYEES</h1>
           <p className="text-muted-foreground text-sm">Manage staff roster and payroll details</p>
         </div>
         <div className="flex items-center gap-2">
@@ -211,7 +211,7 @@ export function EmployeeList() {
       </div>
 
       {statusTab === "terminated" && statusCounts.terminated > 0 && (
-        <div className="flex flex-wrap items-center gap-3 text-sm bg-card/50 p-3 rounded-lg border border-border/50">
+        <div className="flex flex-wrap items-center gap-3 text-sm bg-card p-3 rounded-lg border border-border">
           <span className="text-muted-foreground">
             Tick the people you need back, or use Reinstate on a row. Their employee number, history and settings are kept.
           </span>
@@ -224,7 +224,7 @@ export function EmployeeList() {
         </div>
       )}
 
-      <div className="flex flex-col gap-3 bg-card/50 p-4 rounded-lg border border-border/50">
+      <div className="flex flex-col gap-3 bg-card p-4 rounded-lg border border-border">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px] max-w-md">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -302,7 +302,7 @@ export function EmployeeList() {
         )}
       </div>
       {showDepartments && (
-        <div className="rounded-lg border border-border/50 bg-card/30 p-4 space-y-3">
+        <div className="rounded-lg border border-border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between"><h2 className="font-mono font-semibold">DEPARTMENTS</h2><span className="text-xs text-muted-foreground">{departments.length} total</span></div>
           <div className="flex flex-wrap gap-2">{departments.map((d) => <Badge key={d.id} variant="outline">{d.name} · {d.code}</Badge>)}</div>
           <div className="flex gap-2 max-w-xl">
@@ -313,9 +313,9 @@ export function EmployeeList() {
         </div>
       )}
 
-      <div className="border border-border/50 rounded-lg overflow-hidden bg-card/30">
+      <div className="border border-border border-t-2 border-t-foreground overflow-hidden bg-card">
         <Table>
-          <TableHeader className="bg-muted/30">
+          <TableHeader className="bg-muted">
             <TableRow>
               {statusTab === "terminated" && (
                 <TableHead className="w-[40px]">

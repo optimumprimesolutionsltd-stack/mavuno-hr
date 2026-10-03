@@ -78,7 +78,7 @@ export function TimesheetAdmin() {
     <div className="space-y-6 max-w-[1200px] mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight font-mono">TIMESHEETS</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">TIMESHEETS</h1>
           <p className="text-muted-foreground text-sm">Review, correct, approve or send back employee hours</p>
         </div>
 
@@ -93,9 +93,9 @@ export function TimesheetAdmin() {
         </div>
       </div>
 
-      <div className="border border-border/50 rounded-lg overflow-hidden bg-card/30">
+      <div className="border border-border border-t-2 border-t-foreground overflow-hidden bg-card">
         <Table>
-          <TableHeader className="bg-muted/30">
+          <TableHeader className="bg-muted">
             <TableRow>
               <TableHead className="font-mono text-xs">EMPLOYEE</TableHead>
               <TableHead className="font-mono text-xs text-right">DAYS</TableHead>

@@ -145,7 +145,7 @@ function NewOrgDialog({ open, onClose }: { open: boolean; onClose: () => void })
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && close()}>
-      <DialogContent className="sm:max-w-lg border-border/50 bg-card/95 max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg border-border bg-card/95 max-h-[90vh] overflow-y-auto">
         {!result ? (
           <>
             <DialogHeader>
@@ -367,7 +367,7 @@ function EditOrgDialog({ org, open, onClose }: { org: OrgRow; open: boolean; onC
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md border-border/50 bg-card/95">
+      <DialogContent className="sm:max-w-md border-border bg-card/95">
         <DialogHeader>
           <DialogTitle className="font-mono">EDIT — {org.name}</DialogTitle>
         </DialogHeader>
@@ -600,7 +600,7 @@ function CreditsDialog({ org, open, onClose }: { org: OrgRow; open: boolean; onC
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-lg border-border/50 bg-card/95 max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg border-border bg-card/95 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-mono">CREDITS — {org.name}</DialogTitle>
           <DialogDescription>
@@ -745,7 +745,7 @@ export function SuperAdminCompanies() {
             <ShieldCheck className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight font-mono">COMPANIES</h1>
+            <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">COMPANIES</h1>
             <p className="text-muted-foreground text-sm">All organisations on Mavuno HR</p>
           </div>
         </div>
@@ -763,7 +763,7 @@ export function SuperAdminCompanies() {
           { label: "ON TRIAL",          value: trialOrgs,      icon: ShieldCheck,  color: "text-amber-700" },
           { label: "TOTAL EMPLOYEES",   value: totalEmployees, icon: Users,        color: "text-blue-700" },
         ].map((c) => (
-          <div key={c.label} className="rounded-lg border border-border/50 bg-card/30 p-4 space-y-2">
+          <div key={c.label} className="rounded-lg border border-border bg-card p-4 space-y-2">
             <div className="flex items-center gap-2 text-muted-foreground">
               <c.icon className="h-4 w-4" />
               <span className="text-xs font-mono">{c.label}</span>
@@ -816,7 +816,7 @@ export function SuperAdminCompanies() {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-border/50 overflow-hidden">
+      <div className="rounded-lg border border-border overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/20">
             <TableRow>

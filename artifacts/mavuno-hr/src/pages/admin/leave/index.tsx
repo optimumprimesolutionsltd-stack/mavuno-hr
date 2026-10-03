@@ -308,7 +308,7 @@ export function LeaveAdmin() {
     <div className="space-y-6 max-w-[1200px] mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight font-mono">LEAVE MANAGEMENT</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">LEAVE MANAGEMENT</h1>
           <p className="text-muted-foreground text-sm">Review and approve employee leave requests</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -352,7 +352,7 @@ export function LeaveAdmin() {
 
         {/* REQUESTS TAB */}
         <TabsContent value="requests" className="space-y-4 mt-4">
-          <div className="flex items-center gap-4 bg-card/50 p-4 rounded-lg border border-border/50">
+          <div className="flex items-center gap-4 bg-card p-4 rounded-lg border border-border">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -364,9 +364,9 @@ export function LeaveAdmin() {
             </div>
           </div>
 
-          <div className="border border-border/50 rounded-lg overflow-hidden bg-card/30">
+          <div className="border border-border border-t-2 border-t-foreground overflow-hidden bg-card">
             <Table>
-              <TableHeader className="bg-muted/30">
+              <TableHeader className="bg-muted">
                 <TableRow>
                   <TableHead className="font-mono text-xs">EMPLOYEE</TableHead>
                   <TableHead className="font-mono text-xs">TYPE</TableHead>
@@ -472,7 +472,7 @@ export function LeaveAdmin() {
 
         {/* WHO'S OFF TAB */}
         <TabsContent value="whos-off" className="mt-4">
-          <div className="border border-border/50 rounded-lg bg-card/30 p-4">
+          <div className="border border-border rounded-lg bg-card p-4">
             {isLoading ? (
               <div className="text-center py-10 text-muted-foreground font-mono text-sm">
                 LOADING...

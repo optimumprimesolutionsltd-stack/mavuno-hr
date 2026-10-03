@@ -82,7 +82,7 @@ export function PortalLeave() {
       />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight font-mono">MY LEAVE</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">MY LEAVE</h1>
           <p className="text-muted-foreground text-sm">Manage your leave requests and balances</p>
         </div>
 
@@ -93,7 +93,7 @@ export function PortalLeave() {
               NEW REQUEST
             </Button>
           </DialogTrigger>
-          <DialogContent className="border-border/50 bg-card/95 backdrop-blur-sm">
+          <DialogContent className="border-border bg-card">
             <DialogHeader>
               <DialogTitle className="font-mono">SUBMIT LEAVE REQUEST</DialogTitle>
             </DialogHeader>
@@ -148,7 +148,7 @@ export function PortalLeave() {
             { label: "TAKEN", value: summary.taken, icon: CalendarX, color: "text-amber-700" },
             { label: "REMAINING", value: summary.remaining, icon: CalendarCheck, color: summary.remaining <= 3 ? "text-destructive" : "text-emerald-700" },
           ].map(({ label, value, icon: Icon, color }) => (
-            <Card key={label} className="border-border/50 bg-card/30">
+            <Card key={label} className="border-border bg-card">
               <CardContent className="p-4 text-center">
                 <Icon className={`h-5 w-5 mx-auto mb-2 ${color}`} />
                 <div className={`text-3xl font-mono font-bold ${color}`}>{value}</div>
@@ -161,9 +161,9 @@ export function PortalLeave() {
       )}
 
       {/* Leave history table */}
-      <div className="border border-border/50 rounded-lg overflow-hidden bg-card/30">
+      <div className="border border-border border-t-2 border-t-foreground overflow-hidden bg-card">
         <Table>
-          <TableHeader className="bg-muted/30">
+          <TableHeader className="bg-muted">
             <TableRow>
               <TableHead className="font-mono text-xs">DATE FILED</TableHead>
               <TableHead className="font-mono text-xs">TYPE</TableHead>

@@ -107,7 +107,7 @@ export function ApproveLoanDialog({ request, employee, open, onOpenChange }: Pro
                 SACCO INTEREST RATE <Lock className="h-3 w-3 text-amber-700" />
                 <Badge variant="outline" className="text-[9px] text-amber-700 border-amber-500">LOCKED BY EMPLOYEE</Badge>
               </Label>
-              <div className="flex items-center gap-2 p-2 rounded bg-muted/30 border border-border/50">
+              <div className="flex items-center gap-2 p-2 rounded bg-muted/30 border border-border">
                 <span className="font-mono text-sm font-bold">{formatPercent(request.interestRateBps)} p.a.</span>
                 <span className="text-xs text-muted-foreground">({request.interestRateBps} bps — set by employee, cannot be changed)</span>
               </div>

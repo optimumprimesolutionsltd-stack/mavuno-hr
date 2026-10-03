@@ -121,7 +121,7 @@ function AddPaymentDialog({ open, onClose, orgs }: {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md border-border/50 bg-card/95">
+      <DialogContent className="sm:max-w-md border-border bg-card/95">
         <DialogHeader>
           <DialogTitle className="font-mono flex items-center gap-2">
             <Plus className="h-4 w-4 text-primary" /> RECORD PAYMENT
@@ -259,7 +259,7 @@ function OutageCreditDialog({ open, onClose, orgs }: {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && close()}>
-      <DialogContent className="sm:max-w-lg border-border/50 bg-card/95 max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg border-border bg-card/95 max-h-[90vh] overflow-y-auto">
         {!result ? (
           <>
             <DialogHeader>
@@ -433,7 +433,7 @@ export function SuperAdminBilling() {
             <CreditCard className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight font-mono">BILLING</h1>
+            <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">BILLING</h1>
             <p className="text-muted-foreground text-sm">Record and verify company payments</p>
           </div>
         </div>
@@ -454,7 +454,7 @@ export function SuperAdminBilling() {
           { label: "THIS MONTH", value: fmtKes(thisMonth), icon: CreditCard, color: "text-emerald-700" },
           { label: "PENDING VERIFICATION", value: String(pendingCount), icon: AlertCircle, color: pendingCount > 0 ? "text-amber-700" : "text-muted-foreground" },
         ].map((c) => (
-          <div key={c.label} className="rounded-lg border border-border/50 bg-card/30 p-4 space-y-2">
+          <div key={c.label} className="rounded-lg border border-border bg-card p-4 space-y-2">
             <div className="flex items-center gap-2 text-muted-foreground">
               <c.icon className="h-4 w-4" />
               <span className="text-xs font-mono">{c.label}</span>
@@ -484,7 +484,7 @@ export function SuperAdminBilling() {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-border/50 overflow-hidden">
+      <div className="rounded-lg border border-border overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/20">
             <TableRow>

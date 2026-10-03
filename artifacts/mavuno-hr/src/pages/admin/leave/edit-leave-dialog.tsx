@@ -115,7 +115,7 @@ export function EditLeaveDialog({
           <div className="space-y-2"><Label>End date</Label><Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></div>
         </div>
         {movedEmployee && (
-          <p className="text-xs text-muted-foreground bg-muted/40 border border-border/50 rounded p-2">
+          <p className="text-xs text-muted-foreground bg-muted/40 border border-border rounded p-2">
             The leave moves to the new employee and their days are recounted on their own working week. The
             original employee gets the days back.
           </p>

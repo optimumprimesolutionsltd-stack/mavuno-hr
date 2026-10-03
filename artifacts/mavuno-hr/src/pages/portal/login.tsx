@@ -63,7 +63,7 @@ export function PortalLogin() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-primary/10 via-background to-background"></div>
       
-      <Card className="w-full max-w-md z-10 border-border/50 shadow-2xl bg-card/80 backdrop-blur-sm">
+      <Card className="w-full max-w-md z-10 border-border shadow-2xl bg-card/80 backdrop-blur-sm">
         <CardHeader className="space-y-4 pb-6">
           <div className="mx-auto w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
              <img src={`${import.meta.env.BASE_URL}branding/mavuno-mark.svg`} alt="" className="w-7 h-7" />

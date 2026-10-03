@@ -116,7 +116,7 @@ export function PortalTimesheet() {
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight font-mono">MY TIMESHEET</h1>
+        <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">MY TIMESHEET</h1>
         <p className="text-muted-foreground text-sm">
           {isCasual
             ? "Record your days and hours worked each month"
@@ -125,7 +125,7 @@ export function PortalTimesheet() {
       </div>
 
       {/* Entry form */}
-      <Card className="border-border/50 bg-card/30">
+      <Card className="border-border bg-card">
         <CardContent className="p-6 space-y-5">
           {/* Period picker */}
           <div className="space-y-2">
@@ -138,7 +138,7 @@ export function PortalTimesheet() {
                   className={`px-3 py-1.5 rounded text-xs font-mono border transition-colors ${
                     period === m
                       ? "bg-primary text-primary-foreground border-primary"
-                      : "border-border/50 text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                      : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
                   }`}
                 >
                   {m}
@@ -248,9 +248,9 @@ export function PortalTimesheet() {
       {/* History table */}
       <div>
         <h2 className="text-sm font-mono font-semibold tracking-widest text-muted-foreground mb-3">HISTORY</h2>
-        <div className="border border-border/50 rounded-lg overflow-hidden bg-card/30">
+        <div className="border border-border border-t-2 border-t-foreground overflow-hidden bg-card">
           <Table>
-            <TableHeader className="bg-muted/30">
+            <TableHeader className="bg-muted">
               <TableRow>
                 <TableHead className="font-mono text-xs">PERIOD</TableHead>
                 {isCasual && (

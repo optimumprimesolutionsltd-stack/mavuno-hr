@@ -169,7 +169,7 @@ export function Register() {
           <div className="mx-auto w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
             <img src={`${import.meta.env.BASE_URL}branding/mavuno-mark.svg`} alt="" className="w-7 h-7" />
           </div>
-          <h1 className="text-2xl font-mono font-bold tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">
              Mavuno<span className="text-primary"> HR</span>
           </h1>
           <p className="text-muted-foreground text-sm">Set up your company in 2 minutes</p>
@@ -203,7 +203,7 @@ export function Register() {
 
         {/* ── Step 1: Company details ── */}
         {step === 1 && (
-          <Card className="border-border/50 shadow-2xl bg-card/80 backdrop-blur-sm">
+          <Card className="border-border shadow-2xl bg-card/80 backdrop-blur-sm">
             <CardHeader className="pb-4">
               <CardTitle className="font-mono text-base">YOUR COMPANY</CardTitle>
               <CardDescription>Tell us about the organisation</CardDescription>
@@ -320,7 +320,7 @@ export function Register() {
 
         {/* ── Step 2: Admin account ── */}
         {step === 2 && (
-          <Card className="border-border/50 shadow-2xl bg-card/80 backdrop-blur-sm">
+          <Card className="border-border shadow-2xl bg-card/80 backdrop-blur-sm">
             <CardHeader className="pb-4">
               <CardTitle className="font-mono text-base">ADMIN ACCOUNT</CardTitle>
               <CardDescription>This will be the first login for <span className="text-foreground font-medium">{step1Data?.companyName}</span></CardDescription>
@@ -368,7 +368,7 @@ export function Register() {
                     </FormItem>
                   )} />
 
-                  <label className="flex items-start gap-3 rounded-md border border-border/50 bg-background/30 p-3 cursor-pointer">
+                  <label className="flex items-start gap-3 rounded-md border border-border bg-background/30 p-3 cursor-pointer">
                     <input
                       type="checkbox"
                       className="mt-1 h-4 w-4"

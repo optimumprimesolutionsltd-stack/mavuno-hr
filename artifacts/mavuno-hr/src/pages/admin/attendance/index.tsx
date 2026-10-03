@@ -95,7 +95,7 @@ export function AttendanceAdmin() {
     <div className="space-y-6 max-w-full mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight font-mono">ATTENDANCE</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">ATTENDANCE</h1>
           <p className="text-muted-foreground text-sm">Day-by-day sheet for the whole team. Click a cell to record or correct a day.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -123,7 +123,7 @@ export function AttendanceAdmin() {
         <span className="px-2 py-0.5 rounded border bg-amber-500/20 text-amber-700 border-amber-500/30">Public holiday (column shaded)</span>
       </div>
 
-      <div className="border border-border/50 rounded-lg overflow-auto bg-card/30 max-h-[70vh]">
+      <div className="border border-border rounded-lg overflow-auto bg-card max-h-[70vh]">
         <table className="text-xs border-collapse">
           <thead className="sticky top-0 z-20 bg-muted">
             <tr>
