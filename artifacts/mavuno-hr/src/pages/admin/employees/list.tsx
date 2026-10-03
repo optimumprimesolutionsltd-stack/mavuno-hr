@@ -194,20 +194,27 @@ export function EmployeeList() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      {/* The headcount by status, ruled like a register, and each cell is the
+          tab that filters the table below. */}
+      <div role="tablist" aria-label="Employees by status" className="grid grid-cols-2 sm:grid-cols-4 border-2 border-foreground bg-card">
         {([
           ["active", "Active"], ["suspended", "Suspended"], ["terminated", "Terminated"], ["all", "All"],
-        ] as const).map(([key, label]) => (
-          <Button
-            key={key}
-            size="sm"
-            variant={statusTab === key ? "default" : "outline"}
-            className="font-mono text-xs"
-            onClick={() => { setStatusTab(key); setPicked(new Set()); }}
-          >
-            {label.toUpperCase()} ({statusCounts[key]})
-          </Button>
-        ))}
+        ] as const).map(([key, label], i) => {
+          const on = statusTab === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={on}
+              onClick={() => { setStatusTab(key); setPicked(new Set()); }}
+              className={`min-w-0 p-3 sm:p-4 text-left transition-colors ${on ? "bg-foreground text-background" : "hover:bg-muted"} ${i % 2 === 1 ? "border-l border-border" : ""} ${i >= 2 ? "border-t sm:border-t-0 border-border" : ""} ${i === 2 ? "sm:border-l" : ""}`}
+            >
+              <span className={`block font-mono text-[11px] uppercase tracking-[0.08em] ${on ? "text-background/70" : "text-muted-foreground"}`}>{label}</span>
+              <span className="mt-1 block font-mono text-2xl font-medium tabular-nums">{statusCounts[key]}</span>
+            </button>
+          );
+        })}
       </div>
 
       {statusTab === "terminated" && statusCounts.terminated > 0 && (
@@ -365,7 +372,7 @@ export function EmployeeList() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs border border-primary/20 shrink-0">
+                      <div className="h-8 w-8 rounded-[2px] bg-foreground text-background flex items-center justify-center font-mono font-medium text-xs shrink-0">
                         {row.employee.firstName.charAt(0)}{row.employee.lastName.charAt(0)}
                       </div>
                       <div className="min-w-0">
