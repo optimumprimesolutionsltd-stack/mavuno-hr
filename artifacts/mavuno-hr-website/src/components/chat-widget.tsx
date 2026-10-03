@@ -6,10 +6,11 @@ import { WhatsAppIcon, whatsAppLink } from "./whatsapp-button";
 /**
  * The assistant, and WhatsApp, offered together in the corner of every page.
  *
- * Two buttons rather than one, because they answer different preferences and
- * neither substitutes for the other: the panel answers immediately but only
- * while the tab is open, and WhatsApp survives the visitor closing the laptop
- * and keeps the thread on their phone.
+ * Both channels, because they answer different preferences and neither
+ * substitutes for the other: the panel answers immediately but only while the
+ * tab is open, and WhatsApp survives the visitor closing the laptop and keeps
+ * the thread on their phone. One docked tab opens the panel; WhatsApp is the
+ * first line inside it.
  *
  * The assistant is the same one behind the WhatsApp number — the shared
  * lead-notifier service — so a question asked here and a question asked there
@@ -90,15 +91,15 @@ export function ChatWidget() {
     <>
       {open && (
         <div
-          className="fixed bottom-24 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-96 max-w-[24rem] rounded-2xl border border-border bg-white shadow-2xl flex flex-col overflow-hidden"
+          className="fixed bottom-24 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-96 max-w-[24rem] rounded-[2px] border-2 border-secondary bg-background shadow-[10px_10px_0_hsl(var(--primary)/0.2)] flex flex-col overflow-hidden"
           style={{ height: "min(30rem, calc(100vh - 8rem))" }}
           role="dialog"
           aria-label="Chat with Mavuno HR"
         >
           <div className="flex items-center justify-between gap-3 px-4 py-3 bg-secondary text-white shrink-0">
             <div className="min-w-0">
-              <p className="font-semibold text-sm truncate">Mavuno HR Assistant</p>
-              <p className="text-xs text-white/70">Online · usually replies instantly</p>
+              <p className="font-display font-bold text-sm uppercase tracking-[0.05em] truncate">Ask Mavuno HR</p>
+              <p className="text-xs text-white/70">Answers straight away</p>
             </div>
             <button
               onClick={() => setOpen(false)}
@@ -109,15 +110,25 @@ export function ChatWidget() {
             </button>
           </div>
 
+          <a
+            href={whatsAppLink(location)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold border-b border-border text-secondary hover:bg-muted shrink-0"
+          >
+            <WhatsAppIcon className="h-4 w-4 text-[#1da851]" />
+            Prefer WhatsApp? A person replies there.
+          </a>
+
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
             {messages.map((m, i) => (
               <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
                 <div
                   className={
-                    "max-w-[85%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap " +
+                    "max-w-[85%] rounded-[2px] px-3.5 py-2 text-sm whitespace-pre-wrap " +
                     (m.role === "user"
-                      ? "bg-primary text-white rounded-br-sm"
-                      : "bg-muted text-secondary rounded-bl-sm")
+                      ? "bg-secondary text-white"
+                      : "bg-muted text-secondary border-l-2 border-primary")
                   }
                 >
                   {m.content}
@@ -126,7 +137,7 @@ export function ChatWidget() {
             ))}
             {sending && (
               <div className="flex justify-start">
-                <div className="bg-muted rounded-2xl rounded-bl-sm px-3.5 py-2">
+                <div className="bg-muted border-l-2 border-primary px-3.5 py-2">
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                 </div>
               </div>
@@ -138,7 +149,7 @@ export function ChatWidget() {
               href={whatsAppLink(location)}
               target="_blank"
               rel="noopener noreferrer"
-              className="mx-4 mb-2 inline-flex items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 py-2 text-sm font-medium text-white shrink-0"
+              className="mx-4 mb-2 inline-flex items-center justify-center gap-2 rounded-[2px] bg-[#25D366] px-4 py-2 text-sm font-medium text-white shrink-0"
             >
               <WhatsAppIcon className="h-4 w-4" />
               Continue on WhatsApp
@@ -154,13 +165,13 @@ export function ChatWidget() {
               onChange={(e) => setDraft(e.target.value)}
               placeholder="Type a message…"
               aria-label="Your message"
-              className="flex-1 min-w-0 h-10 px-3 rounded-lg border border-border bg-background text-sm outline-none focus:border-primary"
+              className="flex-1 min-w-0 h-10 px-3 rounded-[2px] border border-input bg-card text-sm outline-none focus:border-primary"
             />
             <button
               type="submit"
               disabled={!draft.trim() || sending}
               aria-label="Send message"
-              className="h-10 w-10 shrink-0 rounded-lg bg-primary text-white grid place-items-center disabled:opacity-40"
+              className="h-10 w-10 shrink-0 rounded-[2px] bg-primary text-white grid place-items-center disabled:opacity-40"
             >
               <Send className="h-4 w-4" />
             </button>
@@ -168,26 +179,14 @@ export function ChatWidget() {
         </div>
       )}
 
-      {/* WhatsApp sits to the left of the assistant, the way it does on the
-          Optimum site, so the two are recognisably a pair rather than one
-          button hiding the other. */}
-      <a
-        href={whatsAppLink(location)}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Chat on WhatsApp"
-        className="fixed bottom-6 right-20 sm:right-24 z-40 h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-[#25D366] text-white shadow-xl grid place-items-center hover:bg-[#1da851] transition-colors"
-      >
-        <WhatsAppIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-      </a>
-
       <button
         onClick={() => setOpen((o) => !o)}
-        aria-label={open ? "Close chat" : "Chat with Mavuno HR"}
+        aria-label={open ? "Close chat" : "Ask Mavuno HR a question"}
         aria-expanded={open}
-        className="fixed bottom-6 right-4 sm:right-6 z-40 h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-primary text-white shadow-xl grid place-items-center hover:opacity-90 transition-opacity"
+        className="fixed bottom-5 right-4 sm:right-6 z-40 h-11 inline-flex items-center gap-2 pl-3 pr-4 rounded-[2px] bg-secondary text-white text-sm font-semibold border-l-4 border-accent shadow-[4px_4px_0_hsl(var(--primary)/0.35)] hover:bg-primary transition-colors"
       >
-        {open ? <X className="h-5 w-5 sm:h-6 sm:w-6" /> : <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" />}
+        {open ? <X className="h-4 w-4" /> : <MessageCircle className="h-4 w-4" />}
+        {open ? "Close" : "Questions? Ask us"}
       </button>
     </>
   );

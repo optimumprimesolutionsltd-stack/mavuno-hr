@@ -102,12 +102,10 @@ export function Cta({ heading, blurb }: { heading?: string; blurb?: string } = {
   }
 
   return (
-    <section id="demo" className="py-32 bg-background relative overflow-hidden">
-      <div className="absolute inset-0 bg-primary/5" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+    <section id="demo" className="py-24 bg-muted border-t border-border">
 
       <div className="max-w-2xl mx-auto px-6 relative z-10 text-center">
-        <h2 className="text-4xl md:text-5xl font-extrabold text-secondary mb-6 tracking-tight">
+        <h2 className="display-caps text-3xl md:text-5xl leading-[1.02] font-extrabold text-secondary mb-6">
           {heading}
         </h2>
         <p className="text-lg text-muted-foreground mb-10">{blurb}</p>
@@ -120,7 +118,7 @@ export function Cta({ heading, blurb }: { heading?: string; blurb?: string } = {
              person on the site; leaving them with nowhere to go is the one
              moment not to do it. They also do not have to wait for the call:
              the trial is self-service and available now. */
-          <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl border border-border text-left">
+          <div className="max-w-md mx-auto bg-card p-8 border-2 border-secondary text-left">
             <p className="text-lg font-semibold text-secondary">Request received.</p>
             <p className="text-muted-foreground mt-2">
               We'll reach out on WhatsApp or at {email} shortly — usually within one working day.
@@ -149,7 +147,7 @@ export function Cta({ heading, blurb }: { heading?: string; blurb?: string } = {
           </div>
         ) : (
           <form
-            className="max-w-md mx-auto bg-white p-4 rounded-2xl shadow-xl border border-border flex flex-col gap-2.5"
+            className="max-w-md mx-auto bg-card p-5 border-2 border-secondary shadow-[10px_10px_0_hsl(var(--primary)/0.18)] flex flex-col gap-2.5"
             onSubmit={handleSubmit}
           >
             <div className="grid grid-cols-2 gap-2">
@@ -202,7 +200,7 @@ export function Cta({ heading, blurb }: { heading?: string; blurb?: string } = {
                 required
                 aria-label="Preferred demo date"
                 min={todayIso()}
-                className="text-base h-12 px-4 w-full rounded-md border border-input bg-background text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                className="text-base h-12 px-4 w-full rounded-[2px] border border-input bg-background text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 value={demoDate}
                 onChange={(e) => pickDate(e.target.value)}
               />
@@ -211,7 +209,7 @@ export function Cta({ heading, blurb }: { heading?: string; blurb?: string } = {
                 required
                 aria-label="Preferred demo time"
                 disabled={!demoDate || slots.length === 0}
-                className="text-base h-12 px-4 w-full rounded-md border border-input bg-background text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
+                className="text-base h-12 px-4 w-full rounded-[2px] border border-input bg-background text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
                 value={demoTime}
                 onChange={(e) => setDemoTime(e.target.value)}
               >

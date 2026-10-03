@@ -41,7 +41,7 @@ export default function GuidesIndex() {
                 <li key={g.path}>
                   <Link
                     href={g.path}
-                    className="group block rounded-2xl border border-border bg-white p-6 transition-colors hover:border-primary/40"
+                    className="group block rounded-[2px] border border-border bg-card p-6 transition-colors hover:border-primary/40"
                   >
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary mb-2">
                       {longDate(g.article!.published)}

@@ -77,7 +77,7 @@ export function NewsletterSignup({
         autoComplete="email"
         aria-label="Email address"
         placeholder="you@company.co.ke"
-        className="bg-white"
+        className="bg-card"
       />
       <Button type="submit" disabled={busy} className="w-full">
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Subscribe"}
@@ -102,7 +102,7 @@ export function NewsletterSignup({
   }
 
   return (
-    <div id="newsletter" className="rounded-2xl border border-border bg-muted/40 p-6 md:p-8">
+    <div id="newsletter" className="rounded-[2px] border border-border bg-muted/40 p-6 md:p-8">
       <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-10">
         <div className="md:flex-1">
           <h3 className="flex items-center gap-2 font-semibold text-secondary mb-2">
@@ -135,7 +135,7 @@ export function NewsletterSignup({
                   autoComplete="email"
                   aria-label="Email address"
                   placeholder="you@company.co.ke"
-                  className="bg-white"
+                  className="bg-card"
                 />
                 <Button type="submit" disabled={busy} className="flex-shrink-0">
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Subscribe"}

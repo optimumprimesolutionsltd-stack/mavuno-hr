@@ -22,14 +22,14 @@ export default function NotFound() {
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <a
             href="/"
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+            className="inline-flex items-center justify-center gap-2 rounded-[2px] bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Mavuno HR
           </a>
           <a
             href="/app/"
-            className="inline-flex items-center justify-center rounded-lg border border-border px-6 py-3 text-sm font-semibold text-secondary hover:bg-muted transition-colors"
+            className="inline-flex items-center justify-center rounded-[2px] border border-border px-6 py-3 text-sm font-semibold text-secondary hover:bg-muted transition-colors"
           >
             Sign in to your account
           </a>

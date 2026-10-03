@@ -93,7 +93,7 @@ export function PayeCalculator() {
   const r = data?.result;
 
   return (
-    <div className="rounded-2xl border border-border bg-white shadow-sm overflow-hidden">
+    <div className="rounded-[2px] border border-border bg-card overflow-hidden">
       <div className="p-6 md:p-8 border-b border-border bg-muted/30">
         <label htmlFor="gross" className="block text-sm font-semibold text-secondary mb-2">
           Monthly gross salary
@@ -108,7 +108,7 @@ export function PayeCalculator() {
             autoComplete="off"
             value={gross}
             onChange={(e) => setGross(e.target.value)}
-            className="flex-1 rounded-lg border border-border bg-white px-4 py-3 text-lg tabular-nums text-secondary focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+            className="flex-1 rounded-[2px] border border-border bg-card px-4 py-3 text-lg tabular-nums text-secondary focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
             aria-describedby="gross-help"
           />
         </div>
@@ -148,7 +148,7 @@ export function PayeCalculator() {
                 <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-primary mb-3">
                   Take-home
                 </h3>
-                <div className="rounded-xl bg-primary/5 border border-primary/20 p-5 mb-5">
+                <div className="rounded-[2px] bg-primary/5 border border-primary/20 p-5 mb-5">
                   <p className="text-sm text-muted-foreground mb-1">Net pay per month</p>
                   <p className="text-3xl font-bold text-secondary tabular-nums">
                     KES {money(r.netPay)}

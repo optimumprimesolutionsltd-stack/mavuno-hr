@@ -81,7 +81,7 @@ export function PayeWorking({ r }: { r: CalcResult }) {
       <summary className="cursor-pointer text-sm font-medium text-primary hover:underline">
         Show how the PAYE was worked out
       </summary>
-      <div className="mt-4 rounded-xl border border-border p-5 bg-muted/20">
+      <div className="mt-4 rounded-[2px] border border-border p-5 bg-muted/20">
         <Row label="Taxable income" value={money(r.taxableIncome)} />
         {r.bands.map((b) => (
           <Row

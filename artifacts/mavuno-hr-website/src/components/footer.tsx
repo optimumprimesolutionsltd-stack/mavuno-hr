@@ -9,7 +9,7 @@ export function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="bg-white border-t border-border pt-16 pb-8">
+    <footer className="bg-background border-t-2 border-secondary pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-10 mb-16">
           <div className="md:col-span-1">
@@ -26,7 +26,7 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="font-semibold text-secondary mb-4">Product</h4>
+            <h4 className="font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground mb-4">Product</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li><Link href="/features" className="hover:text-primary transition-colors">Features</Link></li>
               <li><Link href="/compliance" className="hover:text-primary transition-colors">Compliance</Link></li>
@@ -36,7 +36,7 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="font-semibold text-secondary mb-4">Resources</h4>
+            <h4 className="font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground mb-4">Resources</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li><Link href="/paye-calculator" className="hover:text-primary transition-colors">PAYE Calculator</Link></li>
               <li><Link href="/net-to-gross-calculator" className="hover:text-primary transition-colors">Net to Gross Calculator</Link></li>
@@ -47,7 +47,7 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="font-semibold text-secondary mb-4">Legal</h4>
+            <h4 className="font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground mb-4">Legal</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li><Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
               <li><Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link></li>
@@ -56,7 +56,7 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="font-semibold text-secondary mb-4">Contact</h4>
+            <h4 className="font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground mb-4">Contact</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li>
                 <a href="mailto:info@mavunohr.co.ke" className="hover:text-primary transition-colors">

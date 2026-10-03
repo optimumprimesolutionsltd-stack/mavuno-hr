@@ -98,7 +98,7 @@ export function NetToGrossCalculator() {
   const overshoot = data ? data.achievedNet - data.targetNet : 0;
 
   return (
-    <div className="rounded-2xl border border-border bg-white shadow-sm overflow-hidden">
+    <div className="rounded-[2px] border border-border bg-card overflow-hidden">
       <div className="p-6 md:p-8 border-b border-border bg-muted/30">
         <label htmlFor="net" className="block text-sm font-semibold text-secondary mb-2">
           Monthly take-home pay
@@ -113,7 +113,7 @@ export function NetToGrossCalculator() {
             autoComplete="off"
             value={net}
             onChange={(e) => setNet(e.target.value)}
-            className="flex-1 rounded-lg border border-border bg-white px-4 py-3 text-lg tabular-nums text-secondary focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+            className="flex-1 rounded-[2px] border border-border bg-card px-4 py-3 text-lg tabular-nums text-secondary focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
             aria-describedby="net-help"
           />
         </div>
@@ -146,7 +146,7 @@ export function NetToGrossCalculator() {
 
         {r && data && (
           <div className={loading ? "opacity-60 transition-opacity" : "transition-opacity"}>
-            <div className="rounded-xl bg-primary/5 border border-primary/20 p-5 mb-8">
+            <div className="rounded-[2px] bg-primary/5 border border-primary/20 p-5 mb-8">
               <p className="text-sm text-muted-foreground mb-1">
                 Gross salary to put on the contract
               </p>

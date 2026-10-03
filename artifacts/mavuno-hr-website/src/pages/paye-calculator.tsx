@@ -50,7 +50,7 @@ export default function PayeCalculatorPage() {
         </div>
       </section>
 
-      <section className="py-16 bg-white border-y border-border">
+      <section className="py-16 bg-card border-y border-border">
         <div className="max-w-5xl mx-auto px-6">
           <h2 className="text-3xl font-bold text-secondary tracking-tight mb-4">
             What comes out of a Kenyan payslip
@@ -64,9 +64,9 @@ export default function PayeCalculatorPage() {
 
           <div className="grid gap-5 md:grid-cols-2">
             {DEDUCTIONS.map(({ icon: Icon, name, body }) => (
-              <div key={name} className="rounded-xl border border-border p-6">
+              <div key={name} className="rounded-[2px] border border-border p-6">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-[2px] bg-primary/10 flex items-center justify-center flex-shrink-0">
                     <Icon className="h-5 w-5 text-primary" />
                   </div>
                   <h3 className="text-lg font-semibold text-secondary">{name}</h3>
