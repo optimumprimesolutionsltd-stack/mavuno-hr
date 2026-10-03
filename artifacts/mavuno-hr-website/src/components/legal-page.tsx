@@ -59,7 +59,7 @@ export function Bullets({ items }: { items: ReactNode[] }) {
 /** For the things a policy has to say plainly rather than bury. */
 export function Callout({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-xl border-l-4 border-primary bg-primary/5 px-5 py-4 text-secondary leading-relaxed">
+    <div className="rounded-[2px] border-l-4 border-primary bg-primary/5 px-5 py-4 text-secondary leading-relaxed">
       {children}
     </div>
   );

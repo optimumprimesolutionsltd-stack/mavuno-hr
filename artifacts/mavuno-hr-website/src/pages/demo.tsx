@@ -58,10 +58,10 @@ export default function DemoPage() {
             {EXPECT.map(({ icon: Icon, title, body }) => (
               <div
                 key={title}
-                className="rounded-2xl border border-border bg-white p-6 shadow-sm"
+                className="rounded-[2px] border border-border bg-card p-6"
               >
                 <div className="flex items-center gap-3 mb-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-[2px] bg-primary/10">
                     <Icon className="h-4 w-4 text-primary" />
                   </span>
                   <h3 className="font-semibold text-secondary">{title}</h3>

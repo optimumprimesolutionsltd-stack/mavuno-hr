@@ -33,7 +33,7 @@ export function Pricing() {
     <section id="pricing" className="py-24 bg-background">
       <div className="max-w-5xl mx-auto px-6">
         <div className="text-center max-w-2xl mx-auto mb-4">
-          <h2 className="text-3xl md:text-5xl font-bold text-secondary mb-4 tracking-tight">
+          <h2 className="display-caps text-3xl md:text-5xl leading-[1.02] font-extrabold text-secondary mb-5">
             One flat price for your team size
           </h2>
           <p className="text-lg text-muted-foreground">
@@ -47,13 +47,13 @@ export function Pricing() {
           <span className="text-primary font-medium">annually with 2 months free</span>
         </p>
 
-        <div className="rounded-2xl border border-border bg-white overflow-hidden shadow-sm">
+        <div className="border-2 border-secondary bg-card overflow-hidden">
           {TIERS.map((t, i) => (
             <div
               key={t.name}
               className={`flex flex-wrap items-center gap-x-6 gap-y-1 px-6 py-5 ${
                 i > 0 ? "border-t border-border" : ""
-              } ${t.featured ? "bg-primary/5" : ""}`}
+              } ${t.featured ? "bg-primary/5 border-l-4 border-l-primary" : ""}`}
             >
               <div className="w-28 shrink-0">
                 <span className="font-bold text-secondary">{t.name}</span>
@@ -65,7 +65,7 @@ export function Pricing() {
               </div>
               <div className="flex-1 min-w-[8rem] text-sm text-muted-foreground">{t.size}</div>
               <div className="text-right">
-                <span className="text-2xl font-extrabold text-secondary tracking-tight">{t.price}</span>
+                <span className="font-mono text-2xl font-medium text-secondary tabular-nums">{t.price}</span>
                 {t.note && <span className="text-muted-foreground text-xs ml-1">{t.note}</span>}
               </div>
             </div>
@@ -99,14 +99,14 @@ export function Pricing() {
 
         {/* Free trial + includes */}
         <div className="mt-16 grid lg:grid-cols-2 gap-8">
-          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-8">
+          <div className="rounded-[2px] border border-primary/20 bg-primary/5 p-8">
             <h3 className="text-lg font-bold text-secondary mb-2">Start free</h3>
             <p className="text-muted-foreground text-sm leading-relaxed">
               30-day trial on the full platform, up to 25 employees, no card required. Already run
               payroll elsewhere this year? We import your year-to-date and rebuild your P9 — free.
             </p>
           </div>
-          <div className="rounded-2xl border border-border bg-white p-8">
+          <div className="rounded-[2px] border border-border bg-card p-8">
             <h3 className="text-lg font-bold text-secondary mb-4">Every plan includes</h3>
             <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-secondary/90">
               {INCLUDED.map((f) => (

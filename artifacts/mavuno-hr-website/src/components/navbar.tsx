@@ -1,20 +1,39 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import logoSvg from "@assets/branding/mavuno-hr-wordmark.svg";
-import { Button } from "./ui/button";
+
+const LINKS = [
+  { href: "/features", label: "Features" },
+  { href: "/compliance", label: "Compliance" },
+  { href: "/paye-calculator", label: "PAYE calculator" },
+  { href: "/pricing", label: "Pricing" },
+];
 
 export function Navbar() {
+  const [location] = useLocation();
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/50">
-      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 group">
-          <img src={logoSvg} alt="Mavuno HR" className="h-8 w-auto group-hover:opacity-90 transition-opacity" />
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-background border-b-2 border-secondary">
+      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between gap-6">
+        <Link href="/" className="flex items-center shrink-0">
+          <img src={logoSvg} alt="Mavuno HR" className="h-8 w-auto" />
         </Link>
 
-        <div className="hidden md:flex items-center gap-8 text-sm font-medium text-secondary">
-          <Link href="/features" className="hover:text-primary transition-colors">Features</Link>
-          <Link href="/compliance" className="hover:text-primary transition-colors">Compliance</Link>
-          <Link href="/paye-calculator" className="hover:text-primary transition-colors">PAYE Calculator</Link>
-          <Link href="/pricing" className="hover:text-primary transition-colors">Pricing</Link>
+        <div className="hidden md:flex items-stretch h-full">
+          {LINKS.map((link) => {
+            const active = location === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={active ? "page" : undefined}
+                className={`flex items-center px-4 font-display text-[13px] font-semibold uppercase tracking-[0.06em] border-b-[3px] -mb-[2px] transition-colors ${
+                  active ? "border-primary text-secondary" : "border-transparent text-secondary/70 hover:text-secondary hover:border-secondary/30"
+                }`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
         </div>
 
         {/* The top-right corner is for the two things a visitor does with their
@@ -23,13 +42,13 @@ export function Navbar() {
             lives at the foot of the page — offered to someone who has read
             everything and still wants to talk to a person, instead of
             competing with Sign Up in the loudest position on the page. */}
-        <div className="flex items-center gap-3">
-          <Button asChild variant="ghost" className="hidden sm:inline-flex">
-            <a href="/app/">Sign In</a>
-          </Button>
-          <Button asChild>
-            <a href="/app/register">Sign Up</a>
-          </Button>
+        <div className="flex items-center gap-2">
+          <a href="/app/" className="hidden sm:inline-flex h-10 items-center px-4 text-sm font-semibold text-secondary hover:underline underline-offset-4">
+            Sign in
+          </a>
+          <a href="/app/register" className="inline-flex h-10 items-center px-5 rounded-[2px] bg-secondary text-secondary-foreground text-sm font-semibold hover:bg-primary transition-colors">
+            Start trial
+          </a>
         </div>
       </div>
     </nav>

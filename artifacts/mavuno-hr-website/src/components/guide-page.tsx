@@ -74,7 +74,7 @@ export function FigureTable({
 }) {
   return (
     <figure className="my-6">
-      <div className="overflow-x-auto rounded-xl border border-border">
+      <div className="overflow-x-auto rounded-[2px] border border-border">
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
@@ -119,7 +119,7 @@ export function FigureTable({
 /** For the thing the reader should take away even if they skim. */
 export function KeyPoint({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-xl border-l-4 border-primary bg-primary/5 px-5 py-4 text-secondary leading-relaxed">
+    <div className="rounded-[2px] border-l-4 border-primary bg-primary/5 px-5 py-4 text-secondary leading-relaxed">
       {children}
     </div>
   );

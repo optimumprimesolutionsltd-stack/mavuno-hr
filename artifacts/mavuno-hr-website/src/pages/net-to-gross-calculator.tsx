@@ -43,7 +43,7 @@ export default function NetToGrossCalculatorPage() {
         </div>
       </section>
 
-      <section className="py-16 bg-white border-y border-border">
+      <section className="py-16 bg-card border-y border-border">
         <div className="max-w-5xl mx-auto px-6">
           <h2 className="text-3xl font-bold text-secondary tracking-tight mb-4">
             Why you can&rsquo;t just add the deductions back on
@@ -55,8 +55,8 @@ export default function NetToGrossCalculatorPage() {
 
           <div className="grid gap-5 md:grid-cols-3">
             {POINTS.map(({ icon: Icon, title, body }) => (
-              <div key={title} className="rounded-xl border border-border p-6">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
+              <div key={title} className="rounded-[2px] border border-border p-6">
+                <div className="w-10 h-10 rounded-[2px] bg-primary/10 flex items-center justify-center mb-3">
                   <Icon className="h-5 w-5 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold text-secondary mb-2">{title}</h3>
