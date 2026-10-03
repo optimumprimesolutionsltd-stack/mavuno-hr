@@ -124,10 +124,10 @@ export function PayrollList() {
   const getStatusClass = (status: string): string => {
     switch (status) {
       case "draft":            return "border-muted-foreground/40 text-muted-foreground bg-muted/20";
-      case "pending_approval": return "border-amber-500/60 text-amber-400 bg-amber-500/10";
-      case "approved":         return "border-blue-500/60 text-blue-400 bg-blue-500/10";
-      case "paid":             return "border-emerald-500/60 text-emerald-400 bg-emerald-500/10";
-      case "reversed":         return "border-red-500/60 text-red-400 bg-red-500/10";
+      case "pending_approval": return "border-amber-500/60 text-amber-700 bg-amber-500/10";
+      case "approved":         return "border-blue-500/60 text-blue-700 bg-blue-500/10";
+      case "paid":             return "border-emerald-500/60 text-emerald-700 bg-emerald-500/10";
+      case "reversed":         return "border-red-500/60 text-red-700 bg-red-500/10";
       default:                 return "border-muted-foreground/40 text-muted-foreground";
     }
   };
@@ -311,7 +311,7 @@ export function PayrollList() {
 
                 {isHistorical && (
                   <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 flex gap-2">
-                    <Info className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                    <Info className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       Records a month you already ran on your previous system. Builds your
                       year-to-date and P9A. Will not file returns, generate bank files, or email payslips.
@@ -381,7 +381,7 @@ export function PayrollList() {
                   </TableCell>
                   <TableCell>
                     <span className={`text-xs font-mono uppercase px-2 py-1 rounded ${
-                      run.runType === "historical" ? "bg-violet-500/15 text-violet-400" : "bg-muted"
+                      run.runType === "historical" ? "bg-violet-500/15 text-violet-700" : "bg-muted"
                     }`}>
                       {run.runType.replace('_', ' ')}
                     </span>

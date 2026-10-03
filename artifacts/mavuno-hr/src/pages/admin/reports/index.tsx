@@ -27,10 +27,10 @@ type DownloadKey = "p9" | "p10" | "muster" | "summary" | "p10a" | "nssf" | "shif
 function statusClass(status: string): string {
   const classes: Record<string, string> = {
     draft: "border-muted-foreground/40 text-muted-foreground",
-    pending_approval: "border-amber-500/60 text-amber-500",
-    approved: "border-blue-500/60 text-blue-400",
-    paid: "border-emerald-500/60 text-emerald-400",
-    reversed: "border-red-500/60 text-red-400",
+    pending_approval: "border-amber-500/60 text-amber-700",
+    approved: "border-blue-500/60 text-blue-700",
+    paid: "border-emerald-500/60 text-emerald-700",
+    reversed: "border-red-500/60 text-red-700",
   };
   return classes[status] ?? classes.draft;
 }
@@ -241,7 +241,7 @@ export function Reports() {
       </Card>
 
       {selectedRun && !canGenerateAnnualReports && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm text-amber-700">
           Annual certificates and statutory returns unlock once <span className="font-mono">{runLabel}</span> is marked paid.
           The muster roll remains available unless the run is reversed.
         </div>
@@ -254,7 +254,7 @@ export function Reports() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <ReportCard
-            icon={<FileArchive className="h-5 w-5 text-teal-400" />}
+            icon={<FileArchive className="h-5 w-5 text-teal-700" />}
             title="P9 certificates ZIP"
             description="One annual P9 certificate PDF for every employee, bundled into a single ZIP file."
             actionLabel="DOWNLOAD P9 ZIP"
@@ -263,7 +263,7 @@ export function Reports() {
             onClick={() => downloadBlob("p9", `/api/payroll/${selectedRun?.id}/p9-certificates.zip`, `P9_Certificates_${year}.zip`, "Your annual P9 certificate ZIP is ready.")}
           />
           <ReportCard
-            icon={<FileText className="h-5 w-5 text-cyan-400" />}
+            icon={<FileText className="h-5 w-5 text-cyan-700" />}
             title="Annual P10 tax cards"
             description="Annual P10 deduction cards for all employees included in paid payroll runs."
             actionLabel="DOWNLOAD P10 PDF"
@@ -289,7 +289,7 @@ export function Reports() {
           onClick={() => downloadBlob("muster", `/api/payroll/${selectedRun?.id}/muster-roll.csv`, `Muster_Roll_${selectedRun?.period ?? "payroll"}.csv`, "Your payroll muster roll is ready.")}
         />
         <ReportCard
-          icon={<Calculator className="h-5 w-5 text-amber-400" />}
+          icon={<Calculator className="h-5 w-5 text-amber-700" />}
           title="Payroll summary"
           description="A one-page cost summary for the selected run — total gross, each deduction type, net pay, and employer NSSF/Housing Levy contributions."
           actionLabel="DOWNLOAD SUMMARY"
@@ -305,7 +305,7 @@ export function Reports() {
           <p className="text-sm text-muted-foreground">A current snapshot of every active employee's leave entitlement, usage, and remaining balance — not tied to a specific payroll run.</p>
         </div>
         <ReportCard
-          icon={<Users className="h-5 w-5 text-cyan-400" />}
+          icon={<Users className="h-5 w-5 text-cyan-700" />}
           title="Leave balance report"
           description="Entitlement, days taken this year, and remaining balance for every active employee."
           actionLabel="DOWNLOAD LEAVE BALANCES"
@@ -322,7 +322,7 @@ export function Reports() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <ReportCard
-            icon={<Landmark className="h-5 w-5 text-emerald-400" />}
+            icon={<Landmark className="h-5 w-5 text-emerald-700" />}
             title="KRA iTax P10A"
             description="Monthly PAYE return in KRA’s uploaded CSV layout."
             actionLabel="DOWNLOAD P10A"
@@ -331,7 +331,7 @@ export function Reports() {
             onClick={() => downloadStatutoryExport("p10a")}
           />
           <ReportCard
-            icon={<FileSpreadsheet className="h-5 w-5 text-orange-400" />}
+            icon={<FileSpreadsheet className="h-5 w-5 text-orange-700" />}
             title="NSSF return"
             description="NSSF eCitizen workbook for the selected monthly run."
             actionLabel="DOWNLOAD NSSF"
@@ -340,7 +340,7 @@ export function Reports() {
             onClick={() => downloadStatutoryExport("nssf")}
           />
           <ReportCard
-            icon={<FileSpreadsheet className="h-5 w-5 text-sky-400" />}
+            icon={<FileSpreadsheet className="h-5 w-5 text-sky-700" />}
             title="SHIF return"
             description="SHA portal workbook using the approved upload template."
             actionLabel="DOWNLOAD SHIF"
@@ -349,7 +349,7 @@ export function Reports() {
             onClick={() => downloadStatutoryExport("shif")}
           />
           <ReportCard
-            icon={<FileCheck2 className="h-5 w-5 text-violet-400" />}
+            icon={<FileCheck2 className="h-5 w-5 text-violet-700" />}
             title="AHL return"
             description="Affordable Housing Levy CSV for the selected run."
             actionLabel="DOWNLOAD AHL"

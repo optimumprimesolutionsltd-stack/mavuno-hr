@@ -230,8 +230,8 @@ export function LoanRequestDialog({ open, onOpenChange, onSuccess }: Props) {
             <div className="space-y-1.5">
               <Label className="text-xs font-mono text-muted-foreground flex items-center gap-1">
                 SACCO INTEREST RATE (BPS)
-                <Lock className="h-3 w-3 text-amber-500" />
-                <span className="text-[10px] font-normal text-amber-500">locked once approved</span>
+                <Lock className="h-3 w-3 text-amber-700" />
+                <span className="text-[10px] font-normal text-amber-700">locked once approved</span>
               </Label>
               <Input
                 type="number" min={0} max={10000}

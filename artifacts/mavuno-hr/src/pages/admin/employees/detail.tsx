@@ -329,7 +329,7 @@ export function EmployeeDetail() {
       {isSuspended && (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3">
           <div className="flex items-center gap-3">
-            <PauseCircle className="h-4 w-4 text-amber-600 shrink-0" />
+            <PauseCircle className="h-4 w-4 text-amber-700 shrink-0" />
             <div className="text-sm">
               <span className="font-medium">Employee suspended</span>
               {openSuspension && (
@@ -663,8 +663,8 @@ export function EmployeeDetail() {
                 <div className="grid grid-cols-3 gap-4 mb-4">
                   {[
                     { label: "ENTITLED", value: currentEntitlement, color: "text-primary" },
-                    { label: "TAKEN THIS YEAR", value: summary?.takenDays ?? 0, color: "text-amber-400" },
-                    { label: "REMAINING", value: summary?.remaining ?? currentEntitlement, color: (summary?.remaining ?? currentEntitlement) <= 3 ? "text-destructive" : "text-emerald-400" },
+                    { label: "TAKEN THIS YEAR", value: summary?.takenDays ?? 0, color: "text-amber-700" },
+                    { label: "REMAINING", value: summary?.remaining ?? currentEntitlement, color: (summary?.remaining ?? currentEntitlement) <= 3 ? "text-destructive" : "text-emerald-700" },
                   ].map(({ label, value, color }) => (
                     <div key={label} className="text-center p-4 rounded-lg bg-muted/20 border border-border/30">
                       <div className={`text-3xl font-mono font-bold ${color}`}>{value}</div>

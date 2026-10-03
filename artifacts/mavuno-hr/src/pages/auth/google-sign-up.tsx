@@ -267,14 +267,14 @@ export function GoogleSignUp() {
           </Card>
         ) : phase === "error" ? (
           <div className="space-y-3">
-            <div role="alert" className="rounded-lg border border-red-500/40 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+            <div role="alert" className="rounded-lg border border-red-500/40 bg-red-950/40 px-4 py-3 text-sm text-red-800">
               {errorMsg}
             </div>
             <div className="flex items-center gap-4">
               <button
                 type="button"
                 onClick={() => { void signOut(() => setLocation(`${basePath}/sign-in`)); }}
-                className="text-sm text-emerald-400 hover:text-emerald-300"
+                className="text-sm text-emerald-700 hover:text-emerald-700"
               >
                 Go to sign in
               </button>

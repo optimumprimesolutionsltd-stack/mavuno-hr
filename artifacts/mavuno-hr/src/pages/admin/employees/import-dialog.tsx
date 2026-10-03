@@ -388,7 +388,7 @@ export function ImportDialog({ open, onOpenChange }: Props) {
             </div>
 
             {errorCount > 0 && (
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-mono shrink-0">
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 text-xs font-mono shrink-0">
                 <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                 <span>Rows with errors will be skipped. Fix them in your file and re-upload, or proceed to import the {validCount} valid rows.</span>
               </div>
@@ -417,7 +417,7 @@ export function ImportDialog({ open, onOpenChange }: Props) {
                       <TableCell className="font-mono text-xs text-muted-foreground">{row.index}</TableCell>
                       <TableCell>
                         {row.valid ? (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                          <CheckCircle2 className="h-4 w-4 text-emerald-700" />
                         ) : (
                           <div title={row.errors.join("\n")}>
                             <XCircle className="h-4 w-4 text-destructive cursor-help" />
@@ -451,7 +451,7 @@ export function ImportDialog({ open, onOpenChange }: Props) {
           <div className="py-4 space-y-4">
             <div className="flex flex-col items-center gap-2 py-6">
               <div className="h-16 w-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
-                <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+                <CheckCircle2 className="h-8 w-8 text-emerald-700" />
               </div>
               <h3 className="font-mono text-lg font-bold mt-2">IMPORT COMPLETE</h3>
               <p className="text-muted-foreground text-sm">
@@ -461,7 +461,7 @@ export function ImportDialog({ open, onOpenChange }: Props) {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
-                <div className="text-3xl font-mono font-bold text-emerald-400">{result.imported}</div>
+                <div className="text-3xl font-mono font-bold text-emerald-700">{result.imported}</div>
                 <div className="text-xs font-mono text-muted-foreground mt-1">IMPORTED</div>
               </div>
               <div className="p-4 rounded-lg bg-muted/30 border border-border/40 text-center">

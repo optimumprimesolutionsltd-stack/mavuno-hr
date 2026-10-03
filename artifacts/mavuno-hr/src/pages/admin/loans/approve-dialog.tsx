@@ -104,8 +104,8 @@ export function ApproveLoanDialog({ request, employee, open, onOpenChange }: Pro
           {isSacco ? (
             <div className="col-span-2 space-y-1">
               <Label className="text-xs font-mono text-muted-foreground flex items-center gap-2">
-                SACCO INTEREST RATE <Lock className="h-3 w-3 text-amber-500" />
-                <Badge variant="outline" className="text-[9px] text-amber-600 border-amber-500">LOCKED BY EMPLOYEE</Badge>
+                SACCO INTEREST RATE <Lock className="h-3 w-3 text-amber-700" />
+                <Badge variant="outline" className="text-[9px] text-amber-700 border-amber-500">LOCKED BY EMPLOYEE</Badge>
               </Label>
               <div className="flex items-center gap-2 p-2 rounded bg-muted/30 border border-border/50">
                 <span className="font-mono text-sm font-bold">{formatPercent(request.interestRateBps)} p.a.</span>

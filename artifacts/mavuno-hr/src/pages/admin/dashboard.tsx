@@ -19,7 +19,7 @@ function VarianceBadge({ pct }: { pct: number | null }) {
   );
   const up = pct > 0;
   return (
-    <span className={`inline-flex items-center gap-0.5 text-xs font-mono ${up ? "text-emerald-400" : "text-red-400"}`}>
+    <span className={`inline-flex items-center gap-0.5 text-xs font-mono ${up ? "text-emerald-700" : "text-red-700"}`}>
       {up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
       {up ? "+" : ""}{pct.toFixed(1)}% vs last run
     </span>
@@ -30,9 +30,9 @@ function StatusBadge({ status }: { status: string | null }) {
   if (!status) return null;
   const cfg: Record<string, string> = {
     draft:            "border-muted-foreground/40 text-muted-foreground",
-    pending_approval: "border-amber-500/60 text-amber-500",
-    approved:         "border-blue-500/60 text-blue-400",
-    paid:             "border-emerald-500/60 text-emerald-400",
+    pending_approval: "border-amber-500/60 text-amber-700",
+    approved:         "border-blue-500/60 text-blue-700",
+    paid:             "border-emerald-500/60 text-emerald-700",
   };
   return (
     <Badge variant="outline" className={`font-mono text-[10px] ${cfg[status] ?? "border-muted-foreground/40 text-muted-foreground"}`}>
@@ -154,13 +154,13 @@ export function AdminDashboard() {
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">Net Payout</CardTitle>
             {grossVarianceAmount != null && grossVarianceAmount > 0
-              ? <TrendingUp className="h-4 w-4 text-emerald-400" />
+              ? <TrendingUp className="h-4 w-4 text-emerald-700" />
               : grossVarianceAmount != null && grossVarianceAmount < 0
-              ? <TrendingDown className="h-4 w-4 text-red-400" />
-              : <TrendingUp className="h-4 w-4 text-emerald-400" />}
+              ? <TrendingDown className="h-4 w-4 text-red-700" />
+              : <TrendingUp className="h-4 w-4 text-emerald-700" />}
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-mono text-emerald-400">{formatMoney(monthlyNet)}</div>
+            <div className="text-3xl font-bold font-mono text-emerald-700">{formatMoney(monthlyNet)}</div>
             <p className="text-xs text-muted-foreground mt-1">{formatMoney(avgCostPerEmployee)} avg cost/employee</p>
           </CardContent>
         </Card>
@@ -331,7 +331,7 @@ export function AdminDashboard() {
         <Card className="border-border/50 bg-card/50 shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center text-sm">
-              <Star className="h-4 w-4 mr-2 text-amber-400" />
+              <Star className="h-4 w-4 mr-2 text-amber-700" />
               Anniversaries
               <span className="ml-auto text-[10px] text-muted-foreground font-normal">next 30 days</span>
             </CardTitle>
@@ -344,7 +344,7 @@ export function AdminDashboard() {
                   return (
                     <div key={i} className="flex items-center gap-2 p-2 rounded-lg border border-amber-500/20 bg-amber-500/5">
                       <div className="w-7 h-7 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
-                        <span className="text-[10px] font-bold text-amber-400">{a.years}y</span>
+                        <span className="text-[10px] font-bold text-amber-700">{a.years}y</span>
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-xs truncate">{a.name}</p>

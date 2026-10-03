@@ -146,7 +146,7 @@ export function TerminateDialog({
           {/* Statutory Gratuity Estimate */}
           {!isCorrection && hireDate && basic != null && (
             <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 px-4 py-3 space-y-1">
-              <p className="text-xs font-mono font-semibold text-emerald-400 uppercase tracking-wide">
+              <p className="text-xs font-mono font-semibold text-emerald-700 uppercase tracking-wide">
                 Statutory Gratuity Estimate
               </p>
               {!gratuity || !gratuity.eligible ? (
@@ -155,7 +155,7 @@ export function TerminateDialog({
                 </p>
               ) : (
                 <>
-                  <p className="text-sm font-medium text-emerald-300">
+                  <p className="text-sm font-medium text-emerald-700">
                     Estimated Statutory Gratuity:{" "}
                     <span className="font-mono">
                       Ksh {(gratuity.amount! / 100).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

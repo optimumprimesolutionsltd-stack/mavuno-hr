@@ -458,9 +458,9 @@ export function AdminSettings() {
               a month Mavuno is supposed to own. */}
           {cutoverClashesWithHistory && (
             <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 flex items-start gap-3">
-              <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+              <AlertTriangle className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
               <div className="text-xs">
-                <p className="font-medium text-amber-400">
+                <p className="font-medium text-amber-700">
                   {fmtMonth(payrollStartPeriod)} is not far enough forward.
                 </p>
                 <p className="text-muted-foreground mt-0.5">
@@ -504,7 +504,7 @@ export function AdminSettings() {
               </CardDescription>
             </div>
             {data.hasOrgOverride && (
-              <Badge variant="outline" className="font-mono text-xs shrink-0 bg-amber-500/10 text-amber-400 border-amber-500/30">
+              <Badge variant="outline" className="font-mono text-xs shrink-0 bg-amber-500/10 text-amber-700 border-amber-500/30">
                 ORG OVERRIDE ACTIVE
               </Badge>
             )}
@@ -748,7 +748,7 @@ function DepartmentWorkDays() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 font-mono text-base">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <AlertTriangle className="h-4 w-4 text-amber-700" />
               {preview?.changing.length} of {preview?.total} in {deptName} will change
             </DialogTitle>
             <DialogDescription>

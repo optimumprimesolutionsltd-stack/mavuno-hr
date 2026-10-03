@@ -287,7 +287,7 @@ export function HistoricalImportDialog({ open, onOpenChange }: Props) {
           <div className="py-4 space-y-4 overflow-auto">
             <div className="flex flex-col items-center gap-2 py-6">
               <div className="h-16 w-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
-                <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+                <CheckCircle2 className="h-8 w-8 text-emerald-700" />
               </div>
               <h3 className="font-mono text-lg font-bold mt-2">IMPORT COMPLETE</h3>
               <p className="text-muted-foreground text-sm">
@@ -297,7 +297,7 @@ export function HistoricalImportDialog({ open, onOpenChange }: Props) {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
-                <div className="text-3xl font-mono font-bold text-emerald-400">{finalResult.imported}</div>
+                <div className="text-3xl font-mono font-bold text-emerald-700">{finalResult.imported}</div>
                 <div className="text-xs font-mono text-muted-foreground mt-1">IMPORTED</div>
               </div>
               <div className="p-4 rounded-lg bg-muted/30 border border-border/40 text-center">

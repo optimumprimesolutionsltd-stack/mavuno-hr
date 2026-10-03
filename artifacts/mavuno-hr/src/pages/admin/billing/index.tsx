@@ -413,9 +413,9 @@ export function AdminBilling() {
           )}
           {org?.accessState === "expiring_soon" && (
             <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-amber-700 shrink-0" />
               <div className="text-sm">
-                <span className="font-medium text-amber-400">Access ends {fmtDate(org.accessUntil)}.</span>{" "}
+                <span className="font-medium text-amber-700">Access ends {fmtDate(org.accessUntil)}.</span>{" "}
                 <span className="text-muted-foreground">Pay before then to avoid an interruption.</span>
               </div>
             </div>
@@ -451,7 +451,7 @@ export function AdminBilling() {
           {/* Open credits — applied automatically at your next verified payment */}
           {(data?.credits.length ?? 0) > 0 && (
             <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-emerald-400">
+              <div className="flex items-center gap-2 text-sm font-medium text-emerald-700">
                 <CheckCircle2 className="h-4 w-4 shrink-0" />
                 {fmtKes(data!.openCreditCents)} credit — applies to your next payment
               </div>
@@ -492,7 +492,7 @@ export function AdminBilling() {
                   {annual ? "PER YEAR" : "PER MONTH"}
                 </p>
                 <p className="text-2xl font-bold font-mono text-primary">
-                  {monthly > 0 ? fmtKes(perInvoice) : <span className="text-yellow-400">FREE (Trial)</span>}
+                  {monthly > 0 ? fmtKes(perInvoice) : <span className="text-yellow-700">FREE (Trial)</span>}
                 </p>
                 {monthly > 0 && (
                   <Button size="sm" className="mt-1 gap-2" onClick={() => setPayDialogOpen(true)}>
@@ -502,7 +502,7 @@ export function AdminBilling() {
               </div>
               <div className="space-y-1 text-right">
                 <p className="text-xs font-mono text-muted-foreground">TOTAL PAID</p>
-                <p className="text-2xl font-bold font-mono text-emerald-400">{fmtKes(totalPaid)}</p>
+                <p className="text-2xl font-bold font-mono text-emerald-700">{fmtKes(totalPaid)}</p>
               </div>
             </div>
 
@@ -564,11 +564,11 @@ export function AdminBilling() {
                 <div className="space-y-1 text-right">
                   <p className="text-xs font-mono text-muted-foreground">STATUS</p>
                   {charge.status === "paid" ? (
-                    <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-mono">
+                    <Badge className="bg-emerald-500/15 text-emerald-700 border-emerald-500/30 font-mono">
                       <CheckCircle2 className="h-3 w-3 mr-1" /> PAID
                     </Badge>
                   ) : (
-                    <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30 font-mono">
+                    <Badge className="bg-amber-500/15 text-amber-700 border-amber-500/30 font-mono">
                       <Clock className="h-3 w-3 mr-1" /> DUE
                     </Badge>
                   )}
@@ -676,11 +676,11 @@ export function AdminBilling() {
                       <TableCell className="text-xs text-muted-foreground font-mono">{fmtDate(payment.verifiedAt)}</TableCell>
                       <TableCell className="text-xs font-mono">
                         {payment.receiptSentAt ? (
-                          <span className="text-emerald-400 flex items-center gap-1">
+                          <span className="text-emerald-700 flex items-center gap-1">
                             <CheckCircle2 className="h-3 w-3" /> Emailed {fmtDate(payment.receiptSentAt)}
                           </span>
                         ) : payment.status === "verified" ? (
-                          <span className="text-amber-400 flex items-center gap-1">
+                          <span className="text-amber-700 flex items-center gap-1">
                             <Clock className="h-3 w-3" /> Not sent
                           </span>
                         ) : (

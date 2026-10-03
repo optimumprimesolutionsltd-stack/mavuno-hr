@@ -43,9 +43,9 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 const STATUS_STYLE: Record<string, string> = {
-  pending:  "bg-amber-500/15 text-amber-400 border-amber-500/30",
-  verified: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  failed:   "bg-red-500/15 text-red-400 border-red-500/30",
+  pending:  "bg-amber-500/15 text-amber-700 border-amber-500/30",
+  verified: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30",
+  failed:   "bg-red-500/15 text-red-700 border-red-500/30",
 };
 
 function useOrgs() {
@@ -264,7 +264,7 @@ function OutageCreditDialog({ open, onClose, orgs }: {
           <>
             <DialogHeader>
               <DialogTitle className="font-mono flex items-center gap-2">
-                <Zap className="h-4 w-4 text-amber-400" /> APPLY OUTAGE CREDIT
+                <Zap className="h-4 w-4 text-amber-700" /> APPLY OUTAGE CREDIT
               </DialogTitle>
               <DialogDescription>
                 Issues a pro-rated SLA credit to every affected org: credit = monthly charge × outage minutes ÷ minutes in month × multiplier.
@@ -336,7 +336,7 @@ function OutageCreditDialog({ open, onClose, orgs }: {
           <>
             <DialogHeader>
               <DialogTitle className="font-mono flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-emerald-500" /> OUTAGE CREDIT APPLIED
+                <CheckCircle2 className="h-5 w-5 text-emerald-700" /> OUTAGE CREDIT APPLIED
               </DialogTitle>
               <DialogDescription>
                 {result.outageMinutes} min outage × {result.multiplier}× — {result.orgsCredited} of {result.orgsConsidered} orgs credited, {fmtKes(result.totalCreditedCents)} total.
@@ -349,7 +349,7 @@ function OutageCreditDialog({ open, onClose, orgs }: {
                   <div key={r.orgId} className="px-3 py-2 flex justify-between items-center text-sm">
                     <span>{r.orgName}</span>
                     {r.creditCents > 0 ? (
-                      <span className="font-mono font-bold text-emerald-400">{fmtKes(r.creditCents)}</span>
+                      <span className="font-mono font-bold text-emerald-700">{fmtKes(r.creditCents)}</span>
                     ) : (
                       <span className="text-xs text-muted-foreground font-mono">skipped — {r.skipped}</span>
                     )}
@@ -451,8 +451,8 @@ export function SuperAdminBilling() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: "TOTAL COLLECTED", value: fmtKes(totalVerified), icon: TrendingUp, color: "text-primary" },
-          { label: "THIS MONTH", value: fmtKes(thisMonth), icon: CreditCard, color: "text-emerald-400" },
-          { label: "PENDING VERIFICATION", value: String(pendingCount), icon: AlertCircle, color: pendingCount > 0 ? "text-amber-400" : "text-muted-foreground" },
+          { label: "THIS MONTH", value: fmtKes(thisMonth), icon: CreditCard, color: "text-emerald-700" },
+          { label: "PENDING VERIFICATION", value: String(pendingCount), icon: AlertCircle, color: pendingCount > 0 ? "text-amber-700" : "text-muted-foreground" },
         ].map((c) => (
           <div key={c.label} className="rounded-lg border border-border/50 bg-card/30 p-4 space-y-2">
             <div className="flex items-center gap-2 text-muted-foreground">
@@ -519,7 +519,7 @@ export function SuperAdminBilling() {
                     <div className="text-[10px] text-muted-foreground font-mono leading-tight mt-0.5">
                       expected {fmtKes(r.expected.expectedCents)}
                       <br />− {fmtKes(r.expected.openCreditCents)} credit
-                      <br /><span className="text-emerald-400">= {fmtKes(r.expected.netExpectedCents)} net</span>
+                      <br /><span className="text-emerald-700">= {fmtKes(r.expected.netExpectedCents)} net</span>
                     </div>
                   )}
                 </TableCell>
@@ -540,11 +540,11 @@ export function SuperAdminBilling() {
                 </TableCell>
                 <TableCell className="text-xs font-mono">
                   {r.payment.receiptSentAt ? (
-                    <span className="text-emerald-400 flex items-center gap-1">
+                    <span className="text-emerald-700 flex items-center gap-1">
                       <CheckCircle2 className="h-3 w-3" /> {fmtDate(r.payment.receiptSentAt)}
                     </span>
                   ) : r.payment.status === "verified" ? (
-                    <span className="text-amber-400 flex items-center gap-1">
+                    <span className="text-amber-700 flex items-center gap-1">
                       <Clock className="h-3 w-3" /> Not sent
                     </span>
                   ) : "—"}
@@ -554,7 +554,7 @@ export function SuperAdminBilling() {
                     {r.payment.status === "pending" && (
                       <Button
                         size="sm" variant="outline"
-                        className="font-mono text-xs h-7 px-2 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                        className="font-mono text-xs h-7 px-2 border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10"
                         disabled={verifyingId === r.payment.id}
                         onClick={() => handleVerify(r.payment.id)}
                       >

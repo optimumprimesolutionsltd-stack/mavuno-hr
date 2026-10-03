@@ -118,7 +118,7 @@ export function LoansAdmin() {
                     <TableHead className="font-mono text-xs text-right">BALANCE</TableHead>
                     <TableHead className="font-mono text-xs text-right">INSTALLMENT</TableHead>
                     <TableHead className="font-mono text-xs text-right">RATE</TableHead>
-                    <TableHead className="font-mono text-xs text-right text-amber-500">FRINGE TAX / MO</TableHead>
+                    <TableHead className="font-mono text-xs text-right text-amber-700">FRINGE TAX / MO</TableHead>
                     <TableHead className="font-mono text-xs text-right">MONTHLY PLAN</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -164,7 +164,7 @@ export function LoansAdmin() {
                             <TableCell className="text-right font-mono text-sm text-muted-foreground">{formatPercent(row.loan.interestRateBps)}</TableCell>
                             <TableCell className="text-right font-mono text-sm">
                               {row.fringeBenefit ? (
-                                <span className="text-amber-500 font-medium">{formatMoney((row.fringeBenefit as any).monthlyTax)}</span>
+                                <span className="text-amber-700 font-medium">{formatMoney((row.fringeBenefit as any).monthlyTax)}</span>
                               ) : row.loan.type === "company" ? (
                                 <span className="text-muted-foreground text-xs">—</span>
                               ) : (
@@ -209,7 +209,7 @@ export function LoansAdmin() {
             </div>
             {loans && loans.some((r: any) => r.fringeBenefit) && (
               <div className="px-4 py-3 border-t border-border/30 bg-amber-500/5">
-                <p className="text-xs text-amber-600 font-mono">
+                <p className="text-xs text-amber-700 font-mono">
                   ⚠ FRINGE BENEFIT TAX — Employer pays 30% on the benefit derived from below-market company loans (KRA deemed rate applies). This cost is not deducted from employee pay.
                 </p>
               </div>
@@ -264,7 +264,7 @@ export function LoansAdmin() {
                           <TableCell className="text-center font-mono text-sm">{row.request.months} mo</TableCell>
                           <TableCell className="text-center font-mono text-xs text-muted-foreground">
                             {row.request.type === "sacco"
-                              ? <span className="text-amber-600">{formatPercent(row.request.interestRateBps ?? 0)}</span>
+                              ? <span className="text-amber-700">{formatPercent(row.request.interestRateBps ?? 0)}</span>
                               : "—"}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground truncate max-w-[160px]">{row.request.reason || "—"}</TableCell>

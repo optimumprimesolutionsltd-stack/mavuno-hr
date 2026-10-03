@@ -85,7 +85,7 @@ export function SuperAdminDemoRequests() {
             <h1 className="text-2xl font-bold tracking-tight font-mono">DEMO REQUESTS</h1>
             <p className="text-muted-foreground text-sm">
               Leads from the marketing site's "Request Demo" form
-              {newCount > 0 && <span className="text-amber-400"> — {newCount} new</span>}
+              {newCount > 0 && <span className="text-amber-700"> — {newCount} new</span>}
             </p>
           </div>
         </div>
@@ -142,8 +142,8 @@ export function SuperAdminDemoRequests() {
                       variant="outline"
                       className={`font-mono text-[10px] py-0.5 ${
                         r.status === "new"
-                          ? "border-amber-500/60 text-amber-400 bg-amber-500/10"
-                          : "border-emerald-500/60 text-emerald-400 bg-emerald-500/10"
+                          ? "border-amber-500/60 text-amber-700 bg-amber-500/10"
+                          : "border-emerald-500/60 text-emerald-700 bg-emerald-500/10"
                       }`}
                     >
                       {r.status.toUpperCase()}

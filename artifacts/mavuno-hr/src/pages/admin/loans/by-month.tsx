@@ -49,7 +49,7 @@ export function LoansByMonth({ loans }: { loans: any[] }) {
       </div>
       {rows.some((r: any) => r.multiple) && (
         <div className="flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-sm">
-          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+          <AlertTriangle className="h-4 w-4 text-amber-700 shrink-0" />
           Some employees have more than one loan or advance in this month (marked below). Check none was posted twice.
         </div>
       )}

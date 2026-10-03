@@ -121,7 +121,7 @@ export function EditLeaveDialog({
           </p>
         )}
         {approved && (touchesUnpaid || (movedEmployee && type === "unpaid")) && (
-          <p className="text-xs text-amber-500 bg-amber-500/10 border border-amber-500/30 rounded p-2">
+          <p className="text-xs text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded p-2">
             Unpaid leave reduces pay. Payroll runs already paid are not changed; open any draft run for this month
             and click Recalculate to apply it.
           </p>

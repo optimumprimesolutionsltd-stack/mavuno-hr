@@ -145,8 +145,8 @@ export function PortalLeave() {
         <div className="grid grid-cols-3 gap-4">
           {[
             { label: "ENTITLED", value: summary.entitled, icon: CalendarDays, color: "text-primary" },
-            { label: "TAKEN", value: summary.taken, icon: CalendarX, color: "text-amber-400" },
-            { label: "REMAINING", value: summary.remaining, icon: CalendarCheck, color: summary.remaining <= 3 ? "text-destructive" : "text-emerald-400" },
+            { label: "TAKEN", value: summary.taken, icon: CalendarX, color: "text-amber-700" },
+            { label: "REMAINING", value: summary.remaining, icon: CalendarCheck, color: summary.remaining <= 3 ? "text-destructive" : "text-emerald-700" },
           ].map(({ label, value, icon: Icon, color }) => (
             <Card key={label} className="border-border/50 bg-card/30">
               <CardContent className="p-4 text-center">
@@ -194,7 +194,7 @@ export function PortalLeave() {
                   <TableCell className="text-right font-mono text-sm">{Math.round((row.days ?? 0) / 10)}</TableCell>
                   <TableCell className="text-right">
                     {row.balanceAfter != null ? (
-                      <span className={`font-mono text-sm font-medium ${row.balanceAfter <= 3 ? "text-destructive" : row.balanceAfter <= 7 ? "text-amber-400" : "text-primary"}`}>
+                      <span className={`font-mono text-sm font-medium ${row.balanceAfter <= 3 ? "text-destructive" : row.balanceAfter <= 7 ? "text-amber-700" : "text-primary"}`}>
                         {row.balanceAfter}d
                       </span>
                     ) : (

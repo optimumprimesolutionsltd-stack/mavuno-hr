@@ -78,7 +78,7 @@ export function CorrectLoanDialog({
           <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           <p className="text-xs text-muted-foreground">Payroll deducts it from the month of this date onward.</p>
         </div>
-        <p className="text-xs text-amber-500 bg-amber-500/10 border border-amber-500/30 rounded p-2">
+        <p className="text-xs text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded p-2">
           Paid payroll runs are not changed. Open any draft run and click Recalculate to apply the correction.
         </p>
         <Button disabled={save.isPending || !employeeId || !startDate} onClick={() => save.mutate()}>
