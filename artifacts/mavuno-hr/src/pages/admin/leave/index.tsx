@@ -343,6 +343,29 @@ export function LeaveAdmin() {
         canChangeEmployee
       />
 
+      {/* Where leave stands today, from the requests already loaded. */}
+      {leaves ? (() => {
+        const today = new Date().toISOString().slice(0, 10);
+        const pending = leaves.filter((r) => r.leave.status === "pending").length;
+        const approved = leaves.filter((r) => r.leave.status === "approved");
+        const offToday = approved.filter((r) => r.leave.startDate?.slice(0, 10) <= today && r.leave.endDate?.slice(0, 10) >= today).length;
+        const cells = [
+          { label: "Waiting for a decision", value: pending, tone: pending > 0 ? "text-amber-700" : "" },
+          { label: "Off today", value: offToday, tone: "" },
+          { label: "Approved requests", value: approved.length, tone: "" },
+        ];
+        return (
+          <section aria-label="Leave at a glance" className="grid grid-cols-3 border-2 border-foreground bg-card">
+            {cells.map((cell, i) => (
+              <div key={cell.label} className={`min-w-0 p-3 sm:p-4 ${i > 0 ? "border-l border-border" : ""}`}>
+                <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">{cell.label}</p>
+                <p className={`mt-1 font-mono text-2xl font-medium tabular-nums ${cell.tone}`}>{cell.value}</p>
+              </div>
+            ))}
+          </section>
+        );
+      })() : null}
+
       <Tabs defaultValue="requests">
         <TabsList className="font-mono">
           <TabsTrigger value="requests" className="font-mono text-xs tracking-wide">REQUESTS</TabsTrigger>
@@ -352,7 +375,7 @@ export function LeaveAdmin() {
 
         {/* REQUESTS TAB */}
         <TabsContent value="requests" className="space-y-4 mt-4">
-          <div className="flex items-center gap-4 bg-card p-4 rounded-lg border border-border">
+          <div className="flex items-center gap-4 bg-card p-4 border border-border">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
