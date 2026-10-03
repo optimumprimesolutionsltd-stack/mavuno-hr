@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import {
-  Users, Wallet, Calendar, Coins, TrendingUp, TrendingDown, AlertTriangle,
+  TrendingUp, AlertTriangle,
   UserPlus, Star, ArrowUpRight, ArrowDownRight, Minus, FileBadge,
 } from "lucide-react";
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -61,10 +61,8 @@ export function AdminDashboard() {
   if (isLoading || !data) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground font-mono">EXECUTIVE DASHBOARD</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => <Card key={i} className="animate-pulse h-[120px] bg-card/50" />)}
-        </div>
+        <h1 className="text-3xl font-extrabold uppercase text-foreground">Payroll at a glance</h1>
+        <div className="h-[132px] border-2 border-foreground bg-card animate-pulse" />
       </div>
     );
   }
@@ -102,88 +100,65 @@ export function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-3xl font-bold tracking-tight font-mono">EXECUTIVE DASHBOARD</h1>
-        <div className="flex items-center gap-3">
-          {latestRunName && <StatusBadge status={latestRunStatus} />}
-          {latestRunName && (
-            <span className="text-xs text-muted-foreground font-mono">{latestRunName}</span>
-          )}
-          <div className="flex items-center text-sm text-muted-foreground">
-            <div className="h-2 w-2 rounded-full bg-primary mr-2 animate-pulse" />
-            LIVE
-          </div>
+      {/* The payroll month first: which run, where it stands, what is still to
+          file, then the four figures, ruled like a return rather than floated
+          as cards. */}
+      <div className="flex items-end justify-between flex-wrap gap-4">
+        <div>
+          <p className="font-mono text-xs uppercase tracking-[0.08em] text-primary border-l-2 border-primary pl-2.5">
+            Payroll{currentPeriod ? ` · ${formatPeriodLabel(currentPeriod)}` : ""}
+          </p>
+          <h1 className="mt-3 text-3xl md:text-4xl font-extrabold uppercase leading-none">Payroll at a glance</h1>
         </div>
+        {latestRunName && (
+          <Link href="/admin/payroll" className="flex items-center gap-3 border border-border bg-card px-4 py-2.5 hover:border-foreground transition-colors">
+            <span className="text-xs text-muted-foreground">Latest run</span>
+            <span className="text-sm font-semibold">{latestRunName}</span>
+            <StatusBadge status={latestRunStatus} />
+          </Link>
+        )}
       </div>
 
+      {outstanding.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border border-amber-500/50 border-l-4 border-l-amber-600 bg-amber-500/5 px-4 py-3">
+          <FileBadge className="h-4 w-4 text-amber-700 shrink-0" />
+          <span className="text-sm">
+            Returns not yet downloaded{currentPeriod ? ` for ${formatPeriodLabel(currentPeriod)}` : ""}:
+          </span>
+          <span className="flex flex-wrap gap-1.5">
+            {outstanding.map((kind) => (
+              <span key={kind} className="font-mono text-[11px] font-medium text-amber-800 border border-amber-600/60 px-1.5 py-0.5">{kind}</span>
+            ))}
+          </span>
+          <Link href={outstandingRunId ? `/admin/payroll/${outstandingRunId}` : "/admin/filings"} className="ml-auto text-sm font-semibold text-primary underline underline-offset-4">
+            Download them
+          </Link>
+        </div>
+      )}
 
-      {/* KPI Cards — row 1 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-
-        {/* Headcount */}
-        <Card className="border-border/50 bg-card/50 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-10 -mt-10 blur-2xl" />
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Headcount</CardTitle>
-            <Users className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold font-mono">{headcount}</div>
-            <p className="text-xs text-muted-foreground mt-1">Active employees</p>
-          </CardContent>
-        </Card>
-
-        {/* Monthly Gross */}
-        <Card className="border-border/50 bg-card/50 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-10 -mt-10 blur-2xl" />
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Gross</CardTitle>
-            <Wallet className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold font-mono text-primary">{formatMoney(monthlyGross)}</div>
-            <div className="mt-1">
-              <VarianceBadge pct={grossVariancePct} />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Net Payout */}
-        <Card className="border-border/50 bg-card/50 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full -mr-10 -mt-10 blur-2xl" />
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Net Payout</CardTitle>
-            {grossVarianceAmount != null && grossVarianceAmount > 0
-              ? <TrendingUp className="h-4 w-4 text-emerald-700" />
-              : grossVarianceAmount != null && grossVarianceAmount < 0
-              ? <TrendingDown className="h-4 w-4 text-red-700" />
-              : <TrendingUp className="h-4 w-4 text-emerald-700" />}
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold font-mono text-emerald-700">{formatMoney(monthlyNet)}</div>
-            <p className="text-xs text-muted-foreground mt-1">{formatMoney(avgCostPerEmployee)} avg cost/employee</p>
-          </CardContent>
-        </Card>
-
-        {/* Active Loans */}
-        <Card className="border-border/50 bg-card/50 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-chart-3/5 rounded-full -mr-10 -mt-10 blur-2xl" />
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Active Loans</CardTitle>
-            <Coins className="h-4 w-4 text-chart-3" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold font-mono">{formatMoney(loanBalance)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Across {activeLoanCount} employees</p>
-          </CardContent>
-        </Card>
-      </div>
+      <section aria-label="This month's figures" className="grid grid-cols-2 lg:grid-cols-4 border-2 border-foreground bg-card">
+        {[
+          { label: "Headcount", value: String(headcount), note: "Active employees", tone: "" },
+          { label: "Gross pay", value: formatMoney(monthlyGross), note: <VarianceBadge pct={grossVariancePct} />, tone: "" },
+          { label: "Net pay", value: formatMoney(monthlyNet), note: `${formatMoney(avgCostPerEmployee)} avg cost per employee`, tone: "text-primary" },
+          { label: "Loans outstanding", value: formatMoney(loanBalance), note: `Across ${activeLoanCount} employee${activeLoanCount === 1 ? "" : "s"}`, tone: "" },
+        ].map((kpi, i) => (
+          <div
+            key={kpi.label}
+            className={`min-w-0 p-4 md:p-5 ${i % 2 === 1 ? "border-l border-border" : ""} ${i >= 2 ? "border-t lg:border-t-0 border-border" : ""} ${i === 2 ? "lg:border-l" : ""}`}
+          >
+            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">{kpi.label}</p>
+            <p className={`mt-2 truncate font-mono text-xl lg:text-lg xl:text-[1.4rem] font-medium tabular-nums ${kpi.tone}`}>{kpi.value}</p>
+            <div className="mt-1 text-xs text-muted-foreground">{kpi.note}</div>
+          </div>
+        ))}
+      </section>
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Payroll Trend */}
-        <Card className="col-span-1 lg:col-span-2 border-border/50 bg-card/50 shadow-sm">
+        <Card className="col-span-1 lg:col-span-2 border-border bg-card">
           <CardHeader>
             <CardTitle className="flex items-center">
               <TrendingUp className="h-4 w-4 mr-2 text-primary" />
@@ -201,12 +176,12 @@ export function AdminDashboard() {
                       tickFormatter={(v) => `${(v / 100 / 1000).toFixed(0)}k`} width={48} />
                     <Tooltip
                       cursor={{ fill: "hsl(var(--muted))" }}
-                      contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
+                      contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "2px" }}
                       itemStyle={{ color: "hsl(var(--foreground))" }}
                       formatter={(value: number, name: string) => [formatMoney(value), name === "gross" ? "Gross" : "Net Pay"]}
                     />
-                    <Bar dataKey="gross" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} name="gross" />
-                    <Bar dataKey="net" fill="hsl(142 71% 45% / 0.5)" radius={[3, 3, 0, 0]} name="net" />
+                    <Bar dataKey="gross" fill="hsl(var(--primary))" radius={[0, 0, 0, 0]} name="gross" />
+                    <Bar dataKey="net" fill="hsl(var(--chart-2))" radius={[0, 0, 0, 0]} name="net" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -220,7 +195,7 @@ export function AdminDashboard() {
         </Card>
 
         {/* Department Costs */}
-        <Card className="border-border/50 bg-card/50 shadow-sm">
+        <Card className="border-border bg-card">
           <CardHeader>
             <CardTitle>Department Costs</CardTitle>
             <CardDescription>Gross pay by department</CardDescription>
@@ -235,7 +210,7 @@ export function AdminDashboard() {
                     </Pie>
                     <Tooltip
                       formatter={(value: number) => formatMoney(value)}
-                      contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
+                      contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "2px" }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -266,7 +241,7 @@ export function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
 
         {/* Pending Leaves */}
-        <Card className="border-border/50 bg-card/50 shadow-sm">
+        <Card className="border-border bg-card">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center text-sm text-chart-2">
               <AlertTriangle className="h-4 w-4 mr-2" />
@@ -282,7 +257,7 @@ export function AdminDashboard() {
             {pendingLeaves.length > 0 ? (
               <div className="space-y-2">
                 {pendingLeaves.slice(0, 5).map((item) => (
-                  <div key={item.leave.id} className="flex items-center justify-between p-2 rounded-lg border border-border/50 bg-background/50">
+                  <div key={item.leave.id} className="flex items-center justify-between p-2 border-b border-border last:border-b-0">
                     <div>
                       <p className="font-medium text-xs">{fullName(item.employee)}</p>
                       <p className="text-[10px] text-muted-foreground capitalize">{item.leave.type} • {item.leave.days} days</p>
@@ -298,7 +273,7 @@ export function AdminDashboard() {
         </Card>
 
         {/* Recent Hires */}
-        <Card className="border-border/50 bg-card/50 shadow-sm">
+        <Card className="border-border bg-card">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center text-sm">
               <UserPlus className="h-4 w-4 mr-2 text-primary" />
@@ -310,7 +285,7 @@ export function AdminDashboard() {
             {recentHires.length > 0 ? (
               <div className="space-y-2">
                 {recentHires.map((h, i) => (
-                  <div key={i} className="flex items-center gap-2 p-2 rounded-lg border border-border/50 bg-background/50">
+                  <div key={i} className="flex items-center gap-2 p-2 border-b border-border last:border-b-0">
                     <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                       <span className="text-[10px] font-bold text-primary">{h.name.charAt(0)}</span>
                     </div>
@@ -328,7 +303,7 @@ export function AdminDashboard() {
         </Card>
 
         {/* Work Anniversaries */}
-        <Card className="border-border/50 bg-card/50 shadow-sm">
+        <Card className="border-border bg-card">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center text-sm">
               <Star className="h-4 w-4 mr-2 text-amber-700" />
@@ -361,9 +336,9 @@ export function AdminDashboard() {
         </Card>
 
         {/* Audit / Security Log */}
-        <Card className="border-border/50 bg-card/50 shadow-sm">
+        <Card className="border-border bg-card">
           <CardHeader className="pb-3">
-            <CardTitle className="font-mono text-sm">SECURITY LOG</CardTitle>
+            <CardTitle className="text-sm">Security log</CardTitle>
           </CardHeader>
           <CardContent>
             {auditLogItems.length > 0 ? (
