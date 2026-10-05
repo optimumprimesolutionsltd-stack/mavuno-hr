@@ -1,23 +1,26 @@
-const CACHE_NAME = "zawadi-hr-shell-v1";
-const APP_SHELL = ["/", "/admin/login", "/portal/login", "/favicon.svg", "/manifest.webmanifest"];
+// Mavuno HR service worker -- makes the app installable on phones.
+// Scope is wherever this file is served from (/app/ in production). It only
+// ever caches one offline page: API responses, payslips and personal details
+// are never stored on the device.
+const CACHE = "mavuno-offline-v1";
+const OFFLINE_URL = new URL("offline.html", self.registration.scope).href;
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()),
-  );
+  event.waitUntil(caches.open(CACHE).then((c) => c.add(OFFLINE_URL)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
-    ).then(() => self.clients.claim()),
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim()),
   );
 });
 
 self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET" || new URL(event.request.url).origin !== self.location.origin) return;
-  event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request).then((cached) => cached || caches.match("/"))),
-  );
+  const req = event.request;
+  // Only page navigations get the offline fallback; everything else goes
+  // straight to the network untouched.
+  if (req.method !== "GET" || req.mode !== "navigate") return;
+  event.respondWith(fetch(req).catch(() => caches.match(OFFLINE_URL)));
 });

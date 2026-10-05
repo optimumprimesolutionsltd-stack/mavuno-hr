@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, User } from "lucide-react";
 import { Link as RouterLink } from "wouter";
+import { InstallAppButton, usePortalManifest } from "@/components/install-app";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -19,6 +20,7 @@ const loginSchema = z.object({
 });
 
 export function PortalLogin() {
+  usePortalManifest();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const loginMutation = useLogin();
@@ -132,6 +134,9 @@ export function PortalLogin() {
             <RouterLink href="/sign-in?redirect=/portal" className="flex h-10 w-full items-center justify-center rounded-md border border-border bg-background/50 text-sm font-medium transition-colors hover:bg-accent">
               Continue with Google
             </RouterLink>
+          <div className="mt-4 flex justify-center">
+            <InstallAppButton variant="ghost" className="text-sm" />
+          </div>
         </CardContent>
       </Card>
     </div>
