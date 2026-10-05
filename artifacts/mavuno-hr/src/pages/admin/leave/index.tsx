@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RequestLeaveForDialog } from "./request-for-dialog";
 import { EditLeaveDialog } from "./edit-leave-dialog";
 import { LeaveByMonth } from "./by-month";
+import { LeaveReport } from "./leave-report";
 
 const BADGE_COLORS = [
   "bg-emerald-500/20 text-emerald-700",
@@ -371,6 +372,7 @@ export function LeaveAdmin() {
           <TabsTrigger value="requests" className="font-mono text-xs tracking-wide">REQUESTS</TabsTrigger>
           <TabsTrigger value="by-month" className="font-mono text-xs tracking-wide">BY MONTH</TabsTrigger>
           <TabsTrigger value="whos-off" className="font-mono text-xs tracking-wide">WHO'S OFF</TabsTrigger>
+          <TabsTrigger value="report" className="font-mono text-xs tracking-wide">DOWNLOAD / PRINT</TabsTrigger>
         </TabsList>
 
         {/* REQUESTS TAB */}
@@ -494,6 +496,10 @@ export function LeaveAdmin() {
         </TabsContent>
 
         {/* WHO'S OFF TAB */}
+        <TabsContent value="report" className="mt-4">
+          <LeaveReport leaves={(leaves as any[]) ?? []} departments={departments} />
+        </TabsContent>
+
         <TabsContent value="whos-off" className="mt-4">
           <div className="border border-border rounded-lg bg-card p-4">
             {isLoading ? (
