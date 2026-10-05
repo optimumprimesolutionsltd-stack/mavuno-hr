@@ -22,6 +22,9 @@ export function AttendanceAdmin() {
   const [status, setStatus] = useState("present");
   const [hours, setHours] = useState("8");
   const [overtime, setOvertime] = useState("0");
+  // Why: an emergency half day is recorded here, not as leave, so the reason
+  // stays on the record without touching the leave balance.
+  const [note, setNote] = useState("");
 
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulk, setBulk] = useState({
@@ -84,6 +87,7 @@ export function AttendanceAdmin() {
     setStatus(d?.status ?? "present");
     setHours(String(d?.hours ?? 8));
     setOvertime(String(d?.overtimeHours ?? 0));
+    setNote(d?.note ?? "");
     setCell({ emp, date });
   }
 
@@ -163,10 +167,11 @@ export function AttendanceAdmin() {
                       <td key={d} className="p-0.5">
                         <button
                           onClick={() => open(e, date)}
-                          title={meta ? `${meta.label}${rec ? ` · ${rec.hours}h` : ""}` : rest ? `Day off (works ${weekLabel(e.workDaysPerWeek)})` : "Not recorded"}
-                          className={`w-6 h-6 rounded border font-bold ${meta ? meta.cls : "border-border/30 text-transparent hover:border-primary/50"} ${(rest || holidays.has(date)) && !meta ? "bg-muted/40" : ""}`}
+                          title={`${meta ? `${meta.label}${rec ? ` · ${rec.hours}h` : ""}` : rest ? `Day off (works ${weekLabel(e.workDaysPerWeek)})` : "Not recorded"}${rec?.note ? ` — ${rec.note}` : ""}`}
+                          className={`relative w-6 h-6 rounded border font-bold ${meta ? meta.cls : "border-border/30 text-transparent hover:border-primary/50"} ${(rest || holidays.has(date)) && !meta ? "bg-muted/40" : ""}`}
                         >
                           {meta ? meta.letter : "·"}
+                          {rec?.note && <span aria-label="Has a reason" className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-amber-500" />}
                         </button>
                       </td>
                     );
@@ -257,10 +262,21 @@ export function AttendanceAdmin() {
                 {overtimeOn && <div className="space-y-2"><Label>Overtime hours</Label><Input type="number" min="0" max="24" value={overtime} onChange={(e) => setOvertime(e.target.value)} /></div>}
               </div>
             )}
+            <div className="space-y-2">
+              <Label>{status === "half" ? "Reason for half day" : "Note (optional)"}</Label>
+              <Input
+                value={note} maxLength={200} onChange={(e) => setNote(e.target.value)}
+                placeholder={status === "half" ? "e.g. Hospital appointment" : status === "absent" ? "e.g. Sick, no call" : ""}
+              />
+              {status === "half" && (
+                <p className="text-xs text-muted-foreground">Recorded on attendance only. It does not use annual leave.</p>
+              )}
+            </div>
             <div className="flex gap-2">
               <Button variant="outline" disabled={save.isPending} onClick={() => save.mutate({ employeeId: cell!.emp.id, date: cell!.date, status: "clear" })}>Clear day</Button>
               <Button className="flex-1" disabled={save.isPending} onClick={() => save.mutate({
                 employeeId: cell!.emp.id, date: cell!.date, status, hours: Number(hours) || 0, overtimeHours: Number(overtime) || 0,
+                note: note.trim() || null,
               })}>
                 {save.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Save
               </Button>
