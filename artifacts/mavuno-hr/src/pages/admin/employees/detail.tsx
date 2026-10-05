@@ -26,6 +26,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { EditEmployeeDialog } from "./edit-dialog";
 import { TerminateDialog } from "./terminate-dialog";
+import { EmployeeStatementDialog } from "./employee-statement";
 
 // ── Employee photo ────────────────────────────────────────────────────────
 // This app authenticates with a bearer token in sessionStorage, not cookies,
@@ -128,6 +129,7 @@ export function EmployeeDetail() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
+  const [statementOpen, setStatementOpen] = useState(false);
   const [editTab, setEditTab] = useState<"personal" | "employment" | "payment" | "compliance">("personal");
   const [terminateOpen, setTerminateOpen] = useState(false);
   const [suspendOpen, setSuspendOpen] = useState(false);
@@ -267,6 +269,17 @@ export function EmployeeDetail() {
           >
             {employee.status.toUpperCase()}
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            className="font-mono gap-1.5"
+            onClick={() => setStatementOpen(true)}
+            title="Print or download this employee's pay, leave and loans for a month or year"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            STATEMENT
+          </Button>
+          <EmployeeStatementDialog open={statementOpen} onOpenChange={setStatementOpen} data={data} />
           {!isTerminated && (
             <>
               <Button
