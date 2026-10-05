@@ -43,14 +43,17 @@ function authHeaders(): Record<string, string> {
  */
 function openPayslip(runId: number, slipId: number) {
   const tab = window.open("", "_blank");
+  if (!tab) {
+    alert("Your browser blocked the payslip window. Allow pop-ups for mavunohr.co.ke, then click VIEW PAYSLIP again.");
+    return;
+  }
   fetch(`/api/payroll/${runId}/payslips/${slipId}/pdf`, { headers: authHeaders() })
     .then((r) => (r.ok ? r.blob() : Promise.reject()))
     .then((blob) => {
       const url = URL.createObjectURL(blob);
-      if (tab) tab.location.href = url;
-      else window.location.href = url;
+      tab.location.href = url;
     })
-    .catch(() => { tab?.close(); alert("Could not open the payslip. Please try again."); });
+    .catch(() => { tab.close(); alert("Could not open the payslip. Please try again."); });
 }
 
 function EmployeeAvatar({ employeeId, name, editable }: { employeeId: number; name: string; editable: boolean }) {

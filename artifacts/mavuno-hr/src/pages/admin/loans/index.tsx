@@ -19,6 +19,26 @@ import { LoanMonthlySchedule } from "./monthly-schedule";
 import { LoansByMonth } from "./by-month";
 import { useLoanTypes, LOAN_TYPE_OPTIONS } from "@/lib/loan-config";
 
+const monthName = (y: number, m: number) =>
+  new Date(y, m - 1, 1).toLocaleString("en-GB", { month: "short", year: "numeric" });
+
+/**
+ * When payroll deducts this loan -- the same rule as loanDueInPeriod() on the
+ * server. An advance is recovered only over its own months from the issue
+ * month; other loans every month until settled.
+ */
+function deductionNote(loan: any): { text: string; lapsed: boolean } {
+  const [sy, sm] = String(loan.startDate).slice(0, 7).split("-").map(Number);
+  if (loan.type !== "advance") return { text: `Deducts monthly from ${monthName(sy, sm)}`, lapsed: false };
+  const months = loan.monthlyInstallment > 0 ? Math.max(1, Math.ceil(loan.principal / loan.monthlyInstallment)) : 1;
+  const endIdx = sm - 1 + months - 1;
+  const ey = sy + Math.floor(endIdx / 12), em = (endIdx % 12) + 1;
+  const now = new Date();
+  const lapsed = loan.balance > 0 && (now.getFullYear() * 12 + now.getMonth() + 1) > (ey * 12 + em);
+  const span = months === 1 ? monthName(sy, sm) : `${monthName(sy, sm)} – ${monthName(ey, em)}`;
+  return { text: `Deducts in ${span} payroll${months === 1 ? " only" : ""}`, lapsed };
+}
+
 export function LoansAdmin() {
   const [issuingLoan, setIssuingLoan] = useState(false);
   const [requestingFor, setRequestingFor] = useState(false);
@@ -136,6 +156,15 @@ export function LoansAdmin() {
                             <TableCell>
                               <div className="font-medium text-sm">{fullName(row.employee)}</div>
                               <div className="text-xs text-muted-foreground font-mono">{row.employee.empNo} · issued {formatDate(row.loan.startDate)}</div>
+                              {(() => {
+                                const n = deductionNote(row.loan);
+                                return (
+                                  <div className={`text-[11px] mt-0.5 ${n.lapsed ? "text-amber-600" : "text-muted-foreground"}`}>
+                                    {n.text}
+                                    {n.lapsed && " — those months are past, so it is no longer deducted. Correct the date if it is wrong."}
+                                  </div>
+                                );
+                              })()}
                             </TableCell>
                             <TableCell>
                               <Select

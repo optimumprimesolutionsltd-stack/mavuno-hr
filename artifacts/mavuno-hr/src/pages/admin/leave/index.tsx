@@ -311,6 +311,10 @@ export function LeaveAdmin() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">LEAVE MANAGEMENT</h1>
           <p className="text-muted-foreground text-sm">Review and approve employee leave requests</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Leave is taken in full days. For an emergency half day, use <strong>Attendance</strong> and mark the day
+            <strong> Half day</strong> with a reason — it does not use annual leave.
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button

@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
-import { eq, and, desc, inArray, lte } from "drizzle-orm";
+import { eq, and, desc, inArray, lte, gt, or, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { payrollRuns, payslips, employees, loans, payoutBatches, statutoryFilings, organizations, departments } from "@workspace/db/schema";
+import { payrollRuns, payslips, employees, loans, payoutBatches, statutoryFilings, organizations, departments, auditLogs, leaveRequests } from "@workspace/db/schema";
 import { requireAuth, type AuthRequest, getIp } from "../middlewares/require-auth.js";
 import { writeAudit } from "../lib/audit.js";
 import { calculateRun, recalculateRun, applyLoanRepayments, finalizeRunInTx, loanDueInPeriod } from "../lib/payroll-run.js";
@@ -406,6 +406,54 @@ router.get("/:id/readiness", requireAuth("payroll:read"), async (req, res, next)
       }));
 
     res.json({ ok: missing.length === 0, missing });
+  } catch (err) { next(err); }
+});
+
+// GET /api/payroll/:id/changes -- has anything that affects pay changed since
+// this draft run was last calculated? A draft never updates by itself, so
+// after reinstating someone, correcting an advance or editing unpaid leave the
+// run silently kept the old figures. Read from the audit log: every such
+// change is audited, and so is each (re)calculation of the run.
+const PAY_AFFECTING = ["employees", "loans", "timesheets", "departments", "statutory_config", "leave_requests"];
+router.get("/:id/changes", requireAuth("payroll:read"), async (req, res, next) => {
+  try {
+    const p = (req as AuthRequest).principal;
+    const id = Number(req.params.id);
+    const [run] = await db.select({ status: payrollRuns.status, createdAt: payrollRuns.createdAt })
+      .from(payrollRuns).where(and(eq(payrollRuns.id, id), eq(payrollRuns.orgId, p.orgId)));
+    if (!run) { res.status(404).json({ error: "Payroll run not found" }); return; }
+    if (run.status !== "draft" && run.status !== "pending_approval") { res.json({ count: 0, changes: [] }); return; }
+
+    const [calc] = await db.select({ at: auditLogs.createdAt }).from(auditLogs)
+      .where(and(
+        eq(auditLogs.orgId, p.orgId), eq(auditLogs.entity, "payroll_runs"), eq(auditLogs.entityId, String(id)),
+        or(eq(auditLogs.action, "PAYROLL_CALCULATED"), eq(auditLogs.action, "PAYROLL_RECALCULATED")),
+      ))
+      .orderBy(desc(auditLogs.createdAt)).limit(1);
+    const since = calc?.at ?? run.createdAt;
+
+    const rows = await db.select({
+      action: auditLogs.action, entity: auditLogs.entity, entityId: auditLogs.entityId,
+      before: auditLogs.before, after: auditLogs.after, at: auditLogs.createdAt,
+    }).from(auditLogs)
+      .where(and(eq(auditLogs.orgId, p.orgId), gt(auditLogs.createdAt, since), inArray(auditLogs.entity, PAY_AFFECTING)))
+      .orderBy(desc(auditLogs.createdAt)).limit(200);
+
+    // Leave only changes pay when it is (or was) unpaid leave.
+    const leaveIds = rows.filter((r) => r.entity === "leave_requests" && r.entityId).map((r) => Number(r.entityId));
+    const unpaidIds = new Set<number>();
+    if (leaveIds.length) {
+      const ls = await db.select({ id: leaveRequests.id }).from(leaveRequests)
+        .where(and(eq(leaveRequests.orgId, p.orgId), inArray(leaveRequests.id, leaveIds), eq(leaveRequests.type, "unpaid")));
+      ls.forEach((l) => unpaidIds.add(l.id));
+    }
+    const changes = rows.filter((r) => {
+      if (r.entity !== "leave_requests") return true;
+      const wasUnpaid = (r.before as any)?.type === "unpaid" || (r.after as any)?.type === "unpaid";
+      return wasUnpaid || unpaidIds.has(Number(r.entityId));
+    }).map((r) => ({ action: r.action, at: r.at }));
+
+    res.json({ since, count: changes.length, changes: changes.slice(0, 20) });
   } catch (err) { next(err); }
 });
 
