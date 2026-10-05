@@ -92,6 +92,7 @@ export function PayrollDetail() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: getGetPayrollRunQueryKey(id) });
       queryClient.invalidateQueries({ queryKey: getListPayrollRunsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: ["/api/payroll", id, "changes"] });
       const w = data?.warnings?.length ?? 0;
       toast({
         title: "Recalculated",
@@ -412,6 +413,14 @@ export function PayrollDetail() {
 
   const { run, payslips, filings } = data as any;
   const canEdit = run?.status === "draft" || run?.status === "pending_approval";
+  // Something that affects pay changed after this draft was calculated.
+  const { data: changesData } = useQuery<{ count: number; changes: { action: string; at: string }[] }>({
+    queryKey: ["/api/payroll", id, "changes"],
+    queryFn: () => customFetch(`/api/payroll/${id}/changes`) as Promise<any>,
+    enabled: !!canEdit,
+    refetchOnWindowFocus: true,
+  });
+  const changeLabel = (a: string) => a.toLowerCase().replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
   const isHistorical = run?.runType === "historical";
   const p10Filing = (filings as any[])?.find((f: any) => f.kind === "P10");
   const nssfFiling = (filings as any[])?.find((f: any) => f.kind === "NSSF");
@@ -644,6 +653,28 @@ export function PayrollDetail() {
           </div>
         ))}
       </section>
+
+      {/* Stale draft — changes since it was last calculated */}
+      {canEdit && (changesData?.count ?? 0) > 0 && (
+        <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 flex flex-wrap items-center gap-3">
+          <div className="flex-1 min-w-[240px]">
+            <p className="font-mono text-xs font-bold text-amber-700 dark:text-amber-400">
+              {changesData!.count} CHANGE{changesData!.count === 1 ? "" : "S"} SINCE THIS PAYROLL WAS CALCULATED
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Employees, loans, unpaid leave or settings changed after these figures were worked out
+              ({Array.from(new Set(changesData!.changes.map((c) => changeLabel(c.action)))).slice(0, 4).join(", ")}).
+              Recalculate before approving so the payslips use the latest details.
+            </p>
+          </div>
+          <Button
+            size="sm" className="font-mono" disabled={recalcMutation.isPending}
+            onClick={() => recalcMutation.mutate()}
+          >
+            {recalcMutation.isPending ? "RECALCULATING..." : "RECALCULATE NOW"}
+          </Button>
+        </div>
+      )}
 
       {/* Compliance banner — missing NSSF / SHIF numbers */}
       {canEdit && readinessData && !readinessData.ok && readinessData.missing?.length > 0 && (

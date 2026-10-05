@@ -125,6 +125,10 @@ export function AttendanceAdmin() {
           <span key={k} className={`px-2 py-0.5 rounded border ${STATUS_META[k].cls}`}>{STATUS_META[k].letter} {STATUS_META[k].label}</span>
         ))}
         <span className="px-2 py-0.5 rounded border bg-amber-500/20 text-amber-700 border-amber-500/30">Public holiday (column shaded)</span>
+        <span className="px-2 py-0.5 rounded border bg-muted/40 text-muted-foreground border-border/50">Grey box = that person's day off (Sundays; Saturdays for Mon – Fri staff)</span>
+        <span className="px-2 py-0.5 rounded border border-border/50 text-muted-foreground inline-flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Has a reason / note (hover to read)
+        </span>
       </div>
 
       <div className="border border-border rounded-lg overflow-auto bg-card max-h-[70vh]">
