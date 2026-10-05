@@ -163,7 +163,7 @@ export function PortalAttendance() {
                 {overtimeOn && <div className="space-y-2"><Label>Overtime hours</Label><Input type="number" min="0" max="24" value={overtime} onChange={(e) => setOvertime(e.target.value)} /></div>}
               </div>
             )}
-            <div className="space-y-2"><Label>Note (optional)</Label><Input value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} /></div>
+            <div className="space-y-2"><Label>{status === "half" ? "Reason for half day" : "Note (optional)"}</Label><Input value={note} maxLength={200} placeholder={status === "half" ? "e.g. Hospital appointment" : ""} onChange={(e) => setNote(e.target.value)} /></div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => save.mutate({ date: editDate, status: "clear" })} disabled={save.isPending}>Clear day</Button>
               <Button className="flex-1" disabled={save.isPending} onClick={() => save.mutate({
