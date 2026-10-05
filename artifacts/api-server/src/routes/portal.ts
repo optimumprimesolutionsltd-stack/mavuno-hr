@@ -370,7 +370,7 @@ router.get("/payslip/:slipId/pdf", requireAuth("self:read"), async (req, res, ne
     // Employees can only download their own payslip
     if (emp.id !== p.employeeId) throw new HttpError(403, "Access denied");
 
-    const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number; tier2Provider?: string; tier2ProviderName?: string; insurancePremium?: number };
+    const bd = (slip.breakdown ?? {}) as { nssfTier1?: number; nssfTier2?: number; nssfTier1Employer?: number; nssfTier2Employer?: number; tier2Provider?: string; tier2ProviderName?: string; insurancePremium?: number };
     const { generatePayslipPdf } = await import("../lib/pdf-payslip.js");
 
     const pdfBuffer = await generatePayslipPdf({
@@ -388,6 +388,7 @@ router.get("/payslip/:slipId/pdf", requireAuth("self:read"), async (req, res, ne
       gross: slip.gross, cashGross: slip.cashGross,
       paye: slip.paye, nssfEmployee: slip.nssfEmployee,
       nssfTier1: bd.nssfTier1 ?? 0, nssfTier2: bd.nssfTier2 ?? 0,
+        nssfTier1Employer: bd.nssfTier1Employer ?? 0, nssfTier2Employer: bd.nssfTier2Employer ?? 0,
       tier2Label: bd.tier2Provider === "private" ? `${bd.tier2ProviderName ?? "Private Pension Fund"} — Tier II` : "NSSF — Tier II",
       shif: slip.shif, housingLevyEmployee: slip.housingLevyEmployee,
       pension: slip.pension, helb: slip.helb, sacco: slip.sacco,

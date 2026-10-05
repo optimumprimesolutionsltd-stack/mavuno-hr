@@ -12,13 +12,14 @@ interface Props {
   employeeName?: string;
 }
 
-function Row({ label, amount, bold, highlight, negative }: {
+function Row({ label, amount, bold, highlight, negative, indent, showZero }: {
   label: string; amount: number; bold?: boolean; highlight?: boolean; negative?: boolean;
+  indent?: boolean; showZero?: boolean;
 }) {
-  if (amount === 0) return null;
+  if (amount === 0 && !showZero) return null;
   return (
     <div className={`flex justify-between items-center py-1.5 text-sm ${highlight ? "border-t border-border mt-1 pt-2.5" : ""}`}>
-      <span className={`${bold ? "font-semibold" : "text-muted-foreground"}`}>{label}</span>
+      <span className={`${bold ? "font-semibold" : "text-muted-foreground"} ${indent ? "pl-3" : ""}`}>{label}</span>
       <span className={`font-mono ${bold ? "font-bold" : ""} ${negative ? "text-destructive" : ""} ${highlight ? "text-primary text-base" : ""}`}>
         {formatMoney(amount)}
       </span>
@@ -28,6 +29,16 @@ function Row({ label, amount, bold, highlight, negative }: {
 
 export function PayslipDialog({ slip, open, onOpenChange, employeeName }: Props) {
   if (!slip) return null;
+
+  // NSSF Tier I and Tier II on separate lines, labelled exactly as on the PDF
+  // payslip. Older payslips without the split (e.g. historical imports) keep
+  // a single NSSF line, as the PDF does.
+  const bd = slip.breakdown ?? {};
+  const hasTiers = (bd.nssfTier1 || 0) > 0 || (bd.nssfTier2 || 0) > 0;
+  const tier2Label = bd.tier2Provider === "private"
+    ? `${bd.tier2ProviderName || "Private Pension Fund"} — Tier II`
+    : "NSSF — Tier II";
+  const hasEmployerTiers = (bd.nssfTier1Employer || 0) > 0 || (bd.nssfTier2Employer || 0) > 0;
 
   const totalDeductions =
     (slip.paye || 0) +
@@ -74,13 +85,14 @@ export function PayslipDialog({ slip, open, onOpenChange, employeeName }: Props)
           <div>
             <p className="text-xs font-mono text-muted-foreground mb-2 uppercase tracking-wider">Statutory Deductions</p>
             <Row label="PAYE (Income Tax)" amount={slip.paye || 0} negative />
-            <Row
-              label={slip.breakdown?.tier2Provider === "private"
-                ? `NSSF Tier I + ${slip.breakdown?.tier2ProviderName || "Private Pension Fund"} Tier II`
-                : "NSSF (Employee)"}
-              amount={slip.nssfEmployee || 0}
-              negative
-            />
+            {hasTiers ? (
+              <>
+                <Row label="NSSF — Tier I" amount={bd.nssfTier1 || 0} negative indent showZero />
+                <Row label={tier2Label} amount={bd.nssfTier2 || 0} negative indent showZero />
+              </>
+            ) : (
+              <Row label="NSSF" amount={slip.nssfEmployee || 0} negative />
+            )}
             <Row label="SHIF / NHIF" amount={slip.shif || 0} negative />
             <Row label="Housing Levy (Employee)" amount={slip.housingLevyEmployee || 0} negative />
           </div>
@@ -129,7 +141,14 @@ export function PayslipDialog({ slip, open, onOpenChange, employeeName }: Props)
               <Separator />
               <div>
                 <p className="text-xs font-mono text-muted-foreground mb-2 uppercase tracking-wider">Employer Contributions (info only)</p>
-                <Row label="NSSF (Employer)" amount={slip.nssfEmployer || 0} />
+                {hasEmployerTiers ? (
+                  <>
+                    <Row label="NSSF — Tier I (Employer)" amount={bd.nssfTier1Employer || 0} showZero />
+                    <Row label={`${tier2Label} (Employer)`} amount={bd.nssfTier2Employer || 0} showZero />
+                  </>
+                ) : (
+                  <Row label="NSSF (Employer)" amount={slip.nssfEmployer || 0} />
+                )}
                 <Row label="Housing Levy (Employer)" amount={slip.housingLevyEmployer || 0} />
                 <Row label="Pension (Employer)" amount={slip.pensionEmployer || 0} />
               </div>

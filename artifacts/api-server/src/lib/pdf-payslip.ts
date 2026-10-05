@@ -53,6 +53,9 @@ export interface PayslipPdfData {
   netPay: number;
   // Employer (info only)
   nssfEmployer: number;
+  /** Employer NSSF by tier; absent on payslips saved without the split. */
+  nssfTier1Employer?: number;
+  nssfTier2Employer?: number;
   housingLevyEmployer: number;
   pensionEmployer: number;
 }
@@ -247,7 +250,11 @@ export function generatePayslipPdf(data: PayslipPdfData): Promise<Buffer> {
       doc.rect(PL, y, PW, 16).fill(CARD);
       doc.fill(LIGHT).font("Helvetica").fontSize(7)
          .text(
-           `EMPLOYER CONTRIBUTIONS (info) — NSSF: ${kes(data.nssfEmployer)}   AHL: ${kes(data.housingLevyEmployer)}   Pension: ${kes(data.pensionEmployer)}`,
+           `EMPLOYER CONTRIBUTIONS (info) — ${
+             (data.nssfTier1Employer ?? 0) > 0 || (data.nssfTier2Employer ?? 0) > 0
+               ? `NSSF Tier I: ${kes(data.nssfTier1Employer ?? 0)}   Tier II: ${kes(data.nssfTier2Employer ?? 0)}`
+               : `NSSF: ${kes(data.nssfEmployer)}`
+           }   AHL: ${kes(data.housingLevyEmployer)}   Pension: ${kes(data.pensionEmployer)}`,
            PL + 8, y + 4, { width: PW - 16 }
          );
       y += 20;
