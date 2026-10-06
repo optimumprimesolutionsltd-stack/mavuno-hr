@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clearToken } from "@/lib/session";
+import { InstallAppButton, usePortalManifest } from "@/components/install-app";
 
 interface PortalLayoutProps {
   children: ReactNode;
@@ -56,6 +57,7 @@ export function PortalGuard({ children }: { children: ReactNode }) {
 }
 
 export function PortalLayout({ children }: PortalLayoutProps) {
+  usePortalManifest();
   const [location] = useLocation();
   const logout = useLogout();
   const { signOut } = useClerk();
@@ -133,6 +135,7 @@ export function PortalLayout({ children }: PortalLayoutProps) {
             <p className="text-xs text-sidebar-foreground/60 truncate">{user?.email}</p>
           </div>
         </div>
+        <InstallAppButton className="w-full justify-start mb-2 border-sidebar-border bg-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground" />
         <Button
           variant="outline"
           className="w-full justify-start border-sidebar-border bg-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"

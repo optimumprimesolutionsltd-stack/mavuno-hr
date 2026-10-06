@@ -1,0 +1,40 @@
+{
+  "id": "./portal/",
+  "name": "Mavuno — My Pay",
+  "short_name": "My Pay",
+  "description": "Your payslips, leave and attendance.",
+  "lang": "en-KE",
+  "dir": "ltr",
+  "start_url": "./portal",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7fbf9",
+  "theme_color": "#049756",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./branding/mavuno-mark-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./branding/mavuno-mark-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./branding/mavuno-mark-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./branding/mavuno-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
