@@ -14,8 +14,8 @@
  */
 import { and, count, eq } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { billingCharges, employees, organizations } from "@workspace/db/schema";
-import { cycleChargeCents, effectiveMonthlyCents, extendAccessForPayment, withVatCents } from "./pricing.js";
+import { billingCharges, billingPayments, employees, organizations } from "@workspace/db/schema";
+import { cycleChargeCents, effectiveMonthlyCents, extendAccessForPayment, withVatCents, VAT_BPS } from "./pricing.js";
 import { consumeCreditsForPayment } from "./billing-credits.js";
 import { settleChargeForPayment } from "./billing-run.js";
 import { writeAudit } from "./audit.js";
@@ -78,6 +78,32 @@ export async function cycleAmountOwed(orgId: number): Promise<number> {
 }
 
 /**
+ * How much of a payment is VAT, for the receipt. A payment settles the oldest
+ * open bill, so it carries that bill's VAT share -- none for bills raised
+ * before VAT was added. With no bill yet the amount was quoted as price + 16%,
+ * so 16/116 of it is VAT.
+ */
+export async function vatPortionOfPayment(orgId: number, amountCents: number): Promise<number> {
+  const [charge] = await db
+    .select({ cycleAmountCents: billingCharges.cycleAmountCents, vatCents: billingCharges.vatCents })
+    .from(billingCharges)
+    .where(and(eq(billingCharges.orgId, orgId), eq(billingCharges.status, "open")))
+    .orderBy(billingCharges.period)
+    .limit(1);
+  if (charge && charge.cycleAmountCents > 0) {
+    return Math.round((amountCents * charge.vatCents) / charge.cycleAmountCents);
+  }
+  return Math.round((amountCents * VAT_BPS) / (10_000 + VAT_BPS));
+}
+
+/** What a receipt shows: total paid and the VAT inside it (fixed at verification). */
+export async function receiptAmounts(paymentId: number): Promise<{ totalCents: number; vatCents: number }> {
+  const [p] = await db.select({ amount: billingPayments.amount, vatCents: billingPayments.vatCents })
+    .from(billingPayments).where(eq(billingPayments.id, paymentId)).limit(1);
+  return { totalCents: p?.amount ?? 0, vatCents: p?.vatCents ?? 0 };
+}
+
+/**
  * Push the org's access window forward, reactivate it, consume open credits and
  * close the period this payment settles.
  *
@@ -108,6 +134,10 @@ export async function applyVerifiedPayment(args: {
 
   const cycle = orgBefore?.billingCycle ?? "monthly";
   const owedCents = await cycleAmountOwed(orgId);
+
+  // Fix the VAT in this payment now, before settlement closes the bill it reads.
+  const paymentVat = await vatPortionOfPayment(orgId, amountCents);
+  await db.update(billingPayments).set({ vatCents: paymentVat }).where(eq(billingPayments.id, paymentId));
   const { until: accessUntil, cyclesPaid, shortfallCents } =
     extendAccessForPayment(orgBefore?.accessUntil ?? null, cycle, owedCents, amountCents);
 

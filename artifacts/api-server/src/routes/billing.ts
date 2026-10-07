@@ -14,7 +14,7 @@ import {
   initiateStkPush, queryTransactionStatus, isAllowedCallbackIp, accountReferenceFor,
   parseAccountReference, parseC2BConfirmation, c2bTrustState, type ParsedC2B,
 } from "../lib/mpesa.js";
-import { applyVerifiedPayment, cycleAmountOwed } from "../lib/payment-settlement.js";
+import { applyVerifiedPayment, cycleAmountOwed, receiptAmounts } from "../lib/payment-settlement.js";
 import { creditC2BPayment } from "../lib/mpesa-c2b.js";
 import {
   PLAN_RATES, standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents, vatCents, withVatCents,
@@ -191,6 +191,7 @@ router.post("/:id/verify", ...requireSuperAdmin(), async (req, res, next) => {
             reference: updated.reference,
             verifiedAt: formatDate(now),
             plan: row.org.plan.charAt(0).toUpperCase() + row.org.plan.slice(1),
+            ...(await receiptAmounts(id)),
           });
         }
         // Mark receipt as sent
@@ -244,6 +245,7 @@ router.post("/:id/resend", ...requireSuperAdmin(), async (req, res, next) => {
         reference: row.payment.reference,
         verifiedAt: formatDate(row.payment.verifiedAt),
         plan: row.org.plan.charAt(0).toUpperCase() + row.org.plan.slice(1),
+        ...(await receiptAmounts(row.payment.id)),
       });
     }
 
@@ -614,6 +616,7 @@ router.post("/mpesa/callback", async (req, res) => {
           reference: mpesaReceiptNumber,
           verifiedAt: now.toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" }),
           plan: (org?.plan ?? "").charAt(0).toUpperCase() + (org?.plan ?? "").slice(1),
+          ...(await receiptAmounts(payment.id)),
         });
       }
       await db.update(billingPayments).set({ receiptSentAt: now }).where(eq(billingPayments.id, payment.id));

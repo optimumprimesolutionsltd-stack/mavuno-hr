@@ -56,8 +56,20 @@ export async function sendReceiptEmail(opts: {
   verifiedAt: string;       // formatted date string
   plan: string;
   billingRef?: string;      // the org's billing account number, e.g. "MHR-000042K"
+  /** Total paid and the VAT inside it, in cents; the split is shown when VAT > 0. */
+  totalCents?: number;
+  vatCents?: number;
 }): Promise<void> {
   const { to, orgName, receiptNo, period, amountKes, method, reference, verifiedAt, plan, billingRef } = opts;
+  const vat = opts.vatCents ?? 0;
+  const total = opts.totalCents ?? 0;
+  const kesFmt = (c: number) => `KES ${(c / 100).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const vatRows = vat > 0 && total > 0
+    ? `<tr><td>Amount before VAT</td><td>${kesFmt(total - vat)}</td></tr><tr><td>VAT 16%</td><td>${kesFmt(vat)}</td></tr><tr><td><strong>Total paid</strong></td><td><strong>${kesFmt(total)}</strong></td></tr>`
+    : "";
+  const vatText = vat > 0 && total > 0
+    ? `Amount before VAT: ${kesFmt(total - vat)}\nVAT 16%: ${kesFmt(vat)}\nTotal paid: ${kesFmt(total)}\n`
+    : "";
   const methodLabel: Record<string, string> = {
     mpesa: "M-Pesa",
     bank_transfer: "Bank Transfer",
@@ -116,6 +128,7 @@ export async function sendReceiptEmail(opts: {
       <tr><td>Payment Method</td><td>${methodLabel[method] ?? method}</td></tr>
       ${reference ? `<tr><td>Reference</td><td style="font-family:monospace">${reference}</td></tr>` : ""}
       <tr><td>Verified On</td><td>${verifiedAt}</td></tr>
+      ${vatRows}
     </table>
     <div class="verified-box">
       <span class="check-icon">✓</span>
@@ -130,7 +143,7 @@ export async function sendReceiptEmail(opts: {
 </body>
 </html>`;
 
-  const text = `MAVUNO HR — PAYMENT RECEIPT\n\nReceipt No: ${receiptNo}\nCompany: ${orgName}\nPlan: ${plan}\nPeriod: ${period}\nAmount: ${amountKes}\nMethod: ${methodLabel[method] ?? method}\n${reference ? `Reference: ${reference}\n` : ""}Verified: ${verifiedAt}\n\nThank you for your payment.`;
+  const text = `MAVUNO HR — PAYMENT RECEIPT\n\nReceipt No: ${receiptNo}\nCompany: ${orgName}\nPlan: ${plan}\nPeriod: ${period}\nAmount: ${amountKes}\n${vatText}Method: ${methodLabel[method] ?? method}\n${reference ? `Reference: ${reference}\n` : ""}Verified: ${verifiedAt}\n\nThank you for your payment.`;
 
   if (!resend) {
     throw new Error("RESEND_NOT_CONFIGURED");

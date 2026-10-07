@@ -23,6 +23,7 @@ interface BillingPayment {
   period: string; method: string; reference: string | null;
   description: string | null; status: string;
   verifiedAt: string | null; receiptSentAt: string | null; createdAt: string;
+  vatCents?: number;
 }
 interface BillingData {
   org: {
@@ -73,6 +74,46 @@ const METHOD_LABELS: Record<string, string> = {
 function fmtKes(cents: number) {
   return `KES ${(cents / 100).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
 }
+/**
+ * Open a payment receipt in a new tab to print or save as PDF. A receipt, not
+ * a tax invoice: what was paid, when, how, and the VAT inside it.
+ */
+function openReceipt(payment: BillingPayment, orgName: string, billingRef: string | undefined, plan: string) {
+  const w = window.open("", "_blank");
+  if (!w) { alert("Your browser blocked the receipt window. Allow pop-ups for mavunohr.co.ke, then try again."); return; }
+  const esc = (v: unknown) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+  const vat = payment.vatCents ?? 0;
+  const rows: [string, string][] = [
+    ["Receipt No.", payment.receiptNo],
+    ["Company", orgName],
+    ...(billingRef ? [["Billing account", billingRef] as [string, string]] : []),
+    ["Plan", plan],
+    ["Billing period", payment.period],
+    ["Payment method", METHOD_LABELS[payment.method] ?? payment.method],
+    ...(payment.reference ? [["Reference", payment.reference] as [string, string]] : []),
+    ["Date paid", fmtDate(payment.verifiedAt)],
+    ...(vat > 0 ? [["Amount before VAT", fmtKes(payment.amount - vat)], ["VAT 16%", fmtKes(vat)]] as [string, string][] : []),
+  ];
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Receipt ${esc(payment.receiptNo)}</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;color:#0A1B33;margin:32px;font-size:13px}
+  .box{max-width:520px;margin:0 auto;border:1px solid #d1d5db;border-radius:10px;padding:28px}
+  h1{font-size:20px;margin:0 0 2px} .sub{color:#6b7280;margin-bottom:18px}
+  .amt{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:14px;text-align:center;margin-bottom:18px}
+  .amt b{display:block;font-size:26px;color:#047857} .amt span{font-size:11px;color:#6b7280;letter-spacing:1px}
+  table{width:100%;border-collapse:collapse} td{padding:7px 4px;border-bottom:1px solid #eee} td:first-child{color:#6b7280;width:45%}
+  .foot{margin-top:18px;font-size:11px;color:#6b7280;text-align:center}
+  @media print{body{margin:10mm}}
+</style></head><body><div class="box">
+<h1>MAVUNO HR — PAYMENT RECEIPT</h1>
+<div class="sub">Thank you for your payment.</div>
+<div class="amt"><span>AMOUNT PAID</span><b>${esc(fmtKes(payment.amount))}</b></div>
+<table>${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>
+<div class="foot">Payment receipt from Mavuno HR. Please keep it for your records.</div>
+</div><script>window.onload=function(){window.print()}</script></body></html>`);
+  w.document.close();
+}
+
 function fmtDate(d: string | null) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" });
@@ -688,6 +729,14 @@ export function AdminBilling() {
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground font-mono">{fmtDate(payment.verifiedAt)}</TableCell>
                       <TableCell className="text-xs font-mono">
+                        {payment.status === "verified" && (
+                          <Button
+                            size="sm" variant="outline" className="h-7 mb-1 font-mono text-[10px] gap-1"
+                            onClick={() => openReceipt(payment, data?.org?.name ?? "", (data?.org as any)?.billingRef, PLAN_LABELS[data?.org?.plan ?? ""] ?? (data?.org?.plan ?? ""))}
+                          >
+                            <Receipt className="h-3 w-3" /> DOWNLOAD
+                          </Button>
+                        )}
                         {payment.receiptSentAt ? (
                           <span className="text-emerald-700 flex items-center gap-1">
                             <CheckCircle2 className="h-3 w-3" /> Emailed {fmtDate(payment.receiptSentAt)}

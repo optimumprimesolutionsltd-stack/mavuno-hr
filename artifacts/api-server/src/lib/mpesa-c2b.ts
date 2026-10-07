@@ -12,7 +12,7 @@ import { db } from "@workspace/db";
 import { billingPayments, users } from "@workspace/db/schema";
 import { accountReferenceFor, type ParsedC2B } from "./mpesa.js";
 import { sendReceiptEmail } from "./mailer.js";
-import { applyVerifiedPayment } from "./payment-settlement.js";
+import { applyVerifiedPayment, receiptAmounts } from "./payment-settlement.js";
 import { logger } from "./logger.js";
 
 function formatKes(cents: number): string {
@@ -94,6 +94,7 @@ export async function creditC2BPayment(args: {
         reference: parsed.transId,
         verifiedAt: formatDate(now),
         plan: args.orgPlan.charAt(0).toUpperCase() + args.orgPlan.slice(1),
+        ...(await receiptAmounts(payment.id)),
       });
     }
     await db.update(billingPayments).set({ receiptSentAt: now }).where(eq(billingPayments.id, payment.id));

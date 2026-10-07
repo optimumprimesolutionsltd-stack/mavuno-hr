@@ -516,6 +516,10 @@ export const billingPayments = pgTable("billing_payments", {
   verifiedByUserId: integer("verified_by_user_id").references(() => users.id),
   verifiedAt: timestamp("verified_at"),
   receiptSentAt: timestamp("receipt_sent_at"),
+  /* The VAT inside `amount`, fixed when the payment is verified: the VAT share
+     of the bill it settled (0 for bills raised before VAT was added), or 16/116
+     when there was no bill yet. Shown on the receipt. */
+  vatCents: money("vat_cents").notNull().default(0),
   // M-Pesa STK Push tracking — populated only for method: "mpesa" payments initiated
   // in-app. checkoutRequestId is Safaricom's handle for matching the async callback
   // back to this row; mpesaReceiptNumber is the actual M-Pesa transaction code

@@ -16,7 +16,7 @@ import { billingPayments, organizations, users } from "@workspace/db/schema";
 import { eq, and, lt, isNotNull } from "drizzle-orm";
 import { queryTransactionStatus, accountReferenceFor } from "./mpesa.js";
 import { sendReceiptEmail } from "./mailer.js";
-import { applyVerifiedPayment } from "./payment-settlement.js";
+import { applyVerifiedPayment, receiptAmounts } from "./payment-settlement.js";
 import { logger } from "./logger.js";
 
 // Give Safaricom's own callback a fair chance to arrive first — only poll
@@ -105,6 +105,7 @@ async function pollPendingMpesaPayments(): Promise<void> {
             reference: payment.reference,
             verifiedAt: receiptNow.toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" }),
             plan: (org?.plan ?? "").charAt(0).toUpperCase() + (org?.plan ?? "").slice(1),
+            ...(await receiptAmounts(payment.id)),
           });
         }
         await db.update(billingPayments).set({ receiptSentAt: receiptNow }).where(eq(billingPayments.id, payment.id));
