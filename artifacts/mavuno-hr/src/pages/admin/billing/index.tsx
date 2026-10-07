@@ -33,6 +33,7 @@ interface BillingData {
     activeEmployees: number;
     billingCycle: string;          // "monthly" | "annual"
     billingRef: string;            // account number to quote when paying, e.g. "MHR-000042K"
+    paybillNumber?: string | null; // M-Pesa Paybill business number; null until configured
     monthlyCharge: number;         // KES cents — effective (override wins over rate card)
     standardMonthlyCharge: number; // KES cents — rate card at current headcount
     overrideCharge: number;        // KES cents — negotiated override (0 = none)
@@ -127,8 +128,53 @@ function useBillingMy() {
   });
 }
 
-function PayNowDialog({ open, onOpenChange, defaultAmountCents }: {
+/** One copyable line in the Paybill instructions. */
+function CopyLine({ label, value }: { label: string; value: string }) {
+  const { toast } = useToast();
+  return (
+    <div className="flex items-center justify-between gap-2 py-1">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="flex items-center gap-1.5">
+        <span className="font-mono font-bold tracking-wider select-all">{value}</span>
+        <button
+          type="button" className="text-muted-foreground hover:text-foreground" aria-label={`Copy ${label}`}
+          onClick={() => navigator.clipboard?.writeText(value).then(
+            () => toast({ title: "Copied", description: value }),
+            () => toast({ variant: "destructive", title: "Couldn't copy", description: value }),
+          )}
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </button>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * How to pay by Paybill from the M-Pesa menu. The account number is what
+ * matches the payment to this company automatically; a wrong one lands in
+ * the super-admin's unallocated queue instead of being lost.
+ */
+function PaybillInstructions({ paybillNumber, billingRef, amountCents }: {
+  paybillNumber: string; billingRef: string; amountCents: number;
+}) {
+  return (
+    <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-1">
+      <p className="text-xs font-mono font-semibold text-primary">PAY VIA M-PESA PAYBILL</p>
+      <p className="text-xs text-muted-foreground">
+        M-Pesa → Lipa na M-Pesa → Pay Bill. Use exactly this account number so the payment is matched to you and
+        your receipt is emailed automatically.
+      </p>
+      <CopyLine label="Business No." value={paybillNumber} />
+      <CopyLine label="Account No." value={billingRef} />
+      {amountCents > 0 && <CopyLine label="Amount (KES)" value={String(Math.ceil(amountCents / 100))} />}
+    </div>
+  );
+}
+
+function PayNowDialog({ open, onOpenChange, defaultAmountCents, paybillNumber, billingRef }: {
   open: boolean; onOpenChange: (open: boolean) => void; defaultAmountCents: number;
+  paybillNumber?: string | null; billingRef?: string;
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -232,6 +278,14 @@ function PayNowDialog({ open, onOpenChange, defaultAmountCents }: {
               </span>
               . The amount is set from your plan and current bill.
             </p>
+            {paybillNumber && billingRef && (
+              <>
+                <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground">
+                  <span className="h-px flex-1 bg-border" /> OR <span className="h-px flex-1 bg-border" />
+                </div>
+                <PaybillInstructions paybillNumber={paybillNumber} billingRef={billingRef} amountCents={defaultAmountCents * cycles} />
+              </>
+            )}
           </div>
         )}
 
@@ -666,6 +720,14 @@ export function AdminBilling() {
               <div className="space-y-1">
                 <p className="text-xs font-mono text-muted-foreground">BILLING ACCOUNT NUMBER</p>
                 <p className="text-lg font-mono font-bold tracking-wider text-foreground select-all">{billingRef}</p>
+                {org?.paybillNumber && (
+                  <p className="text-sm font-mono">
+                    <span className="text-muted-foreground">M-Pesa Paybill: </span>
+                    <span className="font-bold tracking-wider select-all">{org.paybillNumber}</span>
+                    <span className="text-muted-foreground"> · Account: </span>
+                    <span className="font-bold tracking-wider">{billingRef}</span>
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   Quote this as the reference for bank transfers and M-Pesa Paybill. In-app M-Pesa
                   payments already carry it.
@@ -768,6 +830,8 @@ export function AdminBilling() {
         open={payDialogOpen}
         onOpenChange={setPayDialogOpen}
         defaultAmountCents={payAmountOverrideCents ?? perInvoice}
+        paybillNumber={org?.paybillNumber}
+        billingRef={billingRef}
       />
       <ChangePlanDialog
         open={planDialogOpen}
