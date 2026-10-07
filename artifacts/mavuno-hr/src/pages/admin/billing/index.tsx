@@ -168,6 +168,9 @@ function PaybillInstructions({ paybillNumber, billingRef, amountCents }: {
       <CopyLine label="Business No." value={paybillNumber} />
       <CopyLine label="Account No." value={billingRef} />
       {amountCents > 0 && <CopyLine label="Amount (KES)" value={String(Math.ceil(amountCents / 100))} />}
+      <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 pt-1">
+        <Loader2 className="h-3 w-3 animate-spin" /> Keep this window open — it updates as soon as your payment arrives.
+      </p>
     </div>
   );
 }
@@ -181,8 +184,34 @@ function PayNowDialog({ open, onOpenChange, defaultAmountCents, paybillNumber, b
   const [phoneNumber, setPhoneNumber] = useState("");
   const [cycles, setCycles] = useState(1);
   const [pollingPaymentId, setPollingPaymentId] = useState<number | null>(null);
+  // Paybill payments arrive on their own (Safaricom tells the server), so
+  // there is no payment id to wait on. Instead, while this window is open,
+  // re-read the payment list and treat any verified payment that wasn't there
+  // when the window opened as the one the customer just made.
+  const [knownIds, setKnownIds] = useState<Set<number> | null>(null);
+  const [received, setReceived] = useState<BillingPayment | null>(null);
+  const { data: live } = useQuery<BillingData>({
+    queryKey: ["billing-my"],
+    queryFn: () => customFetch("/api/billing/my"),
+    enabled: open,
+    refetchInterval: open && !received ? 5000 : false,
+  });
 
-  useEffect(() => { if (open) setCycles(1); }, [open]);
+  useEffect(() => {
+    if (open) { setCycles(1); setKnownIds(null); setReceived(null); }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !live) return;
+    const verified = (live.payments ?? []).map((r) => r.payment).filter((p) => p.status === "verified");
+    if (knownIds === null) { setKnownIds(new Set(verified.map((p) => p.id))); return; }
+    const fresh = verified.find((p) => !knownIds.has(p.id));
+    if (fresh && !received) {
+      setReceived(fresh);
+      setPollingPaymentId(null);
+      toast({ title: "Payment received", description: `${fmtKes(fresh.amount)} — receipt ${fresh.receiptNo}` });
+    }
+  }, [live, open, knownIds, received]);
 
   // The amount is no longer sent. It was an editable field here and a trusted
   // number on the server, which together let the person being billed decide
@@ -237,7 +266,31 @@ function PayNowDialog({ open, onOpenChange, defaultAmountCents, paybillNumber, b
           </DialogDescription>
         </DialogHeader>
 
-        {pollingPaymentId ? (
+        {received ? (
+          <div className="flex flex-col items-center gap-3 py-6 text-center">
+            <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+            <div>
+              <p className="text-lg font-semibold">Payment received</p>
+              <p className="text-2xl font-bold font-mono text-emerald-700">{fmtKes(received.amount)}</p>
+              <p className="text-xs text-muted-foreground font-mono mt-1">
+                Receipt {received.receiptNo}{received.reference ? ` · ${received.reference}` : ""}
+              </p>
+            </div>
+            <p className="text-sm text-muted-foreground">Your account is active. The receipt has also been emailed to you.</p>
+            <div className="flex gap-2">
+              <Button
+                className="gap-1.5"
+                onClick={() => openReceipt(
+                  received, live?.org?.name ?? "", live?.org?.billingRef,
+                  PLAN_LABELS[live?.org?.plan ?? ""] ?? (live?.org?.plan ?? ""),
+                )}
+              >
+                <Receipt className="h-4 w-4" /> Download receipt
+              </Button>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Done</Button>
+            </div>
+          </div>
+        ) : pollingPaymentId ? (
           <div className="flex flex-col items-center gap-3 py-8 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-sm text-muted-foreground">Waiting for you to complete the payment on your phone…</p>
@@ -289,7 +342,7 @@ function PayNowDialog({ open, onOpenChange, defaultAmountCents, paybillNumber, b
           </div>
         )}
 
-        {!pollingPaymentId && (
+        {!pollingPaymentId && !received && (
           <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={initiate.isPending}>Cancel</Button>
             <Button
