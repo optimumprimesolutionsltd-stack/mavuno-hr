@@ -35,7 +35,8 @@ interface BillingData {
     monthlyCharge: number;         // KES cents — effective (override wins over rate card)
     standardMonthlyCharge: number; // KES cents — rate card at current headcount
     overrideCharge: number;        // KES cents — negotiated override (0 = none)
-    cycleCharge: number;           // KES cents — amount on each invoice
+    cycleCharge: number;           // KES cents — amount on each invoice, VAT included
+    cycleChargeVat?: number;       // the 16% VAT inside cycleCharge
     accessUntil: string | null;    // hard cut-off; null = unlimited
     accessState: "active" | "expiring_soon" | "expired" | "unlimited";
   };
@@ -494,6 +495,7 @@ export function AdminBilling() {
                 <p className="text-2xl font-bold font-mono text-primary">
                   {monthly > 0 ? fmtKes(perInvoice) : <span className="text-yellow-700">FREE (Trial)</span>}
                 </p>
+                {monthly > 0 && <p className="text-[11px] font-mono text-muted-foreground">incl. 16% VAT</p>}
                 {monthly > 0 && (
                   <Button size="sm" className="mt-1 gap-2" onClick={() => setPayDialogOpen(true)}>
                     <Smartphone className="h-4 w-4" /> Pay Now
@@ -533,11 +535,19 @@ export function AdminBilling() {
                   </>
                 )}
                 {annual && (
-                  <div className="flex justify-between text-foreground font-medium">
+                  <div className="flex justify-between">
                     <span>Annual (10 months)</span>
-                    <span>{fmtKes(perInvoice)}</span>
+                    <span>{fmtKes(perInvoice - (org?.cycleChargeVat ?? 0))}</span>
                   </div>
                 )}
+                <div className="flex justify-between">
+                  <span>VAT 16%</span>
+                  <span>{fmtKes(org?.cycleChargeVat ?? 0)}</span>
+                </div>
+                <div className="flex justify-between text-foreground font-medium border-t border-border/40 pt-0.5 mt-0.5">
+                  <span>Total {annual ? "per year" : "per month"}</span>
+                  <span>{fmtKes(perInvoice)}</span>
+                </div>
               </div>
             )}
           </div>
@@ -560,6 +570,9 @@ export function AdminBilling() {
                 <div className="space-y-1 text-right">
                   <p className="text-xs font-mono text-muted-foreground">AMOUNT</p>
                   <p className="text-2xl font-bold font-mono text-primary">{fmtKes(charge.cycleAmountCents)}</p>
+                  <p className="text-[11px] font-mono text-muted-foreground">
+                    {(charge as any).vatCents > 0 ? `incl. VAT ${fmtKes((charge as any).vatCents)}` : "before VAT was added"}
+                  </p>
                 </div>
                 <div className="space-y-1 text-right">
                   <p className="text-xs font-mono text-muted-foreground">STATUS</p>
@@ -594,7 +607,7 @@ export function AdminBilling() {
               <TrendingUp className="h-5 w-5 text-primary shrink-0 mt-0.5" />
               <div className="text-sm">
                 <span className="font-medium text-primary">
-                  Next bill: {fmtKes(projection.cycleAmountCents)}
+                  Next bill: {fmtKes(projection.cycleAmountCents)} incl. VAT
                   {projection.changingFrom ? ` (${PLAN_LABELS[projection.plan] ?? projection.plan})` : ""}
                 </span>{" "}
                 <span className="text-muted-foreground">

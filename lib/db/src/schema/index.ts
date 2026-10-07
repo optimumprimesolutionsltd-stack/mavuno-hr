@@ -578,7 +578,10 @@ export const billingCharges = pgTable("billing_charges", {
   plan: text("plan").notNull(),                      // plan in force for this period
   activeEmployees: integer("active_employees").notNull(),
   amountCents: money("amount_cents").notNull(),        // effective monthly charge
-  cycleAmountCents: money("cycle_amount_cents").notNull(), // what is actually invoiced
+  cycleAmountCents: money("cycle_amount_cents").notNull(), // what is actually invoiced, VAT included
+  /* The 16% VAT inside cycleAmountCents. 0 on bills written before VAT was
+     added (those stay as they were billed). */
+  vatCents: money("vat_cents").notNull().default(0),
   source: text("source").notNull().default("rate_card"), // rate_card | override
   status: text("status").notNull().default("open"),      // open | paid | void
   paidAt: timestamp("paid_at"),

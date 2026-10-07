@@ -9,7 +9,7 @@ import { HttpError } from "../lib/http-error.js";
 import { writeAudit } from "../lib/audit.js";
 import {
   PLAN_IDS, BILLING_CYCLES, PLAN_RATES,
-  standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents,
+  standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents, withVatCents,
 } from "../lib/pricing.js";
 import { accountReferenceFor, parseAccountReference, registerC2BUrls } from "../lib/mpesa.js";
 import { runBillingForPeriod } from "../lib/billing-run.js";
@@ -232,7 +232,7 @@ router.get("/orgs", requireSuperAdminOrSyncKey(), async (_req, res, next) => {
           // The negotiated override itself (0 = none / use rate card).
           overrideCharge: overrideCents,
           // Amount per invoice (annual bills 10x the monthly).
-          cycleCharge: cycleChargeCents(monthlyCharge, cycle),
+          cycleCharge: withVatCents(cycleChargeCents(monthlyCharge, cycle)),
           countryCode: o.countryCode,
           currencyCode: o.currencyCode,
           billingRef: accountReferenceFor(o.id),

@@ -15,7 +15,7 @@
 import { and, count, eq } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { billingCharges, employees, organizations } from "@workspace/db/schema";
-import { cycleChargeCents, effectiveMonthlyCents, extendAccessForPayment } from "./pricing.js";
+import { cycleChargeCents, effectiveMonthlyCents, extendAccessForPayment, withVatCents } from "./pricing.js";
 import { consumeCreditsForPayment } from "./billing-credits.js";
 import { settleChargeForPayment } from "./billing-run.js";
 import { writeAudit } from "./audit.js";
@@ -73,7 +73,8 @@ export async function cycleAmountOwed(orgId: number): Promise<number> {
     activeEmployees,
     overrideCents: org.monthlyCharge ?? 0,
   });
-  return cycleChargeCents(monthly, org.billingCycle ?? "monthly");
+  // Prices exclude VAT; what is owed includes it (bills already carry it).
+  return withVatCents(cycleChargeCents(monthly, org.billingCycle ?? "monthly"));
 }
 
 /**

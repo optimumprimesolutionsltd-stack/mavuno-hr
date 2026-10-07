@@ -19,6 +19,7 @@
  * anything that changes after it applies to the next period. That is the whole
  * reason the run is safe to re-execute — see `runBillingForPeriod`.
  */
+import { vatCents, withVatCents } from "./pricing.js";
 import { and, count, desc, eq, gt, inArray, isNull, lte, ne, or } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
@@ -196,6 +197,7 @@ export async function runBillingForPeriod(period?: string): Promise<BillingRunSu
         continue;
       }
 
+      const vat = vatCents(decision.cycleAmountCents);
       const inserted = await db.insert(billingCharges).values({
         orgId: org.id,
         period: target,
@@ -203,7 +205,9 @@ export async function runBillingForPeriod(period?: string): Promise<BillingRunSu
         plan: decision.planAfter,
         activeEmployees: headcount,
         amountCents: decision.amountCents,
-        cycleAmountCents: decision.cycleAmountCents,
+        // Prices exclude VAT; the bill is price + 16% VAT.
+        cycleAmountCents: decision.cycleAmountCents + vat,
+        vatCents: vat,
         source: decision.source,
         status: "open",
       }).onConflictDoNothing().returning({ id: billingCharges.id });
@@ -237,7 +241,9 @@ export async function projectNextCharge(orgId: number): Promise<{
   changingFrom: string | null;
   activeEmployees: number;
   amountCents: number;
+  /** VAT included. */
   cycleAmountCents: number;
+  vatCents: number;
   cycle: string;
   source: "rate_card" | "override";
   /** Null when there is nothing to project — a trial still running, a suspended org. */
@@ -293,7 +299,8 @@ export async function projectNextCharge(orgId: number): Promise<{
     changingFrom: d.planChanged ? d.planBefore : null,
     activeEmployees: headcount,
     amountCents: d.amountCents,
-    cycleAmountCents: d.cycleAmountCents,
+    cycleAmountCents: withVatCents(d.cycleAmountCents),
+    vatCents: vatCents(d.cycleAmountCents),
     cycle,
     source: d.source,
     skip: d.skip,
