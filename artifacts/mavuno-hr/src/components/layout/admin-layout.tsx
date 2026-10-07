@@ -265,7 +265,7 @@ function AccessBanner() {
 
   let message: string;
   if (expired) {
-    message = "Your organisation's access has expired. Some features are locked until you renew.";
+    message = "Your subscription has expired. You can keep using Mavuno, but payroll can't be run until you pay.";
   } else if (urgent) {
     message = left === 0 ? `Your ${noun} ends today.` : `Your ${noun} ends in ${left} day${left === 1 ? "" : "s"}.`;
   } else {
@@ -293,7 +293,7 @@ function AccessBanner() {
           dialog on load, instead of landing the customer on a page where
           a still-on-trial org has no visible "Pay Now" button at all. */}
       <Link href="/admin/billing?pay=1" className="font-medium underline underline-offset-2 shrink-0">
-        {expired ? "Renew now" : "View plans"}
+        {expired ? "Pay now" : "View plans"}
       </Link>
       {dismissible && dismissKey && (
         <button

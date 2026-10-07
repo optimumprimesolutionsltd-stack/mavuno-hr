@@ -22,7 +22,7 @@ import filingsRouter from "./filings.js";
 import notificationsRouter from "./notifications.js";
 import departmentsRouter from "./departments.js";
 import { HttpError } from "../lib/http-error.js";
-import { requireActiveAccess } from "../middlewares/require-auth.js";
+import { requirePaidForPayroll } from "../middlewares/require-auth.js";
 import type { Request, Response, NextFunction } from "express";
 
 const router: IRouter = Router();
@@ -33,16 +33,17 @@ router.use(healthRouter);
 router.use("/public", publicRouter);
 router.use("/auth", authRouter);
 router.use("/dashboard", dashboardRouter);
-// Feature routers: locked (402 ACCESS_EXPIRED) once organizations.access_until
-// has passed. See docs/design/super-admin-org-lifecycle.md §2 for what is and
-// isn't gated — billing, settings reads, and auth stay open on purpose.
-router.use("/employees", requireActiveAccess(), employeesRouter);
-router.use("/employees", requireActiveAccess(), employeeDocumentsRouter);
-router.use("/payroll", requireActiveAccess(), payrollRouter);
-router.use("/leaves", requireActiveAccess(), leavesRouter);
-router.use("/timesheets", requireActiveAccess(), timesheetsRouter);
-router.use("/attendance", requireActiveAccess(), attendanceRouter);
-router.use("/loans", requireActiveAccess(), loansRouter);
+// Non-payment rule (owner's decision, Oct 2026): once access_until has passed
+// the company keeps using its account -- HR records stay fully usable -- but
+// payroll cannot be run until it pays. Only payroll processing is gated
+// (402 PAYROLL_LOCKED on writes); reading past runs and payslips stays open.
+router.use("/employees", employeesRouter);
+router.use("/employees", employeeDocumentsRouter);
+router.use("/payroll", requirePaidForPayroll(), payrollRouter);
+router.use("/leaves", leavesRouter);
+router.use("/timesheets", timesheetsRouter);
+router.use("/attendance", attendanceRouter);
+router.use("/loans", loansRouter);
 router.use("/audit", auditRouter);
 router.use("/calculator", calculatorRouter);
 router.use("/portal/attendance", portalAttendanceRouter);
@@ -54,9 +55,9 @@ router.use("/billing", billingRouter);
 // Reads payrollRuns and confirms/submits statutory filings derived from
 // them — the same kind of core, paid-for compliance work as /payroll
 // itself, which is gated. This one was simply missing from the list.
-router.use("/filings", requireActiveAccess(), filingsRouter);
+router.use("/filings", requirePaidForPayroll(), filingsRouter);
 router.use("/notifications", notificationsRouter);
-router.use("/departments", requireActiveAccess(), departmentsRouter);
+router.use("/departments", departmentsRouter);
 
 // Global error handler
 router.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
