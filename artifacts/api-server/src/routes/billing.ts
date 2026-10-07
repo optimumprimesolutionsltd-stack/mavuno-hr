@@ -292,9 +292,9 @@ router.get("/my", requireAuth("org:admin"), async (req, res, next) => {
       billingCycle: cycle,
       // Quote this as the reference for bank transfers and M-Pesa Paybill.
       billingRef: accountReferenceFor(p.orgId),
-      // The Paybill business number customers pay into: the same shortcode the
-      // C2B confirmations arrive for. Null until M-Pesa is configured.
-      paybillNumber: process.env.MPESA_PAYBILL_NUMBER?.trim() || process.env.MPESA_SHORTCODE?.trim() || null,
+      // The Paybill business number customers pay into (Optimum's Paybill).
+      // MPESA_PAYBILL_NUMBER overrides it if it ever changes.
+      paybillNumber: process.env.MPESA_PAYBILL_NUMBER?.trim() || "4362467",
       // What the org pays each month (override wins over the rate card).
       monthlyCharge,
       // The rate-card figure at the current headcount, for reference.
