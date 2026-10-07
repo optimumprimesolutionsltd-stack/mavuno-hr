@@ -349,6 +349,12 @@ function EditOrgDialog({ org, open, onClose }: { org: OrgRow; open: boolean; onC
     else body.trialEndsAt = null;
     if (accessUntil) body.accessUntil = new Date(accessUntil).toISOString();
     else body.accessUntil = null;
+    // No end date = never locked and never chased for payment. Companies
+    // created before access dates existed got this silently (e.g. one ran
+    // payroll for months unpaid), so make it a deliberate choice.
+    if (!accessUntil && plan !== "free" && !window.confirm(
+      `${org.name} has no ACCESS UNTIL date, so it will have unlimited access and will never be locked for non-payment.\n\nSave it as unlimited anyway?`,
+    )) return;
     mutation.mutate(body);
   }
 
@@ -495,7 +501,7 @@ function EditOrgDialog({ org, open, onClose }: { org: OrgRow; open: boolean; onC
 
           {/* Access window — the enforced cut-off */}
           <div className="space-y-1.5">
-            <Label className="font-mono text-xs">ACCESS UNTIL (blank = unlimited)</Label>
+            <Label className="font-mono text-xs">ACCESS UNTIL (blank = unlimited — never billed)</Label>
             <div className="flex gap-2">
               <Input
                 type="date"
@@ -706,15 +712,21 @@ export function SuperAdminCompanies() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const [onlyUnlimited, setOnlyUnlimited] = useState(false);
   const [editOrg, setEditOrg] = useState<OrgRow | null>(null);
   const [newOrgOpen, setNewOrgOpen] = useState(false);
   const [creditsOrg, setCreditsOrg] = useState<OrgRow | null>(null);
 
+  // No access end date on a paying plan = never locked, never billed.
+  const isUnbilled = (o: OrgRow) => !o.accessUntil && o.plan !== "free";
+  const unbilledCount = orgs.filter((o) => isUnbilled(o) && o.status === "active").length;
   const filtered = orgs.filter(
     (o) =>
-      o.name.toLowerCase().includes(search.toLowerCase()) ||
-      o.slug.toLowerCase().includes(search.toLowerCase()) ||
-      o.admins.some((a) => a.email.toLowerCase().includes(search.toLowerCase()))
+      (!onlyUnlimited || isUnbilled(o)) && (
+        o.name.toLowerCase().includes(search.toLowerCase()) ||
+        o.slug.toLowerCase().includes(search.toLowerCase()) ||
+        o.admins.some((a) => a.email.toLowerCase().includes(search.toLowerCase()))
+      )
   );
 
   const statusMutation = useMutation({
@@ -805,14 +817,33 @@ export function SuperAdminCompanies() {
       </div>
 
       {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by name, slug or admin email…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      {unbilledCount > 0 && (
+        <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 flex flex-wrap items-center gap-3">
+          <p className="text-sm flex-1 min-w-[240px]">
+            <strong>{unbilledCount} active compan{unbilledCount === 1 ? "y has" : "ies have"} no access end date</strong>
+            {" "}— unlimited use, never locked for non-payment. Give each one an ACCESS UNTIL date
+            (leave your own and demo accounts if you mean them to be free).
+          </p>
+          <Button size="sm" variant="outline" className="font-mono" onClick={() => setOnlyUnlimited((v) => !v)}>
+            {onlyUnlimited ? "SHOW ALL" : "SHOW THEM"}
+          </Button>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative max-w-sm flex-1 min-w-[220px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name, slug or admin email…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" className="h-4 w-4" checked={onlyUnlimited} onChange={(e) => setOnlyUnlimited(e.target.checked)} />
+          Unlimited — not billed only
+        </label>
       </div>
 
       {/* Table */}
@@ -842,7 +873,7 @@ export function SuperAdminCompanies() {
             ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="py-12 text-center text-muted-foreground font-mono text-sm">
-                  {search ? "NO MATCHES" : "NO COMPANIES YET"}
+                  {search || onlyUnlimited ? "NO MATCHES" : "NO COMPANIES YET"}
                 </TableCell>
               </TableRow>
             ) : (
@@ -956,8 +987,15 @@ export function SuperAdminCompanies() {
                           <div className="text-[10px] font-mono text-amber-700/80">EXPIRING SOON</div>
                         )}
                       </>
+                    ) : org.plan === "free" ? (
+                      <span className="text-muted-foreground text-xs">Unlimited (Free plan)</span>
                     ) : (
-                      <span className="text-muted-foreground text-xs">Unlimited</span>
+                      <span
+                        className="inline-flex items-center px-1.5 py-0.5 rounded border border-amber-500/50 bg-amber-500/10 text-amber-700 text-[10px] font-mono font-bold"
+                        title="No access end date: never locked, never billed. Edit the company to set ACCESS UNTIL."
+                      >
+                        UNLIMITED — NOT BILLED
+                      </span>
                     )}
                   </TableCell>
 
