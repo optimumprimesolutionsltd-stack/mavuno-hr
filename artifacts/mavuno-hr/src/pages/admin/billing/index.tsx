@@ -23,6 +23,7 @@ interface BillingPayment {
   period: string; method: string; reference: string | null;
   description: string | null; status: string;
   verifiedAt: string | null; receiptSentAt: string | null; createdAt: string;
+  vatCents?: number;
 }
 interface BillingData {
   org: {
@@ -32,6 +33,7 @@ interface BillingData {
     activeEmployees: number;
     billingCycle: string;          // "monthly" | "annual"
     billingRef: string;            // account number to quote when paying, e.g. "MHR-000042K"
+    paybillNumber?: string | null; // M-Pesa Paybill business number; null until configured
     monthlyCharge: number;         // KES cents — effective (override wins over rate card)
     standardMonthlyCharge: number; // KES cents — rate card at current headcount
     overrideCharge: number;        // KES cents — negotiated override (0 = none)
@@ -73,6 +75,46 @@ const METHOD_LABELS: Record<string, string> = {
 function fmtKes(cents: number) {
   return `KES ${(cents / 100).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
 }
+/**
+ * Open a payment receipt in a new tab to print or save as PDF. A receipt, not
+ * a tax invoice: what was paid, when, how, and the VAT inside it.
+ */
+function openReceipt(payment: BillingPayment, orgName: string, billingRef: string | undefined, plan: string) {
+  const w = window.open("", "_blank");
+  if (!w) { alert("Your browser blocked the receipt window. Allow pop-ups for mavunohr.co.ke, then try again."); return; }
+  const esc = (v: unknown) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+  const vat = payment.vatCents ?? 0;
+  const rows: [string, string][] = [
+    ["Receipt No.", payment.receiptNo],
+    ["Company", orgName],
+    ...(billingRef ? [["Billing account", billingRef] as [string, string]] : []),
+    ["Plan", plan],
+    ["Billing period", payment.period],
+    ["Payment method", METHOD_LABELS[payment.method] ?? payment.method],
+    ...(payment.reference ? [["Reference", payment.reference] as [string, string]] : []),
+    ["Date paid", fmtDate(payment.verifiedAt)],
+    ...(vat > 0 ? [["Amount before VAT", fmtKes(payment.amount - vat)], ["VAT 16%", fmtKes(vat)]] as [string, string][] : []),
+  ];
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Receipt ${esc(payment.receiptNo)}</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;color:#0A1B33;margin:32px;font-size:13px}
+  .box{max-width:520px;margin:0 auto;border:1px solid #d1d5db;border-radius:10px;padding:28px}
+  h1{font-size:20px;margin:0 0 2px} .sub{color:#6b7280;margin-bottom:18px}
+  .amt{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:14px;text-align:center;margin-bottom:18px}
+  .amt b{display:block;font-size:26px;color:#047857} .amt span{font-size:11px;color:#6b7280;letter-spacing:1px}
+  table{width:100%;border-collapse:collapse} td{padding:7px 4px;border-bottom:1px solid #eee} td:first-child{color:#6b7280;width:45%}
+  .foot{margin-top:18px;font-size:11px;color:#6b7280;text-align:center}
+  @media print{body{margin:10mm}}
+</style></head><body><div class="box">
+<h1>MAVUNO HR — PAYMENT RECEIPT</h1>
+<div class="sub">Thank you for your payment.</div>
+<div class="amt"><span>AMOUNT PAID</span><b>${esc(fmtKes(payment.amount))}</b></div>
+<table>${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>
+<div class="foot">Payment receipt from Mavuno HR. Please keep it for your records.</div>
+</div><script>window.onload=function(){window.print()}</script></body></html>`);
+  w.document.close();
+}
+
 function fmtDate(d: string | null) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" });
@@ -86,8 +128,53 @@ function useBillingMy() {
   });
 }
 
-function PayNowDialog({ open, onOpenChange, defaultAmountCents }: {
+/** One copyable line in the Paybill instructions. */
+function CopyLine({ label, value }: { label: string; value: string }) {
+  const { toast } = useToast();
+  return (
+    <div className="flex items-center justify-between gap-2 py-1">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="flex items-center gap-1.5">
+        <span className="font-mono font-bold tracking-wider select-all">{value}</span>
+        <button
+          type="button" className="text-muted-foreground hover:text-foreground" aria-label={`Copy ${label}`}
+          onClick={() => navigator.clipboard?.writeText(value).then(
+            () => toast({ title: "Copied", description: value }),
+            () => toast({ variant: "destructive", title: "Couldn't copy", description: value }),
+          )}
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </button>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * How to pay by Paybill from the M-Pesa menu. The account number is what
+ * matches the payment to this company automatically; a wrong one lands in
+ * the super-admin's unallocated queue instead of being lost.
+ */
+function PaybillInstructions({ paybillNumber, billingRef, amountCents }: {
+  paybillNumber: string; billingRef: string; amountCents: number;
+}) {
+  return (
+    <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-1">
+      <p className="text-xs font-mono font-semibold text-primary">PAY VIA M-PESA PAYBILL</p>
+      <p className="text-xs text-muted-foreground">
+        M-Pesa → Lipa na M-Pesa → Pay Bill. Use exactly this account number so the payment is matched to you and
+        your receipt is emailed automatically.
+      </p>
+      <CopyLine label="Business No." value={paybillNumber} />
+      <CopyLine label="Account No." value={billingRef} />
+      {amountCents > 0 && <CopyLine label="Amount (KES)" value={String(Math.ceil(amountCents / 100))} />}
+    </div>
+  );
+}
+
+function PayNowDialog({ open, onOpenChange, defaultAmountCents, paybillNumber, billingRef }: {
   open: boolean; onOpenChange: (open: boolean) => void; defaultAmountCents: number;
+  paybillNumber?: string | null; billingRef?: string;
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -191,6 +278,14 @@ function PayNowDialog({ open, onOpenChange, defaultAmountCents }: {
               </span>
               . The amount is set from your plan and current bill.
             </p>
+            {paybillNumber && billingRef && (
+              <>
+                <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground">
+                  <span className="h-px flex-1 bg-border" /> OR <span className="h-px flex-1 bg-border" />
+                </div>
+                <PaybillInstructions paybillNumber={paybillNumber} billingRef={billingRef} amountCents={defaultAmountCents * cycles} />
+              </>
+            )}
           </div>
         )}
 
@@ -625,6 +720,14 @@ export function AdminBilling() {
               <div className="space-y-1">
                 <p className="text-xs font-mono text-muted-foreground">BILLING ACCOUNT NUMBER</p>
                 <p className="text-lg font-mono font-bold tracking-wider text-foreground select-all">{billingRef}</p>
+                {org?.paybillNumber && (
+                  <p className="text-sm font-mono">
+                    <span className="text-muted-foreground">M-Pesa Paybill: </span>
+                    <span className="font-bold tracking-wider select-all">{org.paybillNumber}</span>
+                    <span className="text-muted-foreground"> · Account: </span>
+                    <span className="font-bold tracking-wider">{billingRef}</span>
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   Quote this as the reference for bank transfers and M-Pesa Paybill. In-app M-Pesa
                   payments already carry it.
@@ -688,6 +791,14 @@ export function AdminBilling() {
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground font-mono">{fmtDate(payment.verifiedAt)}</TableCell>
                       <TableCell className="text-xs font-mono">
+                        {payment.status === "verified" && (
+                          <Button
+                            size="sm" variant="outline" className="h-7 mb-1 font-mono text-[10px] gap-1"
+                            onClick={() => openReceipt(payment, data?.org?.name ?? "", (data?.org as any)?.billingRef, PLAN_LABELS[data?.org?.plan ?? ""] ?? (data?.org?.plan ?? ""))}
+                          >
+                            <Receipt className="h-3 w-3" /> DOWNLOAD
+                          </Button>
+                        )}
                         {payment.receiptSentAt ? (
                           <span className="text-emerald-700 flex items-center gap-1">
                             <CheckCircle2 className="h-3 w-3" /> Emailed {fmtDate(payment.receiptSentAt)}
@@ -719,6 +830,8 @@ export function AdminBilling() {
         open={payDialogOpen}
         onOpenChange={setPayDialogOpen}
         defaultAmountCents={payAmountOverrideCents ?? perInvoice}
+        paybillNumber={org?.paybillNumber}
+        billingRef={billingRef}
       />
       <ChangePlanDialog
         open={planDialogOpen}

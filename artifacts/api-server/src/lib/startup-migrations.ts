@@ -872,6 +872,10 @@ async function addOrgSettingsReviewedAt(): Promise<void> {
   await db.execute(sql`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS settings_reviewed_at TIMESTAMP`);
 }
 
+async function addBillingPaymentVat(): Promise<void> {
+  await db.execute(sql`ALTER TABLE billing_payments ADD COLUMN IF NOT EXISTS vat_cents BIGINT NOT NULL DEFAULT 0`);
+}
+
 async function addBillingChargeVat(): Promise<void> {
   await db.execute(sql`ALTER TABLE billing_charges ADD COLUMN IF NOT EXISTS vat_cents BIGINT NOT NULL DEFAULT 0`);
 }
@@ -1081,6 +1085,7 @@ export async function runStartupMigrations(): Promise<void> {
     ["addOrgSaturdayIsWorkday", addOrgSaturdayIsWorkday],
     ["convertOrgSaturdayOverride", convertOrgSaturdayOverride],
     ["addBillingChargeVat", addBillingChargeVat],
+    ["addBillingPaymentVat", addBillingPaymentVat],
   ];
 
   for (const [name, run] of steps) {
