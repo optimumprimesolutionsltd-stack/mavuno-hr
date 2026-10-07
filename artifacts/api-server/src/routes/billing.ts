@@ -17,7 +17,7 @@ import {
 import { applyVerifiedPayment, cycleAmountOwed } from "../lib/payment-settlement.js";
 import { creditC2BPayment } from "../lib/mpesa-c2b.js";
 import {
-  PLAN_RATES, standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents,
+  PLAN_RATES, standardMonthlyCents, effectiveMonthlyCents, cycleChargeCents, vatCents, withVatCents,
 } from "../lib/pricing.js";
 import { accessStateOf } from "../lib/session.js";
 import { computeExpectedForOrg, consumeCreditsForPayment } from "../lib/billing-credits.js";
@@ -296,8 +296,9 @@ router.get("/my", requireAuth("org:admin"), async (req, res, next) => {
       standardMonthlyCharge,
       // The negotiated override itself (0 = none).
       overrideCharge: orgRow?.overrideCharge ?? 0,
-      // Amount on each invoice — annual bills 10x the monthly.
-      cycleCharge: cycleChargeCents(monthlyCharge, cycle),
+      // Amount on each invoice — annual bills 10x the monthly — plus 16% VAT.
+      cycleCharge: withVatCents(cycleChargeCents(monthlyCharge, cycle)),
+      cycleChargeVat: vatCents(cycleChargeCents(monthlyCharge, cycle)),
       accessUntil: orgRow?.accessUntil ?? null,
       accessState: accessStateOf(orgRow?.accessUntil ?? null),
     };
@@ -341,6 +342,7 @@ router.get("/my", requireAuth("org:admin"), async (req, res, next) => {
           activeEmployees: latestCharge.activeEmployees,
           amountCents: latestCharge.amountCents,
           cycleAmountCents: latestCharge.cycleAmountCents,
+          vatCents: latestCharge.vatCents,
           source: latestCharge.source,
           status: latestCharge.status,
           paidAt: latestCharge.paidAt,

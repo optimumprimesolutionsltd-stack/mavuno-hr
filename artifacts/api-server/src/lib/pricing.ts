@@ -27,6 +27,24 @@ export type BillingCycle = (typeof BILLING_CYCLES)[number];
 /** Annual billing charges this many months for a full year. */
 export const ANNUAL_MONTHS_CHARGED = 10;
 
+/**
+ * VAT. Every price in this file is exclusive of VAT -- the website and the
+ * Terms say "Prices exclude 16% VAT, which is added to invoices" -- so every
+ * amount billed or requested from a customer is the price plus VAT.
+ */
+export const VAT_BPS = 1600; // 16%
+
+/** VAT on a VAT-exclusive amount, in cents (rounded to the cent). */
+export function vatCents(netCents: number): number {
+  return Math.round((netCents * VAT_BPS) / 10_000);
+}
+
+/** A VAT-exclusive amount plus VAT, in cents. */
+export function withVatCents(netCents: number): number {
+  return netCents + vatCents(netCents);
+}
+
+
 export interface PlanRate {
   label: string;
   /** Flat monthly fee — KES cents. */

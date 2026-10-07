@@ -19,7 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import {
   PLAN_RATES, PLAN_LABELS, PLAN_COLORS, BILLING_CYCLES,
-  standardMonthlyCents,
+  standardMonthlyCents, vatCents, withVatCents,
 } from "@/lib/pricing";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -46,7 +46,7 @@ interface OrgRow {
   monthlyCharge: number;              // KES cents — effective (override wins over rate card)
   standardMonthlyCharge: number;      // KES cents — rate card at current headcount
   overrideCharge: number;             // KES cents — negotiated override (0 = none)
-  cycleCharge: number;                // KES cents — per-invoice (annual = 10x monthly)
+  cycleCharge: number;                // KES cents — per-invoice incl. VAT (annual = 10x monthly)
   countryCode: string;
   currencyCode: string;
   billingRef: string;                 // account number the org quotes when paying
@@ -478,8 +478,16 @@ function EditOrgDialog({ org, open, onClose }: { org: OrgRow; open: boolean; onC
               <span className="text-primary font-bold">{kes(effectiveMonthly)}</span>
             </div>
             <div className="flex justify-between font-mono mt-1">
-              <span className="text-muted-foreground">PER INVOICE ({billingCycle})</span>
-              <span className="font-bold">{kes(perInvoice)}</span>
+              <span className="text-muted-foreground">PER INVOICE ({billingCycle}) before VAT</span>
+              <span>{kes(perInvoice)}</span>
+            </div>
+            <div className="flex justify-between font-mono mt-1">
+              <span className="text-muted-foreground">+ VAT 16%</span>
+              <span>{kes(vatCents(perInvoice))}</span>
+            </div>
+            <div className="flex justify-between font-mono mt-1 border-t border-border/40 pt-1">
+              <span className="text-muted-foreground">CUSTOMER PAYS</span>
+              <span className="font-bold">{kes(withVatCents(perInvoice))}</span>
             </div>
             <p className="text-[10px] text-muted-foreground mt-1">
               {overrideCents > 0 ? "Using negotiated override." : "Using rate card."}
