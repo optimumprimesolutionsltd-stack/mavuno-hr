@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Wallet, Search, Loader2, Zap, History, Info } from "lucide-react";
 import { HistoricalImportDialog } from "./historical-import-dialog";
+import { useAuth } from "@/hooks/use-auth";
 import { Checkbox } from "@/components/ui/checkbox";
 
 const CURRENT_PERIOD = new Date().toISOString().slice(0, 7); // YYYY-MM
@@ -21,6 +22,8 @@ export function PayrollList() {
   const { data: runs, isLoading } = useListPayrollRuns();
   const createRun = useCreatePayrollRun();
   const { toast } = useToast();
+  const { accessState } = useAuth();
+  const payrollLocked = accessState === "expired";
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [open, setOpen] = useState(false);
@@ -134,6 +137,15 @@ export function PayrollList() {
 
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto">
+      {payrollLocked && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 flex flex-wrap items-center gap-3">
+          <p className="text-sm flex-1 min-w-[240px]">
+            <strong>Payroll is locked until your subscription is paid.</strong> You can still view past payroll runs
+            and payslips, and use employees, leave, attendance and loans as normal.
+          </p>
+          <Link href="/admin/billing?pay=1" className="text-sm font-medium underline underline-offset-2">Pay now</Link>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold uppercase leading-none">PAYROLL RUNS</h1>

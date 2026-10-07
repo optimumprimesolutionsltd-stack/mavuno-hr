@@ -22,6 +22,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { downloadP10Csv, downloadNssfWorkbook, downloadShifTemplate, downloadAhlCsv } from "@/lib/itax-csv";
+import { useAuth } from "@/hooks/use-auth";
 
 // Status badge colour map
 function StatusBadge({ status }: { status: string }) {
@@ -413,6 +414,7 @@ export function PayrollDetail() {
 
   const { run, payslips, filings } = data as any;
   const canEdit = run?.status === "draft" || run?.status === "pending_approval";
+  const { accessState } = useAuth();
   // Something that affects pay changed after this draft was calculated.
   const { data: changesData } = useQuery<{ count: number; changes: { action: string; at: string }[] }>({
     queryKey: ["/api/payroll", id, "changes"],
@@ -653,6 +655,16 @@ export function PayrollDetail() {
           </div>
         ))}
       </section>
+
+      {accessState === "expired" && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 flex flex-wrap items-center gap-3">
+          <p className="text-sm flex-1 min-w-[240px]">
+            <strong>Payroll is locked until your subscription is paid.</strong> You can view and download this run,
+            but not calculate, approve or pay it.
+          </p>
+          <Link href="/admin/billing?pay=1" className="text-sm font-medium underline underline-offset-2">Pay now</Link>
+        </div>
+      )}
 
       {/* Stale draft — changes since it was last calculated */}
       {canEdit && (changesData?.count ?? 0) > 0 && (
