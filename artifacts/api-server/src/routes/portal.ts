@@ -395,7 +395,7 @@ router.get("/payslip/:slipId/pdf", requireAuth("self:read"), async (req, res, ne
       loanDeduction: slip.loanDeduction, adjustmentDeductions: slip.adjustmentDeductions,
       insurancePremium: bd.insurancePremium ?? 0,
       totalDeductions: slip.totalDeductions, netPay: slip.netPay,
-      nssfEmployer: slip.nssfEmployer, housingLevyEmployer: slip.housingLevyEmployer,
+      nssfEmployer: slip.nssfEmployer, housingLevyEmployer: slip.housingLevyEmployer, nitaEmployer: slip.nitaEmployer,
       pensionEmployer: slip.pensionEmployer,
     });
 

@@ -46,7 +46,11 @@ export interface PayResult {
   nssfTier2Employer: Cents;
   shif: Cents;
   housingLevyEmployee: Cents;
+  /** Employer's Affordable Housing Levy only — always matches the employee's. */
   housingLevyEmployer: Cents;
+  /** Employer-only levies other than the Housing Levy: NITA's flat charge in
+   *  Kenya. Kept apart so it never inflates the AHL return. */
+  nitaEmployer: Cents;
   pension: Cents;
   pensionEmployer: Cents;
   mortgageInterest: Cents;
@@ -145,8 +149,11 @@ export function computePayslip(e: PayInput, cfg: StatutoryConfig): PayResult {
     if (cfg.health.maximum !== null) health = clampMax(health, cfg.health.maximum);
   }
 
+  // The Housing Levy is matched (employee and employer pay the same); NITA is
+  // a separate employer-only charge with its own return. Keep them apart.
   let levyEmployee: Cents = 0;
   let levyEmployer: Cents = 0;
+  let otherLevyEmployer: Cents = 0;
   let levyTaxDeductible: Cents = 0;
   for (const l of cfg.levies) {
     const base = l.cap === null ? gross : (Math.min(gross, l.cap) as Cents);
@@ -156,7 +163,8 @@ export function computePayslip(e: PayInput, cfg: StatutoryConfig): PayResult {
       er = (er + l.employerFlatPerEmployee) as Cents;
     }
     levyEmployee = (levyEmployee + emp) as Cents;
-    levyEmployer = (levyEmployer + er) as Cents;
+    if (l.code === "AHL") levyEmployer = (levyEmployer + er) as Cents;
+    else otherLevyEmployer = (otherLevyEmployer + er) as Cents;
     if (l.taxDeductible) levyTaxDeductible = (levyTaxDeductible + emp) as Cents;
   }
 
@@ -209,7 +217,7 @@ export function computePayslip(e: PayInput, cfg: StatutoryConfig): PayResult {
     warnings.push(`NEGATIVE NET PAY — deductions exceed cash earnings by ${-netPay / 100}`);
   }
 
-  const employerCost = (cashGross + ss.employer + levyEmployer + e.pensionEmployer) as Cents;
+  const employerCost = (cashGross + ss.employer + levyEmployer + otherLevyEmployer + e.pensionEmployer) as Cents;
 
   return {
     basic, allowances, overtime, adjustmentEarnings, nonCashBenefit: e.nonCashBenefit,
@@ -219,6 +227,7 @@ export function computePayslip(e: PayInput, cfg: StatutoryConfig): PayResult {
     nssfTier1Employer: ss.tier1Employer, nssfTier2Employer: ss.tier2Employer,
     shif: health,
     housingLevyEmployee: levyEmployee, housingLevyEmployer: levyEmployer,
+    nitaEmployer: otherLevyEmployer,
     pension, pensionEmployer: e.pensionEmployer, mortgageInterest: mortgage,
     taxableIncome, payeBeforeRelief, personalRelief, insuranceRelief, paye,
     helb: e.helbMonthly, sacco: e.saccoMonthly,

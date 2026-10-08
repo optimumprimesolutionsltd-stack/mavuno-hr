@@ -1139,6 +1139,7 @@ function EmployeeTotalsTab({ employeeId }: { employeeId: number }) {
   const rows: { label: string; employee?: number; employer?: number }[] = [
     { label: "NSSF", employee: totals?.nssfEmployee, employer: totals?.nssfEmployer },
     { label: "Housing Levy", employee: totals?.housingLevyEmployee, employer: totals?.housingLevyEmployer },
+    { label: "NITA", employer: totals?.nitaEmployer },
     { label: "SHIF", employee: totals?.shif },
     { label: "HELB", employee: totals?.helb },
     { label: "Insurance Premium", employee: totals?.insurancePremium },

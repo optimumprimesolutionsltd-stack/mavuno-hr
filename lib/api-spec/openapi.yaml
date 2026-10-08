@@ -1565,6 +1565,8 @@ components:
               type: integer
             housingLevyEmployer:
               type: integer
+            nitaEmployer:
+              type: integer
             helb:
               type: integer
             insurancePremium:

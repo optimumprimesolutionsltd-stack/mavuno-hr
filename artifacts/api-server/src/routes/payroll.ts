@@ -681,7 +681,7 @@ router.patch("/:runId/payslips/:slipId", requireAuth("payroll:calculate"), async
         adjustmentEarnings: r.adjustmentEarnings, nonCashBenefit: r.nonCashBenefit,
         gross: r.gross, cashGross: r.cashGross,
         nssfEmployee: r.nssfEmployee, nssfEmployer: r.nssfEmployer, shif: r.shif,
-        housingLevyEmployee: r.housingLevyEmployee, housingLevyEmployer: r.housingLevyEmployer,
+        housingLevyEmployee: r.housingLevyEmployee, housingLevyEmployer: r.housingLevyEmployer, nitaEmployer: r.nitaEmployer,
         pension: r.pension, pensionEmployer: r.pensionEmployer, mortgageInterest: r.mortgageInterest,
         taxableIncome: r.taxableIncome, payeBeforeRelief: r.payeBeforeRelief,
         personalRelief: r.personalRelief, insuranceRelief: r.insuranceRelief, paye: r.paye,
@@ -843,6 +843,7 @@ router.get("/:id/payslips/:slipId/pdf", requireAuth("payroll:read"), async (req,
       netPay: slip.netPay,
       nssfEmployer: slip.nssfEmployer,
       housingLevyEmployer: slip.housingLevyEmployer,
+      nitaEmployer: slip.nitaEmployer,
       pensionEmployer: slip.pensionEmployer,
     });
 
@@ -1008,7 +1009,7 @@ router.get("/:id/payslips/bulk-pdf", requireAuth("payroll:read"), async (req, re
         loanDeduction: slip.loanDeduction, adjustmentDeductions: slip.adjustmentDeductions,
          insurancePremium: bd.insurancePremium ?? 0,
         totalDeductions: slip.totalDeductions, netPay: slip.netPay,
-        nssfEmployer: slip.nssfEmployer, housingLevyEmployer: slip.housingLevyEmployer,
+        nssfEmployer: slip.nssfEmployer, housingLevyEmployer: slip.housingLevyEmployer, nitaEmployer: slip.nitaEmployer,
         pensionEmployer: slip.pensionEmployer,
       });
 
@@ -1145,6 +1146,7 @@ router.get("/:id/summary.csv", requireAuth("payroll:read"), async (req, res, nex
       shif: sum.shif + slip.shif,
       housingLevyEmployee: sum.housingLevyEmployee + slip.housingLevyEmployee,
       housingLevyEmployer: sum.housingLevyEmployer + slip.housingLevyEmployer,
+      nitaEmployer: sum.nitaEmployer + slip.nitaEmployer,
       pension: sum.pension + slip.pension,
       helb: sum.helb + slip.helb,
       sacco: sum.sacco + slip.sacco,
@@ -1156,14 +1158,14 @@ router.get("/:id/summary.csv", requireAuth("payroll:read"), async (req, res, nex
     }), {
       employeeCount: 0, basic: 0, allowances: 0, gross: 0, paye: 0,
       nssfEmployee: 0, nssfEmployer: 0, shif: 0,
-      housingLevyEmployee: 0, housingLevyEmployer: 0,
+      housingLevyEmployee: 0, housingLevyEmployer: 0, nitaEmployer: 0,
       pension: 0, helb: 0, sacco: 0, loan: 0, insurancePremium: 0,
       otherDeductions: 0, totalDeductions: 0, netPay: 0,
     });
 
     const toKes = (cents: number) => (cents / 100).toFixed(2);
     const escapeCsv = (value: string | number) => `"${String(value).replace(/"/g, "\"\"")}"`;
-    const employerContributions = totals.nssfEmployer + totals.housingLevyEmployer;
+    const employerContributions = totals.nssfEmployer + totals.housingLevyEmployer + totals.nitaEmployer;
     const totalEmployerCost = totals.gross + employerContributions;
 
     const lines: [string, string][] = [
@@ -1193,6 +1195,7 @@ router.get("/:id/summary.csv", requireAuth("payroll:read"), async (req, res, nex
       ["EMPLOYER CONTRIBUTIONS (not deducted from employees)", ""],
       ["NSSF (Employer)", toKes(totals.nssfEmployer)],
       ["Housing Levy (Employer)", toKes(totals.housingLevyEmployer)],
+      ["NITA (Employer)", toKes(totals.nitaEmployer)],
       ["Total Employer Contributions", toKes(employerContributions)],
       ["", ""],
       ["TOTAL EMPLOYER COST (Gross Pay + Employer Contributions)", toKes(totalEmployerCost)],

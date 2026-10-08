@@ -136,7 +136,7 @@ export function PayslipDialog({ slip, open, onOpenChange, employeeName }: Props)
           </div>
 
           {/* Employer contributions — informational */}
-          {((slip.nssfEmployer || 0) + (slip.housingLevyEmployer || 0) + (slip.pensionEmployer || 0)) > 0 && (
+          {((slip.nssfEmployer || 0) + (slip.housingLevyEmployer || 0) + (slip.nitaEmployer || 0) + (slip.pensionEmployer || 0)) > 0 && (
             <>
               <Separator />
               <div>
@@ -150,6 +150,7 @@ export function PayslipDialog({ slip, open, onOpenChange, employeeName }: Props)
                   <Row label="NSSF (Employer)" amount={slip.nssfEmployer || 0} />
                 )}
                 <Row label="Housing Levy (Employer)" amount={slip.housingLevyEmployer || 0} />
+                <Row label="NITA (Employer)" amount={slip.nitaEmployer || 0} />
                 <Row label="Pension (Employer)" amount={slip.pensionEmployer || 0} />
               </div>
             </>

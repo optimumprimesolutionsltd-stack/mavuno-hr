@@ -593,6 +593,7 @@ router.get("/:id/totals", requireAuth("employee:read"), async (req, res, next) =
         shif: sql<number>`coalesce(sum(${payslips.shif}), 0)`,
         housingLevyEmployee: sql<number>`coalesce(sum(${payslips.housingLevyEmployee}), 0)`,
         housingLevyEmployer: sql<number>`coalesce(sum(${payslips.housingLevyEmployer}), 0)`,
+        nitaEmployer: sql<number>`coalesce(sum(${payslips.nitaEmployer}), 0)`,
         helb: sql<number>`coalesce(sum(${payslips.helb}), 0)`,
         insurancePremium: sql<number>`coalesce(sum(${payslips.insurancePremium}), 0)`,
         paidRunCount: sql<number>`count(*)`,

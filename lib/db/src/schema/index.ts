@@ -346,6 +346,7 @@ export const payslips = pgTable("payslips", {
   shif: money("shif").notNull(),
   housingLevyEmployee: money("housing_levy_employee").notNull(),
   housingLevyEmployer: money("housing_levy_employer").notNull(),
+  nitaEmployer: money("nita_employer").notNull().default(0),
   pension: money("pension").notNull(),
   pensionEmployer: money("pension_employer").notNull().default(0),
   mortgageInterest: money("mortgage_interest").notNull().default(0),
