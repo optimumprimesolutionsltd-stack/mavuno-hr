@@ -224,7 +224,7 @@ type NssfWorkbookData = {
   orgNssfEmployerNo: string;
 };
 
-export const NSSF_HEADERS = [
+export const NSSF_UPLOAD_HEADERS = [
   "PAYROLL NUMBER",
   "SURNAME",
   "OTHER NAMES",
@@ -245,7 +245,7 @@ export async function buildNssfWorkbook(data: NssfWorkbookData): Promise<Uint8Ar
   workbook.creator = "Mavuno HR";
   const sheet = workbook.addWorksheet("Sheet1");
 
-  sheet.getRow(1).values = [...NSSF_HEADERS];
+  sheet.getRow(1).values = [...NSSF_UPLOAD_HEADERS];
   sheet.getRow(1).font = { bold: true };
 
   data.rows.forEach((row, index) => {
