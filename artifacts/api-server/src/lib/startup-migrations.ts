@@ -1040,6 +1040,34 @@ async function addOrgRequiresPayrollApproval(): Promise<void> {
   await db.execute(sql`UPDATE organizations SET requires_payroll_approval = FALSE WHERE created_at < TIMESTAMP '2026-10-01 00:00:00'`);
 }
 
+async function splitNitaFromHousingLevy(): Promise<void> {
+  // Payslips used to store every employer levy in housing_levy_employer, so
+  // in Kenya it held the employer AHL plus NITA's flat KES 50 — and the AHL
+  // return showed the employer paying 50 more than the employee. The Housing
+  // Levy is matched (both sides pay 1.5%), so the employer's AHL is the
+  // employee's, and the rest was NITA. Move it to its own column.
+  await db.execute(sql`ALTER TABLE payslips ADD COLUMN IF NOT EXISTS nita_employer BIGINT NOT NULL DEFAULT 0`);
+  // Idempotent: once split, housing_levy_employer equals the employee's side
+  // and the WHERE matches nothing. Historical imports store employer 0, so
+  // they never match either.
+  await db.execute(sql`
+    UPDATE payslips s
+       SET nita_employer = s.housing_levy_employer - s.housing_levy_employee,
+           housing_levy_employer = s.housing_levy_employee
+      FROM organizations o
+     WHERE o.id = s.org_id
+       AND o.country_code = 'KE'
+       AND s.nita_employer = 0
+       AND s.housing_levy_employer > s.housing_levy_employee`);
+  // Keep each run's stored total equal to the sum of its payslips.
+  await db.execute(sql`
+    UPDATE payroll_runs r
+       SET housing_levy_employer_total = t.total
+      FROM (SELECT run_id, SUM(housing_levy_employer) AS total FROM payslips GROUP BY run_id) t
+     WHERE t.run_id = r.id
+       AND r.housing_levy_employer_total <> t.total`);
+}
+
 export async function runStartupMigrations(): Promise<void> {
   // Each step is isolated: one failing migration must not skip the rest, and
   // the log names which one broke and why. All are idempotent, so a failed
@@ -1067,6 +1095,7 @@ export async function runStartupMigrations(): Promise<void> {
     ["addEmployeeBankBranchName", addEmployeeBankBranchName],
     ["addEmployeeSalaryBasis", addEmployeeSalaryBasis],
     ["addOrgRequiresPayrollApproval", addOrgRequiresPayrollApproval],
+    ["splitNitaFromHousingLevy", splitNitaFromHousingLevy],
     ["addOrgAccessUntil", addOrgAccessUntil],
     ["createBillingCreditsTable", createBillingCreditsTable],
     ["createBillingChargesTable", createBillingChargesTable],

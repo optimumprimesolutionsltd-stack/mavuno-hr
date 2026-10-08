@@ -57,6 +57,7 @@ export interface PayslipPdfData {
   nssfTier1Employer?: number;
   nssfTier2Employer?: number;
   housingLevyEmployer: number;
+  nitaEmployer?: number;
   pensionEmployer: number;
 }
 
@@ -245,7 +246,7 @@ export function generatePayslipPdf(data: PayslipPdfData): Promise<Buffer> {
     y += 12;
 
     // ── EMPLOYER CONTRIBUTIONS (info strip) ────────────────────────────
-    const empContrib = data.nssfEmployer + data.housingLevyEmployer + data.pensionEmployer;
+    const empContrib = data.nssfEmployer + data.housingLevyEmployer + (data.nitaEmployer ?? 0) + data.pensionEmployer;
     if (empContrib > 0) {
       doc.rect(PL, y, PW, 16).fill(CARD);
       doc.fill(LIGHT).font("Helvetica").fontSize(7)
@@ -254,7 +255,9 @@ export function generatePayslipPdf(data: PayslipPdfData): Promise<Buffer> {
              (data.nssfTier1Employer ?? 0) > 0 || (data.nssfTier2Employer ?? 0) > 0
                ? `NSSF Tier I: ${kes(data.nssfTier1Employer ?? 0)}   Tier II: ${kes(data.nssfTier2Employer ?? 0)}`
                : `NSSF: ${kes(data.nssfEmployer)}`
-           }   AHL: ${kes(data.housingLevyEmployer)}   Pension: ${kes(data.pensionEmployer)}`,
+           }   AHL: ${kes(data.housingLevyEmployer)}${
+             (data.nitaEmployer ?? 0) > 0 ? `   NITA: ${kes(data.nitaEmployer ?? 0)}` : ""
+           }   Pension: ${kes(data.pensionEmployer)}`,
            PL + 8, y + 4, { width: PW - 16 }
          );
       y += 20;

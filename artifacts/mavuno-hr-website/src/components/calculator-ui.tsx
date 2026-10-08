@@ -36,6 +36,7 @@ export interface CalcResult {
   employerCost: number;
   nssfEmployer: number;
   housingLevyEmployer: number;
+  nitaEmployer?: number;
   bands: Band[];
   warnings: string[];
 }
@@ -117,21 +118,16 @@ export function DeductionsColumn({ r }: { r: CalcResult }) {
 }
 
 /**
- * Employer cost. NOT just the Housing Levy: computePayslip sums the employer
- * side of every levy in the statutory pack into housingLevyEmployer, which
- * today means the Housing Levy plus NITA's flat charge per employee. Labelling
- * it "Housing Levy" would be off by the NITA amount.
+ * Employer cost. The Housing Levy is matched (the employer pays what the
+ * employee pays); NITA is a separate flat charge per employee.
  */
 export function EmployerCostRows({ r }: { r: CalcResult }) {
   return (
     <>
       <Row label="Gross pay" value={money(r.gross)} />
       <Row label="NSSF employer" value={`+ ${money(r.nssfEmployer)}`} />
-      <Row
-        label="Employer levies"
-        value={`+ ${money(r.housingLevyEmployer)}`}
-        hint="Housing Levy and NITA"
-      />
+      <Row label="Housing Levy employer" value={`+ ${money(r.housingLevyEmployer)}`} />
+      {(r.nitaEmployer ?? 0) > 0 && <Row label="NITA" value={`+ ${money(r.nitaEmployer ?? 0)}`} />}
       <Row label="Total cost" value={money(r.employerCost)} strong />
     </>
   );

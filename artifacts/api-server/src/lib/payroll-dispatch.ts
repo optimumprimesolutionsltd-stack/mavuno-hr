@@ -103,7 +103,7 @@ export async function emailRunPayslips(opts: {
         loanDeduction: slip.loanDeduction, adjustmentDeductions: slip.adjustmentDeductions,
         insurancePremium: bd.insurancePremium ?? 0,
         totalDeductions: slip.totalDeductions, netPay: slip.netPay,
-        nssfEmployer: slip.nssfEmployer, housingLevyEmployer: slip.housingLevyEmployer,
+        nssfEmployer: slip.nssfEmployer, housingLevyEmployer: slip.housingLevyEmployer, nitaEmployer: slip.nitaEmployer,
         pensionEmployer: slip.pensionEmployer,
       });
       await sendPayslipEmail({ to: email, empName: fullName(emp), period: run.period, orgName: org.name, pdfBuffer });

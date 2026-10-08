@@ -118,9 +118,15 @@ describe("computePayslip – KE_2025 mid-range (KES 50 000)", () => {
     expect(r.housingLevyEmployee).toBe(K(750));
   });
 
-  it("housingLevyEmployer (AHL + NITA flat) = KES 800", () => {
-    // AHL employer: 50 000 × 1.5% = 750; NITA flat: 50 → total levy employer = 800
-    expect(r.housingLevyEmployer).toBe(K(800));
+  it("housingLevyEmployer matches the employee's AHL = KES 750", () => {
+    // AHL is matched: 50 000 × 1.5% = 750 each side. NITA is NOT part of it —
+    // it used to be, and the AHL return showed the employer paying 800.
+    expect(r.housingLevyEmployer).toBe(K(750));
+    expect(r.housingLevyEmployer).toBe(r.housingLevyEmployee);
+  });
+
+  it("nitaEmployer = KES 50 flat, on its own", () => {
+    expect(r.nitaEmployer).toBe(K(50));
   });
 
   it("taxable income = KES 44 875", () => {
@@ -154,12 +160,11 @@ describe("computePayslip – KE_2025 mid-range (KES 50 000)", () => {
     expect(r.totalDeductions).toBe(expected);
   });
 
-  it("employerCost = cashGross + nssfEmployer + levyEmployer + pensionEmployer", () => {
-    // housingLevyEmployer already includes AHL employer (750) + NITA flat (50) = 800
-    // employerCost formula: cashGross + ss.employer + levyEmployer + pensionEmployer
+  it("employerCost = cashGross + nssfEmployer + AHL employer + NITA + pensionEmployer", () => {
     expect(r.employerCost).toBe(
-      r.cashGross + r.nssfEmployer + r.housingLevyEmployer + r.pensionEmployer,
+      r.cashGross + r.nssfEmployer + r.housingLevyEmployer + r.nitaEmployer + r.pensionEmployer,
     );
+    expect(r.employerCost).toBe(K(53_800));
   });
 
   it("no warnings on a straightforward full-month employee", () => {

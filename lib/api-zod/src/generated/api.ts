@@ -592,6 +592,7 @@ export const GetEmployeeTotalsResponse = zod.object({
   "shif": zod.number().optional(),
   "housingLevyEmployee": zod.number().optional(),
   "housingLevyEmployer": zod.number().optional(),
+  "nitaEmployer": zod.number().optional(),
   "helb": zod.number().optional(),
   "insurancePremium": zod.number().optional(),
   "paidRunCount": zod.number().optional()

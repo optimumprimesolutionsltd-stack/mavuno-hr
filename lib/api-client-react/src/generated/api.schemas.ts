@@ -357,6 +357,7 @@ export type EmployeeTotalsTotals = {
   shif?: number;
   housingLevyEmployee?: number;
   housingLevyEmployer?: number;
+  nitaEmployer?: number;
   helb?: number;
   insurancePremium?: number;
   paidRunCount?: number;
