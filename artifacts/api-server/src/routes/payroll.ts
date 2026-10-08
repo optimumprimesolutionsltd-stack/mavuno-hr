@@ -1656,6 +1656,11 @@ router.get("/:id/itax/nssf", requireAuth("payroll:read"), async (req, res, next)
         name,
         firstName: emp.firstName,
         lastName: [emp.middleName, emp.lastName].filter(Boolean).join(" "),
+        // The NSSF portal upload: SURNAME, OTHER NAMES, KRA PIN, GROSS PAY.
+        surname: emp.lastName,
+        otherNames: [emp.firstName, emp.middleName].filter(Boolean).join(" "),
+        kraPin: emp.kraPin ?? "",
+        grossPay: slip.gross,
         nationalId: emp.nationalId ?? "",
         employerNo: org?.nssfEmployerNo ?? "",
         period: run.period,
