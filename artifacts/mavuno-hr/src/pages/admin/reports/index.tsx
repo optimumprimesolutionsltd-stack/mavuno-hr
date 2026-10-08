@@ -370,7 +370,7 @@ export function Reports() {
           <ReportCard
             icon={<FileSpreadsheet className="h-5 w-5 text-orange-700" />}
             title="NSSF return"
-            description="NSSF eCitizen workbook for the selected monthly run."
+            description="NSSF portal upload: each employee’s gross pay. NSSF works out Tier I and Tier II."
             actionLabel="DOWNLOAD NSSF"
             loading={loading === "nssf"}
             disabled={!canDownloadReturns}

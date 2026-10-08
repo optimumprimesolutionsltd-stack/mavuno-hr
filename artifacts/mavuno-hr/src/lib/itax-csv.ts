@@ -208,9 +208,13 @@ type NssfWorkbookData = {
     empNo: string;
     firstName?: string;
     lastName?: string;
+    surname?: string;
+    otherNames?: string;
     name: string;
     nationalId?: string;
+    kraPin?: string;
     nssfNo: string;
+    grossPay?: number;
     tier1Employee: number;
     tier2Employee: number;
     total: number;
@@ -220,65 +224,53 @@ type NssfWorkbookData = {
   orgNssfEmployerNo: string;
 };
 
-/** Build a blank NSSF workbook matching the uploaded reference template. */
+export const NSSF_UPLOAD_HEADERS = [
+  "PAYROLL NUMBER",
+  "SURNAME",
+  "OTHER NAMES",
+  "ID NO",
+  "KRA PIN",
+  "NSSF NO",
+  "GROSS PAY",
+  "VOLUNTARY",
+] as const;
+
+/**
+ * The NSSF portal's bulk upload: one header row, then one row per employee
+ * with their gross pay. NSSF works out Tier I and Tier II from the gross, so
+ * the file carries no contribution amounts.
+ */
 export async function buildNssfWorkbook(data: NssfWorkbookData): Promise<Uint8Array> {
   const workbook = new ExcelJS.Workbook();
-   workbook.creator = "Mavuno HR";
+  workbook.creator = "Mavuno HR";
   const sheet = workbook.addWorksheet("Sheet1");
-  const title = `NSSF_${data.period}_${data.orgNssfEmployerNo || "ORG"}`;
-  sheet.mergeCells("A1:I1");
-  sheet.getCell("A1").value = title;
-  sheet.getCell("B2").value = "EMPLOYER NUMBER";
-  sheet.getCell("C2").value = data.orgNssfEmployerNo;
-  sheet.getCell("B3").value = "EMPLOYER NAME";
-  sheet.getCell("C3").value = data.orgName ?? "";
-  sheet.getCell("B4").value = "MONTH OF CONTRIBUTION";
-  sheet.getCell("C4").value = formatContributionMonth(data.period);
 
-  const headers = [
-    "PAYROLL NO",
-    "EMPLOYEE'S NAME",
-    "ID NO",
-    "NSSF NO",
-    "TIER 1 AMOUNT",
-    "TIER 2 AMOUNT",
-    "VOL. AMOUNT",
-    "TOTAL AMOUNT",
-  ];
-  headers.forEach((header, index) => {
-    sheet.getCell(5, index + 2).value = header;
-  });
+  sheet.getRow(1).values = [...NSSF_UPLOAD_HEADERS];
+  sheet.getRow(1).font = { bold: true };
 
   data.rows.forEach((row, index) => {
-    const excelRow = sheet.getRow(index + 6);
-    excelRow.getCell(1).value = index + 1;
-    excelRow.getCell(2).value = row.empNo;
-    excelRow.getCell(3).value = row.name;
-    excelRow.getCell(4).value = row.nationalId ?? "";
-    excelRow.getCell(5).value = row.nssfNo;
-    excelRow.getCell(6).value = row.tier1Employee / 100;
-    excelRow.getCell(7).value = row.tier2Employee / 100;
-    excelRow.getCell(8).value = 0;
-    excelRow.getCell(9).value = row.total / 100;
-    excelRow.getCell(1).numFmt = "0";
+    const excelRow = sheet.getRow(index + 2);
+    const idNo = (row.nationalId ?? "").trim();
+    excelRow.values = [
+      row.empNo,
+      row.surname ?? row.lastName ?? "",
+      row.otherNames ?? row.firstName ?? "",
+      // A numeric ID like the template's; anything else (passport) stays text.
+      /^\d+$/.test(idNo) ? Number(idNo) : idNo,
+      row.kraPin ?? "",
+      // Text, so NSSF numbers keep any leading zeros.
+      row.nssfNo,
+      (row.grossPay ?? 0) / 100,
+      0,
+    ];
     excelRow.getCell(4).numFmt = "0";
-    excelRow.getCell(5).numFmt = "0";
-    excelRow.getCell(6).numFmt = "#,##0.00";
-    excelRow.getCell(7).numFmt = "#,##0.00";
-    excelRow.getCell(8).numFmt = "0.00";
-    excelRow.getCell(9).numFmt = "#,##0.00";
+    excelRow.getCell(6).numFmt = "@";
+    excelRow.getCell(8).numFmt = "0";
   });
-  [6, 28.35, 33.75, 10.8, 13.5, 17.55, 17.55, 14.85, 16.2]
-    .forEach((width, index) => { sheet.getColumn(index + 1).width = width; });
-  sheet.getRow(1).font = { bold: true };
-  sheet.getRow(5).font = { bold: true };
-  return (await workbook.xlsx.writeBuffer()) as unknown as Uint8Array;
-}
 
-function formatContributionMonth(period: string): string {
-  const [year, month] = period.split("-");
-  const date = new Date(Number(year), Number(month) - 1, 1);
-  return date.toLocaleString("en-GB", { month: "long", year: "numeric" });
+  [16, 18, 26, 12, 15, 15, 12, 12]
+    .forEach((width, index) => { sheet.getColumn(index + 1).width = width; });
+  return (await workbook.xlsx.writeBuffer()) as unknown as Uint8Array;
 }
 
 export async function downloadNssfWorkbook(data: NssfWorkbookData): Promise<void> {
