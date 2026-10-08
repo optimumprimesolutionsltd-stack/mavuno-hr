@@ -356,7 +356,7 @@ export function PayrollList() {
           <div className="flex-1 min-w-[240px]">
             <p className="font-semibold text-sm">Next: create the {nextSteps.periodLabel} payroll</p>
             <p className="text-xs text-muted-foreground">
-              Calculates every employee's pay, deductions and net pay. Nothing is paid or sent until you approve and mark it paid.
+              Calculates every employee's pay, deductions and net pay. Nothing is paid or sent until you approve and mark it paid. The statutory returns unlock as soon as it is approved.
             </p>
           </div>
           <Button size="sm" className="font-mono" onClick={() => openCreate(nextSteps.period)}>

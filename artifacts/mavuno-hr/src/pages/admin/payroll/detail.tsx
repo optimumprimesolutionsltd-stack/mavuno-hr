@@ -529,17 +529,10 @@ export function PayrollDetail() {
               <PlayCircle className="h-4 w-4 mr-2" /> MARK AS PAID
             </Button>
           )}
-          {run?.status === "paid" && (
+          {/* Statutory returns depend on the approved figures, not on when salaries
+              go out: staff may be paid on the 15th but returns are due by the 9th. */}
+          {(run?.status === "approved" || run?.status === "paid") && (
             <>
-              <Button
-                size="sm" variant="outline"
-                onClick={handleInsuranceCorrection}
-                disabled={insuranceCorrectionPending}
-                className="font-mono gap-1.5 border-amber-500/50 text-amber-700 hover:bg-amber-500/10"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${insuranceCorrectionPending ? "animate-spin" : ""}`} />
-                {insuranceCorrectionPending ? "APPLYING..." : "APPLY INSURANCE DEDUCTIONS"}
-              </Button>
               <Button
                 size="sm" variant="outline"
                 onClick={handleItaxExport}
@@ -551,25 +544,6 @@ export function PayrollDetail() {
                 {p10Filing && !itaxLoading && (
                   <span className="ml-1 text-[10px] bg-emerald-500/20 text-emerald-700 px-1 rounded font-mono">FILED</span>
                 )}
-              </Button>
-              <Button
-                size="sm" variant="outline"
-                onClick={handleDownloadP9Zip}
-                disabled={p9ZipLoading}
-                className="font-mono gap-1.5 border-teal-500/50 text-teal-700 hover:bg-teal-500/10"
-                title="Download one annual P9 certificate per employee in a single ZIP file"
-              >
-                <Download className={`h-3.5 w-3.5 ${p9ZipLoading ? "animate-pulse" : ""}`} />
-                {p9ZipLoading ? "PACKAGING..." : "P9 CERTIFICATES ZIP"}
-              </Button>
-              <Button
-                size="sm" variant="outline"
-                onClick={handleDownloadP10Pdf}
-                disabled={p10PdfLoading}
-                className="font-mono gap-1.5 border-cyan-500/50 text-cyan-700 hover:bg-cyan-500/10"
-              >
-                <FileText className={`h-3.5 w-3.5 ${p10PdfLoading ? "animate-pulse" : ""}`} />
-                {p10PdfLoading ? "LOADING..." : "ANNUAL P10 PDF"}
               </Button>
               <Button
                 size="sm" variant="outline"
@@ -606,6 +580,38 @@ export function PayrollDetail() {
                 {ahlFiling && !ahlLoading && (
                   <span className="ml-1 text-[10px] bg-violet-500/20 text-violet-700 px-1 rounded font-mono">FILED</span>
                 )}
+              </Button>
+            </>
+          )}
+          {run?.status === "paid" && (
+            <>
+              <Button
+                size="sm" variant="outline"
+                onClick={handleInsuranceCorrection}
+                disabled={insuranceCorrectionPending}
+                className="font-mono gap-1.5 border-amber-500/50 text-amber-700 hover:bg-amber-500/10"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${insuranceCorrectionPending ? "animate-spin" : ""}`} />
+                {insuranceCorrectionPending ? "APPLYING..." : "APPLY INSURANCE DEDUCTIONS"}
+              </Button>
+              <Button
+                size="sm" variant="outline"
+                onClick={handleDownloadP9Zip}
+                disabled={p9ZipLoading}
+                className="font-mono gap-1.5 border-teal-500/50 text-teal-700 hover:bg-teal-500/10"
+                title="Download one annual P9 certificate per employee in a single ZIP file"
+              >
+                <Download className={`h-3.5 w-3.5 ${p9ZipLoading ? "animate-pulse" : ""}`} />
+                {p9ZipLoading ? "PACKAGING..." : "P9 CERTIFICATES ZIP"}
+              </Button>
+              <Button
+                size="sm" variant="outline"
+                onClick={handleDownloadP10Pdf}
+                disabled={p10PdfLoading}
+                className="font-mono gap-1.5 border-cyan-500/50 text-cyan-700 hover:bg-cyan-500/10"
+              >
+                <FileText className={`h-3.5 w-3.5 ${p10PdfLoading ? "animate-pulse" : ""}`} />
+                {p10PdfLoading ? "LOADING..." : "ANNUAL P10 PDF"}
               </Button>
               {!isHistorical && (
                 <Button
@@ -1277,7 +1283,7 @@ export function PayrollDetail() {
               <span className="font-semibold text-foreground">{formatMoney(run?.netPayTotal ?? 0)}</span> have been paid to{" "}
               <span className="font-semibold text-foreground">{run?.employeeCount ?? 0} employees</span>.
               Mavuno does not send any money — this records the payment, deducts this month's loan and advance
-              repayments, and unlocks the P10A, NSSF, SHIF and AHL returns in Reports. It can only be undone by
+              repayments, and unlocks the P9 certificates and annual P10 cards. It can only be undone by
               reversing the run.
             </DialogDescription>
           </DialogHeader>
@@ -1398,6 +1404,7 @@ function NextStepCard({
       <p>Check the totals. If something is wrong, reject it and it goes back to draft.</p>
       <WhatHappens items={[
         "The figures become final.",
+        "The P10A, NSSF, SHIF and AHL returns unlock in Reports straight away.",
         "You can then pay salaries through your bank or M-Pesa.",
         "Nothing is paid by Mavuno and nothing is sent to employees yet.",
       ]} />
@@ -1408,17 +1415,22 @@ function NextStepCard({
   );
 
   if (status === "approved") return (
-    <StepShell current={step} title="Next: pay salaries, then mark this payroll as paid">
-      <p>Pay your staff through your bank or M-Pesa as usual. Once the money has gone out, record it here.</p>
+    <StepShell current={step} title="Next: file the returns, pay salaries, then mark this payroll as paid">
+      <p>The P10A, NSSF, SHIF and AHL returns are ready now. File them by the 9th even if salaries go out later. Pay your staff through your bank or M-Pesa as usual; once the money has gone out, record it here.</p>
       <WhatHappens items={[
         "The payroll is recorded as paid. Mavuno does not send any money.",
         "This month's loan and advance repayments are deducted from balances.",
-        "The P10A, NSSF, SHIF and AHL returns unlock in Reports.",
+        "The P9 certificates and annual P10 cards include this month.",
         "Payslips are emailed to staff and the bank file is made, if switched on in Settings.",
       ]} />
-      <Button size="sm" className="font-mono gap-1.5" disabled={busy || locked} onClick={onPay}>
-        <PlayCircle className="h-4 w-4" /> MARK AS PAID
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" className="font-mono gap-1.5" disabled={busy || locked} onClick={onPay}>
+          <PlayCircle className="h-4 w-4" /> MARK AS PAID
+        </Button>
+        <Link href="/admin/reports">
+          <Button size="sm" variant="outline" className="font-mono gap-1.5"><FileSpreadsheet className="h-4 w-4" /> DOWNLOAD RETURNS</Button>
+        </Link>
+      </div>
     </StepShell>
   );
 
