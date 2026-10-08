@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import { NextStepsChecklist } from "@/components/next-steps";
 import {
   TrendingUp, AlertTriangle,
   UserPlus, Star, ArrowUpRight, ArrowDownRight, Minus, FileBadge,
@@ -119,7 +120,11 @@ export function AdminDashboard() {
         )}
       </div>
 
-      {outstanding.length > 0 && (
+      {/* The month's cycle, in order, with the next thing to do. It covers the
+          returns too, so the older "not yet downloaded" strip below is hidden. */}
+      <NextStepsChecklist />
+
+      {false && outstanding.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border border-amber-500/50 border-l-4 border-l-amber-600 bg-amber-500/5 px-4 py-3">
           <FileBadge className="h-4 w-4 text-amber-700 shrink-0" />
           <span className="text-sm">
