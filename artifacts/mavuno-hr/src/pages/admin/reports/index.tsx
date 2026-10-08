@@ -51,18 +51,25 @@ export function Reports() {
 
   const availableRuns = useMemo(() => (runs ?? []) as any[], [runs]);
   const selectedRun = availableRuns.find((run) => String(run.id) === selectedRunId);
-  const paidRuns = availableRuns.filter((run) => run.status === "paid");
+  const fileableRuns = availableRuns.filter((run) => run.status === "approved" || run.status === "paid");
+  // Monthly returns need final (approved) figures, not paid salaries: staff are
+  // sometimes paid on the 15th, but the returns are due by the 9th. P9/P10 are
+  // year-to-date certificates built from paid runs, so they still wait for paid.
+  const canDownloadReturns = selectedRun?.status === "approved" || selectedRun?.status === "paid";
   const canGenerateAnnualReports = selectedRun?.status === "paid";
   const canDownloadMusterRoll = selectedRun && selectedRun.status !== "reversed";
-  // Statutory returns and P9/P10 need a paid run. Say exactly what to do next
-  // for the run's current status -- greyed-out buttons alone confused people.
+  // Say exactly what to do next for the run's current status -- greyed-out
+  // buttons alone confused people.
   const nextStep: Record<string, string> = {
-    draft: "This payroll is still a draft. Open it, submit and approve it, then mark it paid.",
-    pending_approval: "This payroll is waiting for approval. Open it, approve it, then mark it paid.",
-    approved: "This payroll is approved but not yet marked paid. Open it and click Mark as paid once salaries have gone out.",
+    draft: "This payroll is still a draft. Open it, submit it and approve it.",
+    pending_approval: "This payroll is waiting for approval. Open it and approve it.",
     reversed: "This payroll was reversed. Choose another month above.",
   };
-  const lockHint = selectedRun && !canGenerateAnnualReports
+  const returnsLockHint = selectedRun && !canDownloadReturns
+    ? (selectedRun.status === "reversed" ? "Not available for a reversed payroll."
+      : "Available once this payroll is approved.")
+    : undefined;
+  const annualLockHint = selectedRun && !canGenerateAnnualReports
     ? (selectedRun.status === "approved" ? "Available once this payroll is marked paid."
       : selectedRun.status === "reversed" ? "Not available for a reversed payroll."
       : "Available once this payroll is approved and marked paid.")
@@ -70,9 +77,9 @@ export function Reports() {
 
   useEffect(() => {
     if (selectedRunId || availableRuns.length === 0) return;
-    const defaultRun = paidRuns[0] ?? availableRuns[0];
+    const defaultRun = fileableRuns[0] ?? availableRuns[0];
     setSelectedRunId(String(defaultRun.id));
-  }, [availableRuns, paidRuns, selectedRunId]);
+  }, [availableRuns, fileableRuns, selectedRunId]);
 
   const downloadBlob = async (
     key: DownloadKey,
@@ -222,7 +229,7 @@ export function Reports() {
             Report period
           </CardTitle>
           <CardDescription>
-            Choose a payroll run. Annual certificates and statutory returns are available after the run is marked paid.
+            Choose a payroll run. Monthly statutory returns are available once the run is approved; annual certificates once it is marked paid.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -253,15 +260,16 @@ export function Reports() {
         </CardContent>
       </Card>
 
-      {selectedRun && !canGenerateAnnualReports && (
+      {selectedRun && !canDownloadReturns && (
         <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 flex flex-wrap items-center gap-3">
           <div className="flex-1 min-w-[240px] text-sm">
             <p className="font-semibold text-amber-800 dark:text-amber-300">
               Why are the P10A, NSSF, SHIF and AHL downloads greyed out?
             </p>
             <p className="text-amber-800/90 dark:text-amber-300/90 mt-0.5">
-              They unlock once <span className="font-mono">{runLabel}</span> is marked <strong>paid</strong>.{" "}
-              {nextStep[selectedRun.status] ?? "Open the payroll and mark it paid."}{" "}
+              They unlock once <span className="font-mono">{runLabel}</span> is <strong>approved</strong>. You do not
+              have to wait until salaries are paid.{" "}
+              {nextStep[selectedRun.status] ?? "Open the payroll and approve it."}{" "}
               Then come back here. The muster roll and payroll summary are available now.
             </p>
           </div>
@@ -286,7 +294,7 @@ export function Reports() {
             actionLabel="DOWNLOAD P9 ZIP"
             loading={loading === "p9"}
             disabled={!canGenerateAnnualReports}
-            disabledHint={lockHint}
+            disabledHint={annualLockHint}
             onClick={() => downloadBlob("p9", `/api/payroll/${selectedRun?.id}/p9-certificates.zip`, `P9_Certificates_${year}.zip`, "Your annual P9 certificate ZIP is ready.")}
           />
           <ReportCard
@@ -296,7 +304,7 @@ export function Reports() {
             actionLabel="DOWNLOAD P10 PDF"
             loading={loading === "p10"}
             disabled={!canGenerateAnnualReports}
-            disabledHint={lockHint}
+            disabledHint={annualLockHint}
             onClick={() => downloadBlob("p10", `/api/payroll/${selectedRun?.id}/p10-pdf`, `P10_${year}.pdf`, "Your annual P10 tax cards are ready.")}
           />
         </div>
@@ -355,8 +363,8 @@ export function Reports() {
             description="Monthly PAYE return in KRA’s uploaded CSV layout."
             actionLabel="DOWNLOAD P10A"
             loading={loading === "p10a"}
-            disabled={!canGenerateAnnualReports}
-            disabledHint={lockHint}
+            disabled={!canDownloadReturns}
+            disabledHint={returnsLockHint}
             onClick={() => downloadStatutoryExport("p10a")}
           />
           <ReportCard
@@ -365,8 +373,8 @@ export function Reports() {
             description="NSSF eCitizen workbook for the selected monthly run."
             actionLabel="DOWNLOAD NSSF"
             loading={loading === "nssf"}
-            disabled={!canGenerateAnnualReports}
-            disabledHint={lockHint}
+            disabled={!canDownloadReturns}
+            disabledHint={returnsLockHint}
             onClick={() => downloadStatutoryExport("nssf")}
           />
           <ReportCard
@@ -375,8 +383,8 @@ export function Reports() {
             description="SHA portal workbook using the approved upload template."
             actionLabel="DOWNLOAD SHIF"
             loading={loading === "shif"}
-            disabled={!canGenerateAnnualReports}
-            disabledHint={lockHint}
+            disabled={!canDownloadReturns}
+            disabledHint={returnsLockHint}
             onClick={() => downloadStatutoryExport("shif")}
           />
           <ReportCard
@@ -385,8 +393,8 @@ export function Reports() {
             description="Affordable Housing Levy CSV for the selected run."
             actionLabel="DOWNLOAD AHL"
             loading={loading === "ahl"}
-            disabled={!canGenerateAnnualReports}
-            disabledHint={lockHint}
+            disabled={!canDownloadReturns}
+            disabledHint={returnsLockHint}
             onClick={() => downloadStatutoryExport("ahl")}
           />
         </div>

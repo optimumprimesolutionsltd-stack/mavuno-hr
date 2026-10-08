@@ -283,16 +283,18 @@ router.get("/next-steps", requireAuth(), async (req, res, next) => {
     } else if (run.status === "pending_approval") {
       steps.push({ key: "payroll", stage: "payroll", label: "Approve the payroll", detail: `${run.name} is waiting for approval. Approving makes the figures final.`, state: "todo", href: runHref, cta: "OPEN PAYROLL" });
     } else if (run.status === "approved") {
-      steps.push({ key: "payroll", stage: "payroll", label: "Pay salaries, then mark the payroll as paid", detail: `${run.name} is approved. Pay staff through your bank or M-Pesa, then mark it paid — that unlocks the returns.`, state: "todo", href: runHref, cta: "MARK AS PAID" });
+      steps.push({ key: "payroll", stage: "payroll", label: "Pay salaries, then mark the payroll as paid", detail: `${run.name} is approved. Pay staff through your bank or M-Pesa, then mark it paid. The returns do not wait for this.`, state: "todo", href: runHref, cta: "MARK AS PAID" });
     } else {
       steps.push({ key: "payroll", stage: "payroll", label: `${run.name}`, detail: "Paid.", state: "done", href: runHref });
     }
 
-    const paid = run?.status === "paid";
+    // Returns need final (approved) figures, not paid salaries: staff may be
+    // paid on the 15th, but the returns are due by the 9th.
+    const returnsReady = run?.status === "approved" || run?.status === "paid";
     const missing = FILING_KINDS.filter((k) => !latestFilings.some((f) => f.kind === k));
     const unfiled = FILING_KINDS.filter((k) => latestFilings.some((f) => f.kind === k && f.status !== "filed"));
-    if (!paid) {
-      steps.push({ key: "returns", stage: "after", label: "Download the statutory returns", detail: "P10A, NSSF, SHIF and AHL — available once the payroll is marked paid.", state: "waiting" });
+    if (!returnsReady) {
+      steps.push({ key: "returns", stage: "after", label: "Download the statutory returns", detail: "P10A, NSSF, SHIF and AHL — available once the payroll is approved.", state: "waiting" });
       steps.push({ key: "filed", stage: "after", label: "Submit the returns and confirm them", detail: "Upload each return to its authority, then confirm it in Filings.", state: "waiting" });
     } else {
       steps.push(missing.length
@@ -305,7 +307,10 @@ router.get("/next-steps", requireAuth(), async (req, res, next) => {
           : { key: "filed", stage: "after", label: "Returns filed", detail: "All four confirmed.", state: "done" });
     }
 
-    const nextStep = steps.find((s) => s.state === "todo") ?? null;
+    // An approved payroll's returns come before marking it paid: they are due
+    // by the 9th whenever salaries go out.
+    const nextStep = (run?.status === "approved" ? steps.find((s) => s.key === "returns" && s.state === "todo") : undefined)
+      ?? steps.find((s) => s.state === "todo") ?? null;
     res.json({ period, periodLabel: label, runId: run?.id ?? null, runStatus: run?.status ?? null, steps, next: nextStep });
   } catch (err) { next(err); }
 });

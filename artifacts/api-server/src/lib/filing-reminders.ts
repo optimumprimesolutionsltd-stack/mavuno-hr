@@ -1,8 +1,9 @@
 /**
  * Monthly statutory filing reminders.
  * On the 7th of each month (or later, if the server starts after the 7th),
- * send a notification to every HR/payroll user in orgs that have a paid
- * payroll run for the current month — once per org per month.
+ * send a notification to every HR/payroll user in orgs that have an approved
+ * or paid payroll run for the current month — once per org per month. Returns
+ * are due whether or not salaries have gone out yet.
  */
 import { db } from "@workspace/db";
 import { notifications, users, payrollRuns, organizations } from "@workspace/db/schema";
@@ -20,20 +21,21 @@ async function sendFilingReminders(): Promise<void> {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const period = `${year}-${month}`;
 
-  // Find orgs with at least one paid run this period (historical/migration runs
-  // are records only — never filed via Mavuno, so they don't trigger reminders)
-  const paidRuns = await db
+  // Find orgs with at least one approved or paid run this period
+  // (historical/migration runs are records only — never filed via Mavuno, so
+  // they don't trigger reminders)
+  const fileableRuns = await db
     .select({ orgId: payrollRuns.orgId })
     .from(payrollRuns)
     .where(and(
       eq(payrollRuns.period, period),
-      eq(payrollRuns.status, "paid"),
+      inArray(payrollRuns.status, ["approved", "paid"]),
       ne(payrollRuns.runType, "historical"),
     ));
 
-  if (paidRuns.length === 0) return;
+  if (fileableRuns.length === 0) return;
 
-  let orgIds = [...new Set(paidRuns.map((r) => r.orgId))];
+  let orgIds = [...new Set(fileableRuns.map((r) => r.orgId))];
 
   // Don't remind an org about filing a month that predates the month Mavuno
   // became its payroll system of record.
