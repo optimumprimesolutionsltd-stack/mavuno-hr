@@ -666,6 +666,21 @@ export function PayrollDetail() {
         </div>
       )}
 
+      {run && (
+        <NextStepCard
+          status={run.status}
+          isHistorical={isHistorical}
+          busy={actionMutation.isPending}
+          locked={accessState === "expired"}
+          onSubmit={handleSubmit}
+          onApprove={() => handleAction("approve")}
+          onPay={() => setPayConfirmOpen(true)}
+          onFinalize={() => handleAction("finalize")}
+          onEmailPayslips={handleEmailPayslips}
+          emailSending={emailSending}
+        />
+      )}
+
       {/* Stale draft — changes since it was last calculated */}
       {canEdit && (changesData?.count ?? 0) > 0 && (
         <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 flex flex-wrap items-center gap-3">
@@ -1321,6 +1336,139 @@ export function PayrollDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+/**
+ * The payroll journey, one step at a time: where this run is, what the next
+ * step is, what happens when you click it, and the button for it. Each action
+ * refetches the run, so finishing one step brings the next one up here.
+ */
+const PAYROLL_STEPS = ["Calculate", "Submit", "Approve", "Mark as paid", "File returns"] as const;
+
+function NextStepCard({
+  status, isHistorical, busy, locked, onSubmit, onApprove, onPay, onFinalize, onEmailPayslips, emailSending,
+}: {
+  status: string; isHistorical: boolean; busy: boolean; locked: boolean;
+  onSubmit: () => void; onApprove: () => void; onPay: () => void; onFinalize: () => void;
+  onEmailPayslips: () => void; emailSending: boolean;
+}) {
+  if (status === "reversed") return null;
+
+  if (isHistorical) {
+    if (status !== "draft") return null;
+    return (
+      <StepShell current={-1} title="Next: finalize this historical month">
+        <p>Check the figures below match what was actually paid that month, then finalize.</p>
+        <WhatHappens items={[
+          "The month is saved as paid, as a record only.",
+          "No approval step, no bank file, no payslip emails, no filing.",
+          "It counts towards year-to-date totals and P9 certificates.",
+        ]} />
+        <Button size="sm" className="font-mono" disabled={busy || locked} onClick={onFinalize}>FINALIZE</Button>
+      </StepShell>
+    );
+  }
+
+  const step = status === "draft" ? 1 : status === "pending_approval" ? 2 : status === "approved" ? 3 : status === "paid" ? 4 : 1;
+
+  if (status === "draft") return (
+    <StepShell current={step} title="Next: check the figures, then submit for approval">
+      <p>Review each employee's pay below. Edit a payslip or click Recalculate if anything changed.</p>
+      <WhatHappens items={[
+        "The payroll is sent for approval and its figures are held for review.",
+        "An approver can approve it, or reject it back to draft for changes.",
+        "Nothing is paid and nothing is sent to employees yet.",
+      ]} />
+      <Button size="sm" className="font-mono gap-1.5" disabled={busy || locked} onClick={onSubmit}>
+        <Send className="h-4 w-4" /> SUBMIT FOR APPROVAL
+      </Button>
+    </StepShell>
+  );
+
+  if (status === "pending_approval") return (
+    <StepShell current={step} title="Next: approve the payroll">
+      <p>Check the totals. If something is wrong, reject it and it goes back to draft.</p>
+      <WhatHappens items={[
+        "The figures become final.",
+        "You can then pay salaries through your bank or M-Pesa.",
+        "Nothing is paid by Mavuno and nothing is sent to employees yet.",
+      ]} />
+      <Button size="sm" className="font-mono gap-1.5 bg-blue-600 hover:bg-blue-700 text-white" disabled={busy || locked} onClick={onApprove}>
+        <CheckCircle className="h-4 w-4" /> APPROVE
+      </Button>
+    </StepShell>
+  );
+
+  if (status === "approved") return (
+    <StepShell current={step} title="Next: pay salaries, then mark this payroll as paid">
+      <p>Pay your staff through your bank or M-Pesa as usual. Once the money has gone out, record it here.</p>
+      <WhatHappens items={[
+        "The payroll is recorded as paid. Mavuno does not send any money.",
+        "This month's loan and advance repayments are deducted from balances.",
+        "The P10A, NSSF, SHIF and AHL returns unlock in Reports.",
+        "Payslips are emailed to staff and the bank file is made, if switched on in Settings.",
+      ]} />
+      <Button size="sm" className="font-mono gap-1.5" disabled={busy || locked} onClick={onPay}>
+        <PlayCircle className="h-4 w-4" /> MARK AS PAID
+      </Button>
+    </StepShell>
+  );
+
+  // paid
+  return (
+    <StepShell current={step} title="Next: file this month's statutory returns" done>
+      <p>Download each return and upload it to the relevant authority before its deadline.</p>
+      <WhatHappens items={[
+        "P10A goes to KRA iTax, NSSF to the NSSF portal, SHIF to the SHA portal, AHL to KRA.",
+        "Each download is recorded in Filings; confirm each one there after you submit it.",
+        "Staff can see this month's payslip in their portal.",
+      ]} />
+      <div className="flex flex-wrap gap-2">
+        <Link href="/admin/reports">
+          <Button size="sm" className="font-mono gap-1.5"><FileSpreadsheet className="h-4 w-4" /> GO TO REPORTS</Button>
+        </Link>
+        <Button size="sm" variant="outline" className="font-mono" disabled={emailSending} onClick={onEmailPayslips}>
+          {emailSending ? "SENDING..." : "EMAIL PAYSLIPS TO STAFF"}
+        </Button>
+      </div>
+    </StepShell>
+  );
+}
+
+function StepShell({ current, title, done, children }: { current: number; title: string; done?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border-2 border-primary/40 bg-primary/5 px-4 py-4 space-y-3">
+      {current >= 0 && (
+        <ol className="flex flex-wrap items-center gap-x-1 gap-y-1 text-[11px] font-mono">
+          {PAYROLL_STEPS.map((label, i) => {
+            const state = i < current || (done && i === current) ? "done" : i === current ? "now" : "todo";
+            return (
+              <li key={label} className="flex items-center gap-1">
+                <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] ${
+                  state === "done" ? "bg-primary text-primary-foreground border-primary"
+                  : state === "now" ? "border-primary text-primary font-bold" : "border-border text-muted-foreground"}`}>
+                  {state === "done" ? "✓" : i + 1}
+                </span>
+                <span className={state === "now" ? "text-primary font-semibold" : "text-muted-foreground"}>{label}</span>
+                {i < PAYROLL_STEPS.length - 1 && <span className="text-muted-foreground px-1">›</span>}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+      <p className="font-semibold">{title}</p>
+      <div className="text-sm text-muted-foreground space-y-2">{children}</div>
+    </div>
+  );
+}
+
+function WhatHappens({ items }: { items: string[] }) {
+  return (
+    <div>
+      <p className="text-xs font-mono text-foreground">WHAT HAPPENS WHEN YOU CLICK</p>
+      <ul className="list-disc pl-5 text-sm">{items.map((t) => <li key={t}>{t}</li>)}</ul>
     </div>
   );
 }
