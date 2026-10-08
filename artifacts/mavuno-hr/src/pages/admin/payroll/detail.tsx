@@ -520,7 +520,7 @@ export function PayrollDetail() {
           )}
           {run?.status === "approved" && (
             <Button size="sm" onClick={() => setPayConfirmOpen(true)} disabled={actionMutation.isPending} className="font-mono bg-primary text-primary-foreground hover:bg-primary/90">
-              <PlayCircle className="h-4 w-4 mr-2" /> EXECUTE PAYOUT
+              <PlayCircle className="h-4 w-4 mr-2" /> MARK AS PAID
             </Button>
           )}
           {run?.status === "paid" && (
@@ -1249,12 +1249,15 @@ export function PayrollDetail() {
           <DialogHeader>
             <DialogTitle className="font-mono flex items-center gap-2">
               <PlayCircle className="h-4 w-4 text-primary" />
-              CONFIRM PAYOUT
+              MARK THIS PAYROLL AS PAID?
             </DialogTitle>
             <DialogDescription>
-              This will mark the payroll run as paid and cannot be undone without a reversal. Are you sure you want to disburse{" "}
-              <span className="font-semibold text-foreground">{formatMoney(run?.netPayTotal ?? 0)}</span> to{" "}
-              <span className="font-semibold text-foreground">{run?.employeeCount ?? 0} employees</span>?
+              Confirm that salaries of{" "}
+              <span className="font-semibold text-foreground">{formatMoney(run?.netPayTotal ?? 0)}</span> have been paid to{" "}
+              <span className="font-semibold text-foreground">{run?.employeeCount ?? 0} employees</span>.
+              Mavuno does not send any money — this records the payment, deducts this month's loan and advance
+              repayments, and unlocks the P10A, NSSF, SHIF and AHL returns in Reports. It can only be undone by
+              reversing the run.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 pt-2">
@@ -1267,7 +1270,7 @@ export function PayrollDetail() {
               disabled={actionMutation.isPending}
               onClick={() => { setPayConfirmOpen(false); handleAction("pay"); }}
             >
-              {actionMutation.isPending ? "PROCESSING…" : "YES, DISBURSE"}
+              {actionMutation.isPending ? "SAVING…" : "YES, MARK AS PAID"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -54,6 +54,19 @@ export function Reports() {
   const paidRuns = availableRuns.filter((run) => run.status === "paid");
   const canGenerateAnnualReports = selectedRun?.status === "paid";
   const canDownloadMusterRoll = selectedRun && selectedRun.status !== "reversed";
+  // Statutory returns and P9/P10 need a paid run. Say exactly what to do next
+  // for the run's current status -- greyed-out buttons alone confused people.
+  const nextStep: Record<string, string> = {
+    draft: "This payroll is still a draft. Open it, submit and approve it, then mark it paid.",
+    pending_approval: "This payroll is waiting for approval. Open it, approve it, then mark it paid.",
+    approved: "This payroll is approved but not yet marked paid. Open it and click Mark as paid once salaries have gone out.",
+    reversed: "This payroll was reversed. Choose another month above.",
+  };
+  const lockHint = selectedRun && !canGenerateAnnualReports
+    ? (selectedRun.status === "approved" ? "Available once this payroll is marked paid."
+      : selectedRun.status === "reversed" ? "Not available for a reversed payroll."
+      : "Available once this payroll is approved and marked paid.")
+    : undefined;
 
   useEffect(() => {
     if (selectedRunId || availableRuns.length === 0) return;
@@ -241,9 +254,22 @@ export function Reports() {
       </Card>
 
       {selectedRun && !canGenerateAnnualReports && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm text-amber-700">
-          Annual certificates and statutory returns unlock once <span className="font-mono">{runLabel}</span> is marked paid.
-          The muster roll remains available unless the run is reversed.
+        <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 flex flex-wrap items-center gap-3">
+          <div className="flex-1 min-w-[240px] text-sm">
+            <p className="font-semibold text-amber-800 dark:text-amber-300">
+              Why are the P10A, NSSF, SHIF and AHL downloads greyed out?
+            </p>
+            <p className="text-amber-800/90 dark:text-amber-300/90 mt-0.5">
+              They unlock once <span className="font-mono">{runLabel}</span> is marked <strong>paid</strong>.{" "}
+              {nextStep[selectedRun.status] ?? "Open the payroll and mark it paid."}{" "}
+              Then come back here. The muster roll and payroll summary are available now.
+            </p>
+          </div>
+          {selectedRun.status !== "reversed" && (
+            <Link href={`/admin/payroll/${selectedRun.id}`}>
+              <Button size="sm" className="font-mono">OPEN THIS PAYROLL</Button>
+            </Link>
+          )}
         </div>
       )}
 
@@ -260,6 +286,7 @@ export function Reports() {
             actionLabel="DOWNLOAD P9 ZIP"
             loading={loading === "p9"}
             disabled={!canGenerateAnnualReports}
+            disabledHint={lockHint}
             onClick={() => downloadBlob("p9", `/api/payroll/${selectedRun?.id}/p9-certificates.zip`, `P9_Certificates_${year}.zip`, "Your annual P9 certificate ZIP is ready.")}
           />
           <ReportCard
@@ -269,6 +296,7 @@ export function Reports() {
             actionLabel="DOWNLOAD P10 PDF"
             loading={loading === "p10"}
             disabled={!canGenerateAnnualReports}
+            disabledHint={lockHint}
             onClick={() => downloadBlob("p10", `/api/payroll/${selectedRun?.id}/p10-pdf`, `P10_${year}.pdf`, "Your annual P10 tax cards are ready.")}
           />
         </div>
@@ -328,6 +356,7 @@ export function Reports() {
             actionLabel="DOWNLOAD P10A"
             loading={loading === "p10a"}
             disabled={!canGenerateAnnualReports}
+            disabledHint={lockHint}
             onClick={() => downloadStatutoryExport("p10a")}
           />
           <ReportCard
@@ -337,6 +366,7 @@ export function Reports() {
             actionLabel="DOWNLOAD NSSF"
             loading={loading === "nssf"}
             disabled={!canGenerateAnnualReports}
+            disabledHint={lockHint}
             onClick={() => downloadStatutoryExport("nssf")}
           />
           <ReportCard
@@ -346,6 +376,7 @@ export function Reports() {
             actionLabel="DOWNLOAD SHIF"
             loading={loading === "shif"}
             disabled={!canGenerateAnnualReports}
+            disabledHint={lockHint}
             onClick={() => downloadStatutoryExport("shif")}
           />
           <ReportCard
@@ -355,6 +386,7 @@ export function Reports() {
             actionLabel="DOWNLOAD AHL"
             loading={loading === "ahl"}
             disabled={!canGenerateAnnualReports}
+            disabledHint={lockHint}
             onClick={() => downloadStatutoryExport("ahl")}
           />
         </div>
@@ -370,6 +402,7 @@ function ReportCard({
   actionLabel,
   loading,
   disabled,
+  disabledHint,
   onClick,
 }: {
   icon: React.ReactNode;
@@ -378,6 +411,8 @@ function ReportCard({
   actionLabel: string;
   loading: boolean;
   disabled: boolean;
+  /** Shown under the button while it is disabled: why, and what to do. */
+  disabledHint?: string;
   onClick: () => void;
 }) {
   return (
@@ -392,11 +427,14 @@ function ReportCard({
           className="w-full font-mono gap-2"
           onClick={onClick}
           disabled={disabled || loading}
-          title={disabled ? "This report becomes available after payroll has been paid." : description}
+          title={disabled ? (disabledHint ?? "This report becomes available after payroll has been paid.") : description}
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
           {loading ? "PREPARING…" : actionLabel}
         </Button>
+        {disabled && disabledHint && (
+          <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1.5 text-center">{disabledHint}</p>
+        )}
       </CardContent>
     </Card>
   );
