@@ -403,6 +403,20 @@ export function PayrollDetail() {
     staleTime: 30_000,
   });
 
+  // Hooks must run on every render, so they all sit above the loading return
+  // below. These two were once placed after it, which made React throw
+  // "Rendered more hooks than during the previous render" as soon as the run
+  // loaded -- every payroll run page went blank.
+  const { accessState } = useAuth();
+  const draftOrPending = ["draft", "pending_approval"].includes((data as any)?.run?.status ?? "");
+  // Something that affects pay changed after this draft was calculated.
+  const { data: changesData } = useQuery<{ count: number; changes: { action: string; at: string }[] }>({
+    queryKey: ["/api/payroll", id, "changes"],
+    queryFn: () => customFetch(`/api/payroll/${id}/changes`) as Promise<any>,
+    enabled: id > 0 && !isLoading && draftOrPending,
+    refetchOnWindowFocus: true,
+  });
+
   if (isLoading || !data) {
     return (
       <div className="animate-pulse space-y-4 max-w-[1200px] mx-auto">
@@ -414,14 +428,6 @@ export function PayrollDetail() {
 
   const { run, payslips, filings } = data as any;
   const canEdit = run?.status === "draft" || run?.status === "pending_approval";
-  const { accessState } = useAuth();
-  // Something that affects pay changed after this draft was calculated.
-  const { data: changesData } = useQuery<{ count: number; changes: { action: string; at: string }[] }>({
-    queryKey: ["/api/payroll", id, "changes"],
-    queryFn: () => customFetch(`/api/payroll/${id}/changes`) as Promise<any>,
-    enabled: !!canEdit,
-    refetchOnWindowFocus: true,
-  });
   const changeLabel = (a: string) => a.toLowerCase().replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
   const isHistorical = run?.runType === "historical";
   const p10Filing = (filings as any[])?.find((f: any) => f.kind === "P10");
