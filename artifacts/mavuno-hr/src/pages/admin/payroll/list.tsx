@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useListPayrollRuns, useCreatePayrollRun, getListPayrollRunsQueryKey, customFetch } from "@workspace/api-client-react";
 import { formatMoney, formatPeriod, formatDateTime } from "@/lib/utils";
@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Wallet, Search, Loader2, Zap, History, Info } from "lucide-react";
 import { HistoricalImportDialog } from "./historical-import-dialog";
+import { useNextSteps } from "@/components/next-steps";
 import { useAuth } from "@/hooks/use-auth";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -34,6 +35,15 @@ export function PayrollList() {
   const [includePriorYear, setIncludePriorYear] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [historicalOnly, setHistoricalOnly] = useState(false);
+  const [, navigate] = useLocation();
+  const { data: nextSteps } = useNextSteps();
+  const createNext = nextSteps?.steps.find((s) => s.key === "payroll" && s.state === "todo" && !nextSteps.runId);
+  const openCreate = (forPeriod: string) => { setRunType("regular"); setPeriod(forPeriod); setOpen(true); };
+  // ?new=YYYY-MM (from the dashboard's "Create payroll" step) opens the dialog.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get("new");
+    if (p && /^\d{4}-\d{2}$/.test(p)) openCreate(p);
+  }, []);
 
   const isHistorical = runType === "historical";
   const currentYear = new Date().getFullYear();
@@ -341,6 +351,20 @@ export function PayrollList() {
         </div>
       </div>
 
+      {createNext && nextSteps && (
+        <div className="rounded-lg border-2 border-primary/40 bg-primary/5 px-4 py-3 flex flex-wrap items-center gap-3">
+          <div className="flex-1 min-w-[240px]">
+            <p className="font-semibold text-sm">Next: create the {nextSteps.periodLabel} payroll</p>
+            <p className="text-xs text-muted-foreground">
+              Calculates every employee's pay, deductions and net pay. Nothing is paid or sent until you approve and mark it paid.
+            </p>
+          </div>
+          <Button size="sm" className="font-mono" onClick={() => openCreate(nextSteps.period)}>
+            CREATE {nextSteps.periodLabel.toUpperCase()} PAYROLL →
+          </Button>
+        </div>
+      )}
+
       <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer w-fit">
         <Checkbox checked={historicalOnly} onCheckedChange={(v) => setHistoricalOnly(!!v)} />
         Migration history only
@@ -357,6 +381,7 @@ export function PayrollList() {
               <TableHead className="font-mono text-xs text-right">NET TOTAL</TableHead>
               <TableHead className="font-mono text-xs text-right">STATUS</TableHead>
               <TableHead className="font-mono text-xs text-right">CREATED</TableHead>
+              <TableHead className="text-right font-mono text-xs">NEXT STEP</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -368,19 +393,23 @@ export function PayrollList() {
               </TableRow>
             ) : !runs || runs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground font-mono">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground font-mono">
                   NO PAYROLL RUNS FOUND
                 </TableCell>
               </TableRow>
             ) : (runs.filter((r) => !historicalOnly || r.runType === "historical")).length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground font-mono">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground font-mono">
                   NO MIGRATION HISTORY RUNS FOUND
                 </TableCell>
               </TableRow>
             ) : (
               runs.filter((r) => !historicalOnly || r.runType === "historical").map((run) => (
-                <TableRow key={run.id} className="group transition-colors hover:bg-muted/20">
+                <TableRow
+                  key={run.id}
+                  className="group transition-colors hover:bg-muted/20 cursor-pointer"
+                  onClick={() => navigate(`/admin/payroll/${run.id}`)}
+                >
                   <TableCell className="font-mono text-sm">
                     <Link href={`/admin/payroll/${run.id}`} className="hover:text-primary transition-colors font-bold">
                       {run.period}
@@ -412,6 +441,18 @@ export function PayrollList() {
                   <TableCell className="text-right text-xs text-muted-foreground font-mono">
                     {formatDateTime(run.createdAt)}
                   </TableCell>
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    {(() => {
+                      const a = rowAction(run);
+                      return a ? (
+                        <Link href={a.href}>
+                          <Button size="sm" variant={a.primary ? "default" : "outline"} className="h-8 font-mono text-[11px] whitespace-nowrap">
+                            {a.label} →
+                          </Button>
+                        </Link>
+                      ) : null;
+                    })()}
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -420,4 +461,18 @@ export function PayrollList() {
       </div>
     </div>
   );
+}
+
+/** The next step for one run, as a button on its row. */
+function rowAction(run: { id: number; status: string; runType: string }): { label: string; href: string; primary?: boolean } | null {
+  const open = `/admin/payroll/${run.id}`;
+  if (run.status === "reversed") return null;
+  if (run.runType === "historical") return run.status === "draft" ? { label: "FINALIZE", href: open, primary: true } : null;
+  switch (run.status) {
+    case "draft": return { label: "SUBMIT", href: open, primary: true };
+    case "pending_approval": return { label: "APPROVE", href: open, primary: true };
+    case "approved": return { label: "MARK AS PAID", href: open, primary: true };
+    case "paid": return { label: "RETURNS", href: "/admin/reports" };
+    default: return { label: "OPEN", href: open };
+  }
 }
